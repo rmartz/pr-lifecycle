@@ -11,6 +11,23 @@ export type {
   ReviewFact,
   ReviewState,
 } from './facts.js';
+export { GitHubApiError, isApiStatus } from './github/client.js';
+export type {
+  CollaboratorPermission,
+  GitHubClient,
+  LabelDefinition,
+  PullRequestData,
+  ReviewData,
+} from './github/client.js';
+export { executePlan } from './github/execute.js';
+export type { PlanTarget } from './github/execute.js';
+export { gatherFacts } from './github/gather.js';
+export type { GatheredPullRequest, GatherOptions } from './github/gather.js';
+export { createHttpClient } from './github/http-client.js';
+export type { HttpClientOptions } from './github/http-client.js';
+export { OWNED_LABEL_DEFINITIONS } from './github/label-roster.js';
+export { reconcilePullRequest } from './github/reconcile.js';
+export type { ReconcileOptions } from './github/reconcile.js';
 export { AUTO_MERGE_LABEL, LIFECYCLE_LABELS, planReconcile } from './plan.js';
 export type { AutoMergeAction, LifecycleLabel, ReconcilePlan } from './plan.js';
 export { COPILOT_REVIEWER_LOGIN, computeState, LIFECYCLE_STATES } from './state.js';
