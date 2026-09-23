@@ -50,7 +50,9 @@ const REST_PULL = {
   merged: false,
   draft: true,
   title: 'feat: x',
-  head: { sha: 'abc' },
+  user: { login: 'dependabot[bot]' },
+  head: { sha: 'abc', ref: 'dependabot/x', repo: { id: 11 } },
+  base: { repo: { id: 11 } },
   labels: [{ name: 'approved' }],
   auto_merge: { merge_method: 'squash' },
 };
@@ -109,7 +111,51 @@ describe('createHttpClient requests', () => {
       headSha: 'abc',
       labels: ['approved'],
       autoMergeEnabled: true,
+      authorLogin: 'dependabot[bot]',
+      headRef: 'dependabot/x',
+      isCrossRepository: false,
     });
+  });
+
+  it('detects a fork by repo id', async () => {
+    const fork = { ...REST_PULL, head: { ...REST_PULL.head, repo: { id: 99 } } };
+    const { client } = makeTransport([{ json: fork }]);
+
+    expect((await client.getPullRequest(7)).isCrossRepository).toBe(true);
+  });
+
+  it('treats a deleted head repo as a fork', async () => {
+    const orphan = { ...REST_PULL, head: { ...REST_PULL.head, repo: null } };
+    const { client } = makeTransport([{ json: orphan }]);
+
+    expect((await client.getPullRequest(7)).isCrossRepository).toBe(true);
+  });
+
+  it('maps a deleted PR author to undefined', async () => {
+    const { client } = makeTransport([{ json: { ...REST_PULL, user: null } }]);
+
+    expect((await client.getPullRequest(7)).authorLogin).toBeUndefined();
+  });
+
+  it('lists commits with their author logins', async () => {
+    const { client, requests } = makeTransport([
+      {
+        json: [
+          { author: { login: 'dependabot[bot]' }, commit: { message: 'bump' } },
+          { author: null, commit: { message: 'unlinked' } },
+        ],
+      },
+    ]);
+
+    const commits = await client.listCommits(7);
+
+    expect([commits, requests[0]?.url]).toEqual([
+      [
+        { authorLogin: 'dependabot[bot]', message: 'bump' },
+        { authorLogin: undefined, message: 'unlinked' },
+      ],
+      'https://api.github.com/repos/rmartz/demo/pulls/7/commits?per_page=100&page=1',
+    ]);
   });
 
   it('reads a null auto_merge as disarmed', async () => {

@@ -2,6 +2,7 @@ import type { ActorType, ReviewState } from '../facts.js';
 import { REVIEW_STATES } from '../facts.js';
 import type {
   CollaboratorPermission,
+  CommitData,
   GitHubClient,
   LabelDefinition,
   PullRequestData,
@@ -35,9 +36,17 @@ interface RestPull {
   merged: boolean;
   draft?: boolean;
   title: string;
-  head: { sha: string };
+  user: { login: string } | null;
+  /** `head.repo` is null when the fork was deleted. */
+  head: { sha: string; ref: string; repo: { id: number } | null };
+  base: { repo: { id: number } };
   labels: { name: string }[];
   auto_merge: unknown;
+}
+
+interface RestCommit {
+  author: { login: string } | null;
+  commit: { message: string };
 }
 
 interface RestReview {
@@ -141,7 +150,19 @@ export function createHttpClient(options: HttpClientOptions): GitHubClient {
         headSha: pull.head.sha,
         labels: pull.labels.map((label) => label.name),
         autoMergeEnabled: pull.auto_merge !== null && pull.auto_merge !== undefined,
+        authorLogin: pull.user?.login,
+        headRef: pull.head.ref,
+        // Compare repo ids, not names (names change on rename); a deleted head
+        // repo is treated as a fork, so it can never look like a trusted branch.
+        isCrossRepository: pull.head.repo?.id !== pull.base.repo.id,
       };
+    },
+    async listCommits(pr): Promise<CommitData[]> {
+      const commits = await paginate<RestCommit>(`${repoPath}/pulls/${pr}/commits`);
+      return commits.map((commit) => ({
+        authorLogin: commit.author?.login,
+        message: commit.commit.message,
+      }));
     },
     async listReviews(pr) {
       const reviews = await paginate<RestReview>(`${repoPath}/pulls/${pr}/reviews`);

@@ -33,7 +33,7 @@ describe('reconcilePullRequest', () => {
     await reconcilePullRequest(client, 7, ARMING);
     const writesAfterFirstPass = client.writes.length;
 
-    const plan = await reconcilePullRequest(client, 7, ARMING);
+    const { plan } = await reconcilePullRequest(client, 7, ARMING);
 
     expect([plan.addLabels, plan.removeLabels, plan.autoMerge, client.writes.length]).toEqual([
       [],
@@ -86,7 +86,9 @@ describe('reconcilePullRequest', () => {
   });
 
   it('returns the plan in dry-run mode', async () => {
-    const plan = await reconcilePullRequest(makeApprovedClient(), 7, ARMING, { dryRun: true });
+    const { plan } = await reconcilePullRequest(makeApprovedClient(), 7, ARMING, {
+      dryRun: true,
+    });
 
     expect(plan).toEqual({
       state: 'approved',
@@ -94,5 +96,34 @@ describe('reconcilePullRequest', () => {
       removeLabels: [],
       autoMerge: 'arm',
     });
+  });
+
+  it('approves and arms an eligible Dependabot bump with no review', async () => {
+    const client = new FakeGitHubClient(
+      makePullRequestData({ authorLogin: 'dependabot[bot]', headRef: 'dependabot/x' }),
+    );
+    client.commits = [
+      {
+        authorLogin: 'dependabot[bot]',
+        message: '---\nupdated-dependencies:\n  update-type: version-update:semver-patch\n...',
+      },
+    ];
+
+    await reconcilePullRequest(client, 7, ARMING);
+
+    expect([client.pull.labels, client.pull.autoMergeEnabled]).toEqual([
+      ['approved', 'auto-merge enabled'],
+      true,
+    ]);
+  });
+
+  it('never approves a fork PR imitating a release-please branch', async () => {
+    const client = new FakeGitHubClient(
+      makePullRequestData({ headRef: 'release-please--branches--main', isCrossRepository: true }),
+    );
+
+    await reconcilePullRequest(client, 7, ARMING);
+
+    expect([client.pull.labels, client.pull.autoMergeEnabled]).toEqual([[], false]);
   });
 });

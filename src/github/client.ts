@@ -18,6 +18,17 @@ export interface PullRequestData {
   headSha: string;
   labels: string[];
   autoMergeEnabled: boolean;
+  /** The PR author's login; undefined when the account was deleted. */
+  authorLogin: string | undefined;
+  headRef: string;
+  /** True when the head branch lives in a fork (or a deleted repo), not the base. */
+  isCrossRepository: boolean;
+}
+
+export interface CommitData {
+  /** The commit author's GitHub login; undefined when not linked to an account. */
+  authorLogin: string | undefined;
+  message: string;
 }
 
 export interface ReviewData {
@@ -49,6 +60,7 @@ export interface LabelDefinition {
 export interface GitHubClient {
   getPullRequest(pr: number): Promise<PullRequestData>;
   listReviews(pr: number): Promise<ReviewData[]>;
+  listCommits(pr: number): Promise<CommitData[]>;
   /** Throws a GitHubApiError with status 404 when the user is not a collaborator. */
   getCollaboratorPermission(login: string): Promise<CollaboratorPermission>;
   listRepoLabels(): Promise<string[]>;
