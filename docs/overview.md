@@ -18,11 +18,13 @@ The source of truth for the design is
 summarizes it; record decisions here as they are made and trim the open questions
 they resolve.
 
-> **Status:** the pure reconciler core ([design](reconciler-design.md)) and the
-> [GitHub edge layer](github-edge-layer.md) that gathers facts and applies plans
-> are implemented as a library. The distributed action and the `reconcile` CLI
-> command are not built yet (#6); the CLI (`ai-pr-lifecycle`) only prints usage.
-> Remaining work is tracked in the **Reconciler v1** milestone.
+> **Status:** the pure reconciler core ([design](reconciler-design.md)), the
+> [GitHub edge layer](github-edge-layer.md), [bot eligibility](bot-eligibility.md),
+> and the [`ai-pr-lifecycle reconcile` CLI](cli.md) are implemented. The composite
+> action that runs it in consumer repos is built in
+> [`rmartz/pr-lifecycle-action`](https://github.com/rmartz/pr-lifecycle-action).
+> Remaining work (arming with a real-actor token, the UAT check, dogfooding) is
+> tracked in the **Reconciler v1** milestone.
 
 ## Lifecycle
 
