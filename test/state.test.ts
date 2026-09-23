@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest';
 
 import { computeState } from '../src/state.js';
-import { makeCopilotReview, makeFacts, makeReview, makeVerdictBody, OLD_SHA } from './fixtures.js';
+import {
+  HEAD_SHA,
+  makeAuthor,
+  makeCopilotReview,
+  makeFacts,
+  makeReview,
+  makeVerdictBody,
+  OLD_SHA,
+} from './fixtures.js';
 
 describe('computeState', () => {
   it.each(['closed', 'merged'] as const)('is closed for a %s PR', (status) => {
@@ -47,7 +55,15 @@ describe('computeState', () => {
   });
 
   it('still honors a counting verdict when skipCopilotReview is set', () => {
-    const facts = makeFacts({ reviews: [makeReview({ body: makeVerdictBody('approved') })] });
+    const facts = makeFacts({
+      reviews: [
+        makeReview({
+          commitSha: HEAD_SHA,
+          author: makeAuthor({ permission: 'write' }),
+          body: makeVerdictBody('approved'),
+        }),
+      ],
+    });
 
     expect(computeState(facts, { skipCopilotReview: true })).toBe('approved');
   });
