@@ -18,6 +18,9 @@ relevant to your task before editing code — see
 - [GitHub edge layer](github-edge-layer.md) — gathering facts from and applying
   plans to GitHub: the client seam, permission mapping, fail-safe write order,
   tolerated errors, and the HTTP client.
+- [Bot-PR eligibility](bot-eligibility.md) — which bot PRs count as approved
+  without review, how the Dependabot update type is read, and why fork PRs are
+  never eligible.
 - [Testing strategy](testing.md) — how the reconciler is tested: pure state
   computation, fact fixtures, replay/idempotency, security cases, coverage.
 - [Development and CI](development.md) — the toolchain, the CI jobs and what each

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import type { PullRequestData } from '../../src/github/client.js';
 import { GitHubApiError } from '../../src/github/client.js';
 import { gatherFacts } from '../../src/github/gather.js';
 import { OLD_SHA } from '../fixtures.js';
@@ -49,15 +50,72 @@ describe('gatherFacts — pull request fields', () => {
 
     expect((await gatherFacts(client, 7)).facts.status).toBe(status);
   });
+});
 
-  it('passes botEligible through', async () => {
-    const { facts } = await gatherFacts(new FakeGitHubClient(), 7, { botEligible: true });
+describe('gatherFacts — bot eligibility', () => {
+  const MINOR_BUMP = [
+    '---',
+    'updated-dependencies:',
+    '- dependency-name: prettier',
+    '  update-type: version-update:semver-minor',
+    '...',
+  ].join('\n');
 
-    expect(facts.botEligible).toBe(true);
+  function makeDependabotClient(pull: Partial<PullRequestData> = {}) {
+    const client = new FakeGitHubClient(
+      makePullRequestData({ authorLogin: 'dependabot[bot]', headRef: 'dependabot/x', ...pull }),
+    );
+    client.commits = [{ authorLogin: 'dependabot[bot]', message: MINOR_BUMP }];
+    return client;
+  }
+
+  it('marks a same-repo Dependabot minor bump eligible', async () => {
+    expect((await gatherFacts(makeDependabotClient(), 7)).facts.botEligible).toBe(true);
   });
 
-  it('defaults botEligible to false', async () => {
-    expect((await gatherFacts(new FakeGitHubClient(), 7)).facts.botEligible).toBe(false);
+  it('returns the eligibility reason', async () => {
+    const { botEligibility } = await gatherFacts(makeDependabotClient(), 7);
+
+    expect(botEligibility).toMatchObject({
+      prType: 'dependabot',
+      updateType: 'version-update:semver-minor',
+    });
+  });
+
+  it('never marks a fork PR eligible', async () => {
+    const client = makeDependabotClient({ isCrossRepository: true });
+
+    expect((await gatherFacts(client, 7)).facts.botEligible).toBe(false);
+  });
+
+  it('skips the commit fetch for a fork', async () => {
+    const client = makeDependabotClient({ isCrossRepository: true });
+
+    await gatherFacts(client, 7);
+
+    expect(client.calls.some((call) => call.method === 'listCommits')).toBe(false);
+  });
+
+  it('skips the commit fetch for a non-Dependabot PR', async () => {
+    const client = new FakeGitHubClient();
+
+    await gatherFacts(client, 7);
+
+    expect(client.calls.some((call) => call.method === 'listCommits')).toBe(false);
+  });
+
+  it('marks a same-repo release-please PR eligible', async () => {
+    const client = new FakeGitHubClient(
+      makePullRequestData({ headRef: 'release-please--branches--main' }),
+    );
+
+    expect((await gatherFacts(client, 7)).facts.botEligible).toBe(true);
+  });
+
+  it('treats a PR by a deleted account as not a bot PR', async () => {
+    const client = new FakeGitHubClient(makePullRequestData({ authorLogin: undefined }));
+
+    expect((await gatherFacts(client, 7)).botEligibility.prType).toBeUndefined();
   });
 });
 

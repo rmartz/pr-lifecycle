@@ -1,6 +1,8 @@
+import type { BotEligibility } from '../bot-eligibility.js';
+import { classifyBotPr, DEPENDABOT_LOGIN } from '../bot-eligibility.js';
 import type { PullRequestFacts, RepoPermission, ReviewFact } from '../facts.js';
 import { REPO_PERMISSIONS } from '../facts.js';
-import type { GitHubClient, ReviewData } from './client.js';
+import type { GitHubClient, PullRequestData, ReviewData } from './client.js';
 import { isApiStatus } from './client.js';
 
 /**
@@ -13,11 +15,27 @@ export interface GatheredPullRequest {
   facts: PullRequestFacts;
   /** GraphQL node id, for the auto-merge mutations. */
   nodeId: string;
+  /** The bot-eligibility verdict behind `facts.botEligible`, with its reason. */
+  botEligibility: BotEligibility;
 }
 
-export interface GatherOptions {
-  /** Result of the bot-PR eligibility predicate (#5); false until it exists. */
-  botEligible?: boolean;
+/**
+ * Classify the PR for bot eligibility. Commits are only fetched for a Dependabot
+ * PR from this repository — the one case where they can change the answer.
+ */
+async function gatherBotEligibility(
+  client: GitHubClient,
+  pr: number,
+  pull: PullRequestData,
+): Promise<BotEligibility> {
+  const needsCommits = pull.authorLogin === DEPENDABOT_LOGIN && !pull.isCrossRepository;
+  return classifyBotPr({
+    authorLogin: pull.authorLogin ?? 'ghost',
+    headRef: pull.headRef,
+    isCrossRepository: pull.isCrossRepository,
+    labels: pull.labels,
+    commits: needsCommits ? await client.listCommits(pr) : [],
+  });
 }
 
 function isRepoPermission(value: string): value is RepoPermission {
@@ -81,15 +99,15 @@ function toReviewFact(review: ReviewData, permissions: Map<string, RepoPermissio
   };
 }
 
-export async function gatherFacts(
-  client: GitHubClient,
-  pr: number,
-  options: GatherOptions = {},
-): Promise<GatheredPullRequest> {
+export async function gatherFacts(client: GitHubClient, pr: number): Promise<GatheredPullRequest> {
   const [pull, reviews] = await Promise.all([client.getPullRequest(pr), client.listReviews(pr)]);
-  const permissions = await lookupPermissions(client, reviews);
+  const [permissions, botEligibility] = await Promise.all([
+    lookupPermissions(client, reviews),
+    gatherBotEligibility(client, pr, pull),
+  ]);
   return {
     nodeId: pull.nodeId,
+    botEligibility,
     facts: {
       status: pull.merged ? 'merged' : pull.state,
       isDraft: pull.draft,
@@ -97,7 +115,7 @@ export async function gatherFacts(
       headSha: pull.headSha,
       labels: pull.labels,
       autoMergeEnabled: pull.autoMergeEnabled,
-      botEligible: options.botEligible === true,
+      botEligible: botEligibility.eligible,
       reviews: reviews.map((review) => toReviewFact(review, permissions)),
     },
   };

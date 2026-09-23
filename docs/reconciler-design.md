@@ -25,7 +25,7 @@ Source: `src/` (`facts.ts`, `verdict.ts`, `state.ts`, `plan.ts`).
 | `headSha`          | PR `head.sha`                                                                                            |
 | `labels`           | current label names                                                                                      |
 | `autoMergeEnabled` | PR `auto_merge` is non-null                                                                              |
-| `botEligible`      | eligibility predicate (Dependabot patch/minor, release-please)                                           |
+| `botEligible`      | [bot-PR eligibility](bot-eligibility.md): same-repo Dependabot patch/minor, release-please               |
 | `reviews`          | PR reviews: author login, type (`User`/`Bot`), repo permission, `commit_id`, state, body, submitted time |
 
 The author's **repo permission** is a fact gathered at the edge (the collaborator

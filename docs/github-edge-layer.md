@@ -11,14 +11,15 @@ tags: [github, edge, labels, auto-merge, security]
 The edge layer connects the pure [reconciler core](reconciler-design.md) to GitHub.
 `reconcilePullRequest(client, pr, policy)` runs one full pass: **gather** the
 PR's facts, **plan** with `planReconcile`, and **execute** the plan (skipped with
-`dryRun`). It returns the plan so callers can report what changed.
+`dryRun`). It returns the plan and the bot-eligibility verdict, so callers can
+report what changed and why.
 
 Source: `src/github/`.
 
 ## The client seam
 
 `GitHubClient` (`client.ts`) is a narrow, domain-shaped interface: get the PR,
-list reviews, get a collaborator's permission, list/create repo labels,
+list reviews, list commits, get a collaborator's permission, list/create repo labels,
 add/remove PR labels, and enable/disable auto-merge. All decisions live in
 `gather.ts` and `execute.ts`, which are tested against an in-memory fake
 (`test/github/fake-client.ts`). The real implementation, `createHttpClient`
@@ -40,8 +41,11 @@ HTTP status.
   lookup and get `none`, so they can never cast a counting verdict. The HTTP
   client maps an unrecognized review state to `DISMISSED` and any non-`User` actor
   type (e.g. `Organization`) to `Bot`, so new GitHub values fail closed.
-- `botEligible` is passed in by the caller; it is `false` until the eligibility
-  predicate lands (#5).
+- **Bot eligibility** is computed here with `classifyBotPr` (see
+  [Bot-PR eligibility](bot-eligibility.md)) from the PR author, head ref, labels,
+  and whether the head is in a fork. The PR's commits are fetched only for a
+  Dependabot PR from this repository, the one case where they can change the
+  answer. The verdict, with its `reason`, is returned alongside the facts.
 
 ## Execute
 

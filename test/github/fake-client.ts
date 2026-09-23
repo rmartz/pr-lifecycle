@@ -1,5 +1,6 @@
 import type {
   CollaboratorPermission,
+  CommitData,
   GitHubClient,
   LabelDefinition,
   PullRequestData,
@@ -26,6 +27,9 @@ export function makePullRequestData(overrides: Partial<PullRequestData> = {}): P
     headSha: HEAD_SHA,
     labels: [],
     autoMergeEnabled: false,
+    authorLogin: 'contributor',
+    headRef: 'feature/thing',
+    isCrossRepository: false,
     ...overrides,
   };
 }
@@ -46,6 +50,7 @@ export function makeReviewData(overrides: Partial<ReviewData> = {}): ReviewData 
 export class FakeGitHubClient implements GitHubClient {
   pull: PullRequestData;
   reviews: ReviewData[];
+  commits: CommitData[] = [];
   /** Collaborators by login; an absent login is a non-collaborator (404). */
   permissions = new Map<string, CollaboratorPermission>();
   repoLabels = new Map<string, LabelDefinition>();
@@ -65,6 +70,7 @@ export class FakeGitHubClient implements GitHubClient {
     const reads = new Set<keyof GitHubClient>([
       'getPullRequest',
       'listReviews',
+      'listCommits',
       'getCollaboratorPermission',
       'listRepoLabels',
     ]);
@@ -83,6 +89,11 @@ export class FakeGitHubClient implements GitHubClient {
   getPullRequest(pr: number): Promise<PullRequestData> {
     this.record('getPullRequest', pr);
     return Promise.resolve({ ...this.pull, labels: [...this.pull.labels] });
+  }
+
+  listCommits(pr: number): Promise<CommitData[]> {
+    this.record('listCommits', pr);
+    return Promise.resolve([...this.commits]);
   }
 
   listReviews(pr: number): Promise<ReviewData[]> {
