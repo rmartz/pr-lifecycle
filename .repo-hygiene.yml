@@ -1,0 +1,46 @@
+# @rmartz/repo-hygiene check configuration for this repo.
+# Each section under `checks` is read by the check of that name; `severity` sets
+# the level of every finding it emits. This repo consumes repo-hygiene through the
+# rmartz/repo-hygiene-action caller (.github/workflows/repo-hygiene.yml) and the
+# pre-commit hook (.husky/pre-commit), both of which name the checks below.
+#
+# Every check runs at `error` — a healthy repo gates on all of them. `warn` is
+# only ever a temporary migration ramp, never a standing state (see the shared
+# repository checklist). docs/ is an OKF bundle — see docs/okf-format.md.
+checks:
+  conflict-markers:
+    severity: error
+  action-pins:
+    severity: error
+  # Opt-in check: full major.minor.patch pins in package.json.
+  package-pins:
+    severity: error
+  # Intra-repo Markdown link integrity, including #anchor targets.
+  docs-links:
+    severity: error
+    roots: [docs]
+    anchors: true
+  # Every AGENTS.md has a companion CLAUDE.md that is a bare `@AGENTS.md` wrapper.
+  md-pairing:
+    severity: error
+    wrapper: '@AGENTS.md'
+  # OKF docs-frontmatter conformance. This repo documents code, so it uses the
+  # curated type vocabulary; `Reference` (concept/guide pages) joins the defaults
+  # and is resource-exempt alongside `Design`.
+  okf:
+    severity: error
+    roots: [docs]
+    types: [Skill, Script, Library, Design, Reference]
+    resourceExemptTypes: [Design, Reference]
+  okf-index:
+    severity: error
+    roots: [docs]
+  # Per-glob size caps. The shared defaults (AGENTS.md 200/300 lines, code
+  # 400/600, tests 800/1200, Markdown 700/1000) already apply; these overrides
+  # tighten src/ to match the eslint max-lines cap.
+  file-caps:
+    severity: error
+    overrides:
+      - glob: 'src/**/*.ts'
+        lines: { warn: 240, error: 400 }
+        bytes: { warn: 16KB, error: 24KB }

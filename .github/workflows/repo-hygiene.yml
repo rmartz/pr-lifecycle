@@ -1,0 +1,31 @@
+name: Repo Hygiene
+
+# Consumes @rmartz/repo-hygiene through the rmartz/repo-hygiene-action composite
+# action, SHA-pinned and bumped by Dependabot's github-actions ecosystem. The
+# check list is explicit (not the default-on set) so package-pins is included and
+# coverage is deterministic; every check is configured at `error` severity in
+# .repo-hygiene.yml. The pre-commit hook (.husky/pre-commit) runs the same list
+# over staged content.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  hygiene:
+    name: Repo hygiene
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      packages: read # read the public @rmartz/repo-hygiene package from GitHub Packages
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: rmartz/repo-hygiene-action@12245f5aae730c8ae0dfa5851c0320335ad0c96c # v2.0.0
+        with:
+          checks: conflict-markers action-pins package-pins docs-links md-pairing okf okf-index file-caps
+          config: .repo-hygiene.yml

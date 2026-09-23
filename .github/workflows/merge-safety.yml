@@ -1,0 +1,43 @@
+name: merge-safety
+
+# Consumer caller for @rmartz/merge-safety — the pre-auto-merge safety verdict
+# (base-currency, breaking-change, and conflict facts) posted as the `merge-safety`
+# check-run, which the default-branch ruleset requires. The caller carries the
+# triggers, grants the write scopes, and passes secrets through, because a
+# reusable workflow cannot declare its own `on:` and runs with the intersection of
+# granted and declared permissions. SHA-pinned + Dependabot-bumped. The
+# `merge-safety` check-run name is a fleet contract.
+
+on:
+  # pull_request_target (not pull_request): a pull_request run is dispatched
+  # against refs/pull/N/merge, which GitHub cannot build for an unmergeable PR — so
+  # on a conflicting PR no run fires and the required `merge-safety` check is never
+  # posted, hanging the PR. pull_request_target runs in base context and is safe
+  # here: the reusable evaluate job checks out the base ref, fetches the PR head
+  # only as git data, and runs the published CLI — never PR code.
+  pull_request_target:
+    types: [opened, synchronize, reopened, edited, labeled, unlabeled]
+  push:
+    branches: [main]
+  # Re-hold / release open PRs when the base branch's own CI flips red/green.
+  check_suite:
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: PR number to evaluate
+        required: true
+
+permissions:
+  checks: write # post/flip the merge-safety check-run
+  pull-requests: write # reconcile update-required / merge-conflict labels
+  contents: read
+  actions: write # dispatch per-PR evaluate runs on the push fan-out
+  packages: read # install the CLI from GitHub Packages
+
+jobs:
+  merge-safety:
+    uses: rmartz/merge-safety/.github/workflows/merge-safety.yml@74a4e7621bbfaf3b12f8bf015533e1ffc3475a2b # v0.3.0
+    with:
+      pr: ${{ inputs.pr }}
+    secrets: inherit

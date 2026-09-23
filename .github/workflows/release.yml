@@ -1,0 +1,51 @@
+name: Release
+
+# Automated releases via semantic-release. On every push to main it analyzes the
+# Conventional-Commit history since the last `v*` tag and, when a release is
+# warranted, builds and publishes @rmartz/pr-lifecycle to GitHub Packages (public),
+# then creates the git tag + GitHub Release. It commits NOTHING back to the repo
+# (no @semantic-release/git), so the built-in GITHUB_TOKEN suffices (it has
+# packages:write) — no PAT.
+
+on:
+  push:
+    branches: [main]
+
+# Serialize releases so two pushes can't publish concurrently.
+concurrency: release
+
+permissions:
+  contents: write # create tags + GitHub Releases
+  packages: write # publish to GitHub Packages
+  issues: write # semantic-release/github comments on released issues
+  pull-requests: write # semantic-release/github comments on released PRs
+
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # semantic-release needs full history + tags
+          persist-credentials: false
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: pnpm
+          registry-url: https://npm.pkg.github.com
+          scope: '@rmartz'
+      - run: pnpm install --frozen-lockfile
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - run: pnpm run build
+      - name: Release
+        run: pnpm exec semantic-release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # @semantic-release/npm publishes to the publishConfig registry (GitHub
+          # Packages) using this token; GITHUB_TOKEN has packages:write.
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.GITHUB_TOKEN }}

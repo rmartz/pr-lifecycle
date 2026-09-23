@@ -1,0 +1,4 @@
+# Repo-hygiene gates over staged content (conflict markers, action/package pins,
+# docs links, AGENTS/CLAUDE pairing, OKF frontmatter + index, file caps) — the
+# same checks the Repo Hygiene workflow runs, caught before the commit exists.
+pnpm run hygiene:staged

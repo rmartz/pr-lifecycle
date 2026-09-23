@@ -1,0 +1,69 @@
+version: 2
+
+# @rmartz/repo-hygiene (the pre-commit CLI devDependency) publishes to GitHub
+# Packages, so Dependabot needs registry auth to see new versions. Without the
+# DEPENDABOT_PACKAGES_TOKEN Dependabot secret (a classic PAT scoped to
+# read:packages) the npm job dies with a 422 and silently stops opening ALL npm
+# PRs, not just the @rmartz one. The repo-root .npmrc pins npmjs as the base
+# registry so public deps don't resolve against GitHub Packages
+# (dependabot-core#15415).
+registries:
+  github-packages:
+    type: npm-registry
+    url: https://npm.pkg.github.com
+    token: ${{secrets.DEPENDABOT_PACKAGES_TOKEN}}
+
+# No `cooldown` — deliberately (see the shared repository checklist §Supply
+# chain). Dependabot security updates are the backstop for known vulnerabilities.
+updates:
+  - package-ecosystem: npm
+    directory: /
+    registries:
+      - github-packages
+    schedule:
+      interval: weekly
+    commit-message:
+      # Production deps ship to consumers → `fix` cuts a patch release.
+      # Dev deps never reach the published artifact → release-less `chore`.
+      prefix: fix
+      prefix-development: chore
+      include: scope
+    groups:
+      # Prettier isolated (case-by-case choice): any Prettier bump, even a minor,
+      # can reformat the tree and fail the Format check, so it gets its own PR.
+      # No update-types filter — a filter would silently DROP excluded bumps
+      # rather than let them fall through to the catch-all.
+      prettier:
+        patterns:
+          - 'prettier'
+      # TypeScript isolated (case-by-case choice): a compiler bump can change
+      # type-checking across the whole codebase, and typescript-eslint pins a
+      # supported TS range, so it warrants its own reviewable PR.
+      typescript:
+        patterns:
+          - 'typescript'
+      # Catch-all groups batch every update type, majors included (checklist
+      # default); a failing major is split out case by case when it happens.
+      dev-dependencies:
+        dependency-type: development
+        patterns:
+          - '*'
+      production-dependencies:
+        dependency-type: production
+        patterns:
+          - '*'
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      # CI tooling never reaches the published artifact → always `chore`.
+      # (prefix-development has no meaning for GHA; without this override a GHA
+      # bump would fall through to `fix` and cut a spurious release.)
+      prefix: chore
+      include: scope
+    groups:
+      github-actions:
+        patterns:
+          - '*'
