@@ -27,6 +27,32 @@ describe('parseVerdict', () => {
     expect(parseVerdict(review)?.markerHead).toBe(OLD_SHA);
   });
 
+  it('ignores an unterminated marker', () => {
+    const body = `<!-- skill-meta: {"skill": "review", "outcome": "approved"}`;
+
+    expect(parseVerdict(makeReview({ body }))).toBeUndefined();
+  });
+
+  it('parses a marker padded with long whitespace runs', () => {
+    const pad = ' '.repeat(50_000);
+    const body = `<!--${pad}skill-meta:${pad}{"skill": "review", "outcome": "approved"}${pad}-->`;
+
+    expect(parseVerdict(makeReview({ body }))?.verdict).toBe('approved');
+  });
+
+  it('handles a pathological unterminated marker without backtracking', () => {
+    // Sized so a regression fails fast: the old overlapping-quantifier regex
+    // backtracks cubically (~5s at 3,000 spaces, ~200s at 10,000); the linear
+    // scan takes well under a millisecond. Kept small so a regression fails
+    // the assertion rather than hanging the suite.
+    const body = `<!--skill-meta:${' '.repeat(3_000)}`;
+    const started = performance.now();
+
+    parseVerdict(makeReview({ body }));
+
+    expect(performance.now() - started).toBeLessThan(1000);
+  });
+
   it('ignores a non-string marker head', () => {
     const body = `<!-- skill-meta: {"skill": "review", "outcome": "approved", "pr_head": 42} -->`;
 

@@ -16,7 +16,13 @@ const TRUSTED_PERMISSIONS: ReadonlySet<ReviewAuthor['permission']> = new Set([
   'write',
 ]);
 
-const SKILL_META_PATTERN = /<!--\s*skill-meta:\s*(.*?)\s*-->/s;
+// Review bodies are attacker-controlled (anyone can comment), so the marker is
+// located with a linear scan: this pattern matches only the marker opening (no
+// overlapping quantifiers), and the payload runs to the next `-->` via indexOf.
+// A single `<!--\s*skill-meta:\s*(.*?)\s*-->` regex backtracks cubically on an
+// unterminated marker padded with whitespace (CodeQL js/polynomial-redos).
+const SKILL_META_OPENING = /<!--\s*skill-meta:/;
+const COMMENT_CLOSE = '-->';
 
 interface SkillMeta {
   skill?: unknown;
@@ -35,12 +41,17 @@ function isVerdict(value: unknown): value is Verdict {
 }
 
 function readSkillMeta(body: string): SkillMeta | undefined {
-  const match = SKILL_META_PATTERN.exec(body);
-  if (match?.[1] === undefined) {
+  const opening = SKILL_META_OPENING.exec(body);
+  if (opening === null) {
+    return undefined;
+  }
+  const payloadStart = opening.index + opening[0].length;
+  const payloadEnd = body.indexOf(COMMENT_CLOSE, payloadStart);
+  if (payloadEnd === -1) {
     return undefined;
   }
   try {
-    const parsed: unknown = JSON.parse(match[1]);
+    const parsed: unknown = JSON.parse(body.slice(payloadStart, payloadEnd).trim());
     return typeof parsed === 'object' && parsed !== null ? parsed : undefined;
   } catch {
     return undefined;

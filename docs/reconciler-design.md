@@ -43,6 +43,13 @@ A review is a **verdict** when either:
 The marker wins over the native state. A self-authored verdict is posted as a
 `COMMENTED` review, so the marker is the only place its verdict lives.
 
+Review bodies are attacker-controlled, so marker parsing must stay
+**linear-time**. It finds the opening with a regex that has no overlapping
+quantifiers, then scans to `-->` with `indexOf`. A one-regex
+`<!--\s*skill-meta:\s*(.*?)\s*-->` backtracks cubically, and a malicious comment
+could stall the reconcile job (CodeQL `js/polynomial-redos`). A timing test
+guards against a regression.
+
 A verdict **counts** only when all of the following hold:
 
 1. **Trusted author.** The author is a `User` (never a `Bot`) with `write`,
