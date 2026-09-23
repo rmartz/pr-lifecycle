@@ -1,0 +1,79 @@
+{
+  "name": "@rmartz/pr-lifecycle",
+  "version": "0.0.0-development",
+  "description": "Event-driven PR lifecycle reconciler: recomputes a pull request's lifecycle labels from its current facts on every GitHub event and arms native auto-merge on approval.",
+  "keywords": [
+    "ci",
+    "pull-request",
+    "lifecycle",
+    "auto-merge",
+    "github-actions",
+    "labels"
+  ],
+  "homepage": "https://github.com/rmartz/pr-lifecycle#readme",
+  "bugs": {
+    "url": "https://github.com/rmartz/pr-lifecycle/issues"
+  },
+  "license": "MIT",
+  "type": "module",
+  "packageManager": "pnpm@10.30.3",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "bin": {
+    "ai-pr-lifecycle": "./dist/bin/pr-lifecycle.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com",
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rmartz/pr-lifecycle.git"
+  },
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint --max-warnings 0 .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:watch": "vitest",
+    "hygiene": "ai-repo-hygiene conflict-markers action-pins package-pins docs-links md-pairing okf okf-index file-caps --check --config .repo-hygiene.yml",
+    "hygiene:staged": "ai-repo-hygiene conflict-markers action-pins package-pins docs-links md-pairing okf okf-index file-caps --staged --config .repo-hygiene.yml",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@rmartz/repo-hygiene": "^6.0.0",
+    "@types/node": "^26.6.2",
+    "@vitest/coverage-v8": "^5.0.1",
+    "conventional-changelog-conventionalcommits": "^10.4.0",
+    "eslint": "^10.11.0",
+    "eslint-import-resolver-typescript": "^4.4.5",
+    "eslint-plugin-import": "^2.32.0",
+    "husky": "^9.1.7",
+    "prettier": "^3.9.8",
+    "semantic-release": "^25.0.9",
+    "tsup": "^8.5.1",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.70.1",
+    "vitest": "^5.0.1"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "unrs-resolver"
+    ]
+  }
+}
