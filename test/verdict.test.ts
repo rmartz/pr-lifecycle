@@ -130,6 +130,18 @@ describe('currentVerdict', () => {
     expect(currentVerdict(makeFacts({ reviews: [review] }), {})).toBeUndefined();
   });
 
+  it('ignores a verdict on an older commit even when its marker names the head', () => {
+    const review = makeReview({ commitSha: OLD_SHA, body: makeVerdictBody('approved', HEAD_SHA) });
+
+    expect(currentVerdict(makeFacts({ reviews: [review] }), {})).toBeUndefined();
+  });
+
+  it('ignores a native approval on an older commit', () => {
+    const review = makeReview({ commitSha: OLD_SHA, state: 'APPROVED' });
+
+    expect(currentVerdict(makeFacts({ reviews: [review] }), {})).toBeUndefined();
+  });
+
   it('ignores a verdict whose marker head is not the head', () => {
     const review = makeReview({ body: makeVerdictBody('approved', OLD_SHA) });
 

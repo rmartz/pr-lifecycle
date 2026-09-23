@@ -66,6 +66,22 @@ const factsArb: fc.Arbitrary<PullRequestFacts> = fc.record({
   reviews: reviewsArb(),
 });
 
+/**
+ * Open, ready, non-bot PRs: the facts where one extra review *can* change the
+ * state, so the inertness properties below exercise the trust and head-binding
+ * rules instead of short-circuiting on closed/draft/bot-eligible.
+ */
+const openFactsArb: fc.Arbitrary<PullRequestFacts> = factsArb.map((facts) => ({
+  ...facts,
+  status: 'open',
+  isDraft: false,
+  title: 'feat: thing',
+  botEligible: false,
+}));
+
+/** Security properties get more runs than the default 100. */
+const SECURITY_RUNS = { numRuns: 1000 };
+
 const policyArb: fc.Arbitrary<ReconcilePolicy> = fc.record(
   {
     trustedAuthors: fc.subarray(['maintainer', 'RMARTZ']),
@@ -120,18 +136,24 @@ describe('reconciler properties', () => {
 
   it('ignores untrusted reviews, including forged approval markers', () => {
     fc.assert(
-      fc.property(factsArb, policyArb, reviewsArb(untrustedAuthorArb), (facts, policy, extra) => {
-        const polluted = { ...facts, reviews: [...facts.reviews, ...withIdOffset(extra)] };
+      fc.property(
+        openFactsArb,
+        policyArb,
+        reviewsArb(untrustedAuthorArb),
+        (facts, policy, extra) => {
+          const polluted = { ...facts, reviews: [...facts.reviews, ...withIdOffset(extra)] };
 
-        expect(computeState(polluted, policy)).toBe(computeState(facts, policy));
-      }),
+          expect(computeState(polluted, policy)).toBe(computeState(facts, policy));
+        },
+      ),
+      SECURITY_RUNS,
     );
   });
 
   it('ignores reviews of older commits from anyone', () => {
     fc.assert(
       fc.property(
-        factsArb,
+        openFactsArb,
         policyArb,
         reviewsArb(authorArb, fc.constant(OLD_SHA)),
         (facts, policy, extra) => {
@@ -140,6 +162,7 @@ describe('reconciler properties', () => {
           expect(computeState(polluted, policy)).toBe(computeState(facts, policy));
         },
       ),
+      SECURITY_RUNS,
     );
   });
 
