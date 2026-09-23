@@ -74,6 +74,9 @@
     "onlyBuiltDependencies": [
       "esbuild",
       "unrs-resolver"
-    ]
+    ],
+    "overrides": {
+      "esbuild": ">=0.28.1"
+    }
   }
 }
