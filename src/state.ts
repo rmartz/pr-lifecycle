@@ -35,6 +35,9 @@ export function computeState(facts: PullRequestFacts, policy: ReconcilePolicy): 
   if (facts.botEligible) {
     return 'approved';
   }
+  if (policy.skipCopilotReview === true) {
+    return 'review-requested';
+  }
   const copilotReviewedHead = facts.reviews.some(
     (review) =>
       review.author.login === COPILOT_REVIEWER_LOGIN && review.commitSha === facts.headSha,

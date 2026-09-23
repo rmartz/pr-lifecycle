@@ -42,6 +42,20 @@ describe('computeState', () => {
     expect(computeState(facts, {})).toBe('awaiting-copilot');
   });
 
+  it('skips the Copilot wait when skipCopilotReview is set', () => {
+    expect(computeState(makeFacts(), { skipCopilotReview: true })).toBe('review-requested');
+  });
+
+  it('still honors a counting verdict when skipCopilotReview is set', () => {
+    const facts = makeFacts({ reviews: [makeReview({ body: makeVerdictBody('approved') })] });
+
+    expect(computeState(facts, { skipCopilotReview: true })).toBe('approved');
+  });
+
+  it('keeps a draft a draft when skipCopilotReview is set', () => {
+    expect(computeState(makeFacts({ isDraft: true }), { skipCopilotReview: true })).toBe('draft');
+  });
+
   it.each([
     ['approved', 'approved'],
     ['changes-requested', 'changes-requested'],

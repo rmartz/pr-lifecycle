@@ -86,6 +86,7 @@ const policyArb: fc.Arbitrary<ReconcilePolicy> = fc.record(
   {
     trustedAuthors: fc.subarray(['maintainer', 'RMARTZ']),
     armAutoMerge: fc.boolean(),
+    skipCopilotReview: fc.boolean(),
   },
   { requiredKeys: [] },
 );
