@@ -47,7 +47,12 @@ a property shows an invariant holds, an example shows the intended behavior.
 - `describe`/`it` from Vitest; `test()` is lint-banned.
 - Fixture builders in `test/fixtures.ts` are named `make{Domain}()` (e.g.
   `makeFacts()`, `makeReview()`) and take overrides, so each test states only the
-  facts it depends on. `applyPlan()` simulates the edge layer applying a plan.
+  facts it depends on. `applyPlan()` simulates applying a plan in pure-core tests.
+- Edge-layer tests use `FakeGitHubClient` (`test/github/fake-client.ts`): an
+  in-memory GitHub that mutates its state on writes (so gather → execute → gather
+  round-trips), records every call in order (`calls`, `writes`), and injects
+  failures with `failNext(method, error)`. The HTTP client is tested against a
+  fake `fetch` transport passed through its options, never a mocked global.
 - Assert on explicit, non-default values; one reason to fail per test.
 - Test files live under `test/` and mirror `src/` paths
   (`src/verdict.ts` → `test/verdict.test.ts`).

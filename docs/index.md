@@ -15,6 +15,9 @@ relevant to your task before editing code — see
 - [Reconciler core design](reconciler-design.md) — the pure facts → state → plan
   core: the fact model, verdict trust and head binding, state priority, the label
   and auto-merge plan, and the properties the tests guarantee.
+- [GitHub edge layer](github-edge-layer.md) — gathering facts from and applying
+  plans to GitHub: the client seam, permission mapping, fail-safe write order,
+  tolerated errors, and the HTTP client.
 - [Testing strategy](testing.md) — how the reconciler is tested: pure state
   computation, fact fixtures, replay/idempotency, security cases, coverage.
 - [Development and CI](development.md) — the toolchain, the CI jobs and what each

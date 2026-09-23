@@ -18,10 +18,11 @@ The source of truth for the design is
 summarizes it; record decisions here as they are made and trim the open questions
 they resolve.
 
-> **Status:** the pure reconciler core (facts → state → label/auto-merge plan) is
-> implemented and specified in [Reconciler core design](reconciler-design.md). The
-> GitHub edge layer (gathering facts, applying the plan) and the distributed action
-> are not built yet; the CLI (`ai-pr-lifecycle`) only prints usage.
+> **Status:** the pure reconciler core ([design](reconciler-design.md)) and the
+> [GitHub edge layer](github-edge-layer.md) that gathers facts and applies plans
+> are implemented as a library. The distributed action and the `reconcile` CLI
+> command are not built yet (#6); the CLI (`ai-pr-lifecycle`) only prints usage.
+> Remaining work is tracked in the **Reconciler v1** milestone.
 
 ## Lifecycle
 
