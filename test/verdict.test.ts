@@ -74,6 +74,18 @@ describe('parseVerdict', () => {
     expect(parseVerdict(review)?.verdict).toBe('changes-requested');
   });
 
+  it('treats a dismissed review as no verdict, even with an approval marker', () => {
+    const review = makeReview({ state: 'DISMISSED', body: makeVerdictBody('approved') });
+
+    expect(parseVerdict(review)).toBeUndefined();
+  });
+
+  it('treats a pending (unsubmitted) review as no verdict, even with an approval marker', () => {
+    const review = makeReview({ state: 'PENDING', body: makeVerdictBody('approved') });
+
+    expect(parseVerdict(review)).toBeUndefined();
+  });
+
   it('ignores a marker from another skill', () => {
     const body = `<!-- skill-meta: {"skill": "fix-review", "outcome": "approved"} -->`;
 

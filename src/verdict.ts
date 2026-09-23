@@ -60,6 +60,11 @@ function readSkillMeta(body: string): SkillMeta | undefined {
 
 /** The verdict a review expresses, or undefined when it is not a verdict. */
 export function parseVerdict(review: ReviewFact): ParsedVerdict | undefined {
+  // A dismissed review was revoked by a maintainer, and a pending one was never
+  // submitted: neither is a verdict, whatever its body's marker says.
+  if (review.state === 'DISMISSED' || review.state === 'PENDING') {
+    return undefined;
+  }
   const meta = readSkillMeta(review.body);
   if (meta?.skill === 'review') {
     // A /review marker is authoritative, including `skipped` (not a verdict).
@@ -77,8 +82,6 @@ export function parseVerdict(review: ReviewFact): ParsedVerdict | undefined {
     case 'CHANGES_REQUESTED':
       return { verdict: 'changes-requested', markerHead: undefined };
     case 'COMMENTED':
-    case 'DISMISSED':
-    case 'PENDING':
       return undefined;
   }
 }

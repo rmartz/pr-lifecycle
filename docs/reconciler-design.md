@@ -33,7 +33,10 @@ permission API), so trust evaluation stays pure.
 
 ## Verdicts
 
-A review is a **verdict** when either:
+A `DISMISSED` review (revoked by a maintainer) or `PENDING` review (never
+submitted) is **never** a verdict, whatever its body says. Dismissing is how a
+maintainer revokes an approval, so a marker must not outlive it. Otherwise, a
+review is a **verdict** when either:
 
 - its body carries a `skill-meta` marker with `"skill": "review"` and an `outcome`
   of `approved`, `changes-requested`, or `escalation-needed` (a `skipped` outcome

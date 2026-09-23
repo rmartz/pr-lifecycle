@@ -166,6 +166,31 @@ describe('reconciler properties', () => {
     );
   });
 
+  it('ignores dismissed and pending reviews, even from trusted authors', () => {
+    const trustedAuthor = fc.record({
+      login: fc.constantFrom('maintainer', 'rmartz'),
+      type: fc.constant('User' as const),
+      permission: fc.constantFrom('admin', 'maintain', 'write'),
+    });
+    const revoked = reviewArb(trustedAuthor, fc.constant(HEAD_SHA)).map((review) => ({
+      ...review,
+      state: review.id % 2 === 0 ? ('DISMISSED' as const) : ('PENDING' as const),
+    }));
+    fc.assert(
+      fc.property(
+        openFactsArb,
+        policyArb,
+        fc.uniqueArray(revoked, { selector: (review) => review.id, maxLength: 8 }),
+        (facts, policy, extra) => {
+          const polluted = { ...facts, reviews: [...facts.reviews, ...withIdOffset(extra)] };
+
+          expect(computeState(polluted, policy)).toBe(computeState(facts, policy));
+        },
+      ),
+      SECURITY_RUNS,
+    );
+  });
+
   it('only ever writes labels it owns', () => {
     fc.assert(
       fc.property(factsArb, policyArb, (facts, policy) => {
