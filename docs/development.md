@@ -64,12 +64,12 @@ severity. The same check list runs in two places:
 - **CI** — the Repo Hygiene workflow, via the SHA-pinned
   `rmartz/repo-hygiene-action`.
 
-> **Known gap:** the `ai-repo-hygiene` CLI currently exits 0 without running any
-> check when launched through a `node_modules/.bin` symlink, which both paths
-> above do ([rmartz/repo-hygiene#67](https://github.com/rmartz/repo-hygiene/issues/67)).
-> Until a fixed version arrives via Dependabot, verify locally with
-> `node node_modules/@rmartz/repo-hygiene/dist/bin/repo-hygiene.js <checks> --check --config .repo-hygiene.yml`.
-> Remove this note once the fix lands.
+> **Known gap:** the CI path is currently vacuous. `repo-hygiene-action` runs the
+> CLI through npm's `node_modules/.bin` symlink, and the CLI exits 0 there without
+> running any check ([rmartz/repo-hygiene#67](https://github.com/rmartz/repo-hygiene/issues/67)).
+> The pre-commit hook is unaffected (pnpm's shim execs the real path), so it is
+> the working gate until a fixed action version arrives via Dependabot. Remove
+> this note once the fix lands.
 
 ## Dependabot
 

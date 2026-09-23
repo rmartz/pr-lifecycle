@@ -18,23 +18,20 @@ The source of truth for the design is
 summarizes it; record decisions here as they are made and trim the open questions
 they resolve.
 
-> **Status: scaffold.** The repository toolchain, CI, and release pipeline are in
-> place; the reconciler itself is not implemented yet. The CLI (`ai-pr-lifecycle`)
-> currently only prints usage.
+> **Status:** the pure reconciler core (facts → state → label/auto-merge plan) is
+> implemented and specified in [Reconciler core design](reconciler-design.md). The
+> GitHub edge layer (gathering facts, applying the plan) and the distributed action
+> are not built yet; the CLI (`ai-pr-lifecycle`) only prints usage.
 
-## Proposed lifecycle
+## Lifecycle
 
-| Trigger (fact)                                           | State / label                                 |
-| -------------------------------------------------------- | --------------------------------------------- |
-| PR ready for review (non-draft, not `[WIP]`)             | `waiting for Copilot`                         |
-| Copilot has reviewed the current head                    | `review requested`                            |
-| Trusted verdict `fix`                                    | `fix requested`                               |
-| Trusted verdict `approve` **for the current head SHA**   | `approved`, then arm auto-merge               |
-| New push after an approval                               | back to `review requested`; disarm auto-merge |
-| Eligible bot PR (Dependabot patch/minor, release-please) | automatically `approved`                      |
-
-Label names and the exact state set are open; they should match the existing
-`VERDICT_LABELS` roster where possible.
+The state set and its labels, which reuse the existing `VERDICT_LABELS` roster,
+are specified in [Reconciler core design](reconciler-design.md#state-in-priority-order).
+In short: a draft or `[WIP]` PR has no lifecycle label; a PR waiting for Copilot
+has none either; after Copilot reviews the head it gets `review requested`; a
+trusted verdict on the head sets `approved`, `changes requested`, or
+`escalation needed`; an eligible bot PR is `approved`. A push invalidates every
+verdict on the old head.
 
 ## Design constraints
 
@@ -45,8 +42,8 @@ Label names and the exact state set are open; they should match the existing
    idempotent, replay-safe, and immune to out-of-order or dropped events — and
    gives approval freshness for free (a verdict bound to an older SHA doesn't count).
 2. **Verdict authors are verified.** An approval authorizes a merge, so a verdict
-   counts only from an allowlisted author identity — **never** from the hidden
-   `skill-meta` marker alone. The forged-marker case is a required test.
+   counts only from a trusted author — **never** from the hidden `skill-meta`
+   marker alone. The forged-marker case is a required test.
 3. **Token and event-chaining limits.** Labels written with `GITHUB_TOKEN` trigger
    no other workflows, so each run does its whole reconcile in one job and never
    relies on its own label writes firing anything. A merge armed with
@@ -67,15 +64,22 @@ Label names and the exact state set are open; they should match the existing
   this package owns the approved → armed transition for all PRs, bot-automerge
   shrinks to an eligibility predicate that produces an automatic approval.
 
+## Decisions
+
+- **Trust = write permission.** A verdict counts only from a human (`User`, not a
+  `Bot`) with write, maintain, or admin permission on the repo, optionally narrowed
+  by a `trusted-authors` list. This grants no new privilege: a write user can
+  already merge a PR once its required checks pass.
+- **Labels are output only.** Hand-applied lifecycle labels are reconciled away.
+  A human approves the same way an agent does, by posting a verdict review.
+- **Arming is opt-in.** One package; auto-merge arming sits behind an
+  `arm-auto-merge` input that defaults to off, so consumers can adopt labelling
+  before their ruleset gates are ready.
+- **Waiting for Copilot is derived.** It has no visible label, so the label
+  roster stays at the four existing verdict labels.
+
 ## Open questions
 
-- Names and granularity of states — is `waiting for Copilot` a visible label?
-- Where the trusted-author allowlist lives: workflow input, repo config file, or
-  a GitHub App identity.
-- Human overrides — does a hand-applied `approved` get respected, removed, or
-  treated as a trusted verdict?
-- One package or a split — does auto-merge arming ship as a separately opted-in
-  mode, given it is a much larger trust grant than labelling?
 - Distribution form — a reusable workflow in this repo, or a composite action in
   a sibling `pr-lifecycle-action` repo (the form the fleet is converging on, per
   ai-tools#282)?
