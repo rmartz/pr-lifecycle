@@ -70,22 +70,30 @@ The **latest** counting verdict (by submitted time, then review id) decides.
 
 ## State, in priority order
 
-| #   | Condition                            | State               | Lifecycle label     |
-| --- | ------------------------------------ | ------------------- | ------------------- |
-| 1   | status is `closed` or `merged`       | `closed`            | untouched (no plan) |
-| 2   | draft, or `[WIP]` title              | `draft`             | none                |
-| 3   | counting verdict `approved`          | `approved`          | `approved`          |
-| 3   | counting verdict `changes-requested` | `changes-requested` | `changes requested` |
-| 3   | counting verdict `escalation-needed` | `escalation-needed` | `escalation needed` |
-| 4   | `botEligible`                        | `approved`          | `approved`          |
-| 5   | a Copilot review exists on `headSha` | `review-requested`  | `review requested`  |
-| 6   | otherwise                            | `awaiting-copilot`  | none                |
+| #   | Condition                                                           | State               | Lifecycle label     |
+| --- | ------------------------------------------------------------------- | ------------------- | ------------------- |
+| 1   | status is `closed` or `merged`                                      | `closed`            | untouched (no plan) |
+| 2   | draft, or `[WIP]` title                                             | `draft`             | none                |
+| 3   | counting verdict `approved`                                         | `approved`          | `approved`          |
+| 3   | counting verdict `changes-requested`                                | `changes-requested` | `changes requested` |
+| 3   | counting verdict `escalation-needed`                                | `escalation-needed` | `escalation needed` |
+| 4   | `botEligible`                                                       | `approved`          | `approved`          |
+| 5   | a Copilot review exists on `headSha`, or `policy.skipCopilotReview` | `review-requested`  | `review requested`  |
+| 6   | otherwise                                                           | `awaiting-copilot`  | none                |
 
 A trusted human verdict outranks bot eligibility, so a person can hold a
 Dependabot PR with a `changes requested` verdict. Copilot is recognized by the
 login `copilot-pull-request-reviewer[bot]`. Any Copilot review on the head counts,
 including the "quota reached" notice, because Copilot has then finished with that
 commit.
+
+In a repo without Copilot code review, no Copilot review ever arrives, so a PR
+would sit in `awaiting-copilot` forever. `policy.skipCopilotReview` (off by
+default) skips that wait: a ready PR with no counting verdict goes straight to
+`review-requested`. It changes only rule 5; drafts, verdicts and bot eligibility
+are unaffected. A timeout alternative ("treat Copilot as done after N minutes")
+was rejected: no event fires when nothing happens, so it would need a scheduled
+trigger.
 
 ## Plan
 

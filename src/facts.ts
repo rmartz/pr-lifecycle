@@ -62,4 +62,9 @@ export interface ReconcilePolicy {
   trustedAuthors?: readonly string[];
   /** Arm/disarm native auto-merge from the lifecycle state. Off by default. */
   armAutoMerge?: boolean;
+  /**
+   * Don't wait for a Copilot review before `review-requested`, for repos without
+   * Copilot code review (where the wait would never end). Off by default.
+   */
+  skipCopilotReview?: boolean;
 }
