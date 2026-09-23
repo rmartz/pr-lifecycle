@@ -1,0 +1,40 @@
+name: bot-automerge
+
+# Turns on GitHub-native auto-merge for this repo's trustworthy bot PRs
+# (Dependabot patch/minor bumps) via the rmartz/bot-automerge-action composite
+# action, SHA-pinned and Dependabot-bumped. Auto-merge still waits on the
+# default-branch ruleset's required checks (merge-safety + CI + repo hygiene), so
+# nothing merges until a PR is both eligible AND verified. Human-authored PRs are
+# classified as not-eligible and left untouched.
+#
+# SAFETY: this is only safe while those checks are REQUIRED on main — with no
+# required checks, `gh pr merge --auto` merges immediately.
+#
+# Once this package owns the approved → armed transition for every PR (see
+# docs/overview.md), bot-automerge shrinks to an eligibility predicate and this
+# caller is replaced by the repo dogfooding its own reconciler.
+
+on:
+  # pull_request_target: Dependabot PRs run with a read-only token under
+  # pull_request, and enabling auto-merge needs base-context write. The action
+  # reads PR metadata via the API and never checks out or runs PR code.
+  pull_request_target:
+    types: [opened, reopened, synchronize, labeled]
+
+permissions:
+  contents: write # enable GitHub-native auto-merge on the PR
+  pull-requests: write # read PR metadata + turn on auto-merge
+  packages: read # install the CLI from GitHub Packages
+
+jobs:
+  bot-automerge:
+    name: Enable auto-merge for eligible bot PRs
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: rmartz/bot-automerge-action@6b484624a7a46f3bc6da3f52bf584c27f82ffd4d # v1.1.0
+        with:
+          pr: ${{ github.event.pull_request.number }}
+          # Empty when the secret is unset (falls back to GITHUB_TOKEN). Harmless
+          # here: releases publish inline via semantic-release, not a release PR.
+          release-please-token: ${{ secrets.RELEASE_PLEASE_PAT }}
