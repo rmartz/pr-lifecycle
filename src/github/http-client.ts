@@ -84,7 +84,10 @@ const DISABLE_AUTO_MERGE = `mutation($id: ID!) {
 }`;
 
 export function createHttpClient(options: HttpClientOptions): GitHubClient {
-  const apiUrl = (options.apiUrl ?? 'https://api.github.com').replace(/\/+$/, '');
+  let apiUrl = options.apiUrl ?? 'https://api.github.com';
+  while (apiUrl.endsWith('/')) {
+    apiUrl = apiUrl.slice(0, -1);
+  }
   const doFetch = options.fetch ?? fetch;
   const repoPath = `/repos/${encodeURIComponent(options.owner)}/${encodeURIComponent(options.repo)}`;
 
