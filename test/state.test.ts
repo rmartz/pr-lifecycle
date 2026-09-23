@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest';
 
 import { computeState } from '../src/state.js';
-import { makeCopilotReview, makeFacts, makeReview, makeVerdictBody, OLD_SHA } from './fixtures.js';
+import {
+  HEAD_SHA,
+  makeAuthor,
+  makeCopilotReview,
+  makeFacts,
+  makeReview,
+  makeVerdictBody,
+  OLD_SHA,
+} from './fixtures.js';
 
 describe('computeState', () => {
   it.each(['closed', 'merged'] as const)('is closed for a %s PR', (status) => {
@@ -40,6 +48,28 @@ describe('computeState', () => {
     const facts = makeFacts({ reviews: [makeCopilotReview({ commitSha: OLD_SHA })] });
 
     expect(computeState(facts, {})).toBe('awaiting-copilot');
+  });
+
+  it('skips the Copilot wait when skipCopilotReview is set', () => {
+    expect(computeState(makeFacts(), { skipCopilotReview: true })).toBe('review-requested');
+  });
+
+  it('still honors a counting verdict when skipCopilotReview is set', () => {
+    const facts = makeFacts({
+      reviews: [
+        makeReview({
+          commitSha: HEAD_SHA,
+          author: makeAuthor({ permission: 'write' }),
+          body: makeVerdictBody('approved'),
+        }),
+      ],
+    });
+
+    expect(computeState(facts, { skipCopilotReview: true })).toBe('approved');
+  });
+
+  it('keeps a draft a draft when skipCopilotReview is set', () => {
+    expect(computeState(makeFacts({ isDraft: true }), { skipCopilotReview: true })).toBe('draft');
   });
 
   it.each([
