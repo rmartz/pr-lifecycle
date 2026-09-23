@@ -63,3 +63,18 @@ jobs:
       - uses: ./.github/actions/setup
       # Enforces the coverage thresholds in vitest.config.ts.
       - run: pnpm run test:coverage
+
+  release-notes:
+    name: Release notes
+    # Prove the release changelog toolchain (preset + the writer semantic-release
+    # ships) still renders, so an incompatible bump fails here instead of on the
+    # post-merge Release run, which only fires on push to main. No token, no
+    # network, so it covers Dependabot and fork PRs. See
+    # scripts/verify-changelog-render.mjs for why this isn't a semantic-release
+    # --dry-run.
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup
+      - run: pnpm run verify:release-notes

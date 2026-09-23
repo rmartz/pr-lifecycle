@@ -49,6 +49,7 @@
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",
+    "verify:release-notes": "node scripts/verify-changelog-render.mjs",
     "hygiene": "ai-repo-hygiene conflict-markers action-pins package-pins docs-links md-pairing okf okf-index file-caps --check --config .repo-hygiene.yml",
     "hygiene:staged": "ai-repo-hygiene conflict-markers action-pins package-pins docs-links md-pairing okf okf-index file-caps --staged --config .repo-hygiene.yml",
     "prepare": "husky"
@@ -56,9 +57,10 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@rmartz/repo-hygiene": "^6.0.0",
+    "@semantic-release/release-notes-generator": "^14.1.1",
     "@types/node": "^26.6.2",
     "@vitest/coverage-v8": "^5.0.1",
-    "conventional-changelog-conventionalcommits": "^10.4.0",
+    "conventional-changelog-conventionalcommits": "^9.3.1",
     "eslint": "^10.11.0",
     "eslint-import-resolver-typescript": "^4.4.5",
     "eslint-plugin-import": "^2.32.0",
