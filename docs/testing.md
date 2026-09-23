@@ -30,17 +30,27 @@ wrong merge. The test suite is designed around that.
   not approve. An approval bound to a non-current head SHA must not count.
 - **Replay and idempotency.** Reconciling the same facts twice yields no second
   change; applying event sequences in any order converges to the same labels.
-  These are natural candidates for property-based tests.
 - **No-op safety.** A PR whose labels already match its state produces no writes.
+
+## Property-based tests
+
+`test/properties.test.ts` uses [fast-check](https://fast-check.dev) to generate
+random fact sets and policies and assert the core's guarantees hold for all of
+them: idempotency, order independence, inertness of untrusted and stale reviews,
+and scoped label writes. When you add a state, fact, or rule, extend the
+arbitraries so the new input is generated, and add a property for any new
+guarantee. Deterministic example tests still cover every state and rule directly:
+a property shows an invariant holds, an example shows the intended behavior.
 
 ## Conventions
 
 - `describe`/`it` from Vitest; `test()` is lint-banned.
-- Fixture builders are named `make{Domain}()` (e.g. `makePullRequestFacts()`) and
-  take overrides, so each test states only the facts it depends on.
+- Fixture builders in `test/fixtures.ts` are named `make{Domain}()` (e.g.
+  `makeFacts()`, `makeReview()`) and take overrides, so each test states only the
+  facts it depends on. `applyPlan()` simulates the edge layer applying a plan.
 - Assert on explicit, non-default values; one reason to fail per test.
 - Test files live under `test/` and mirror `src/` paths
-  (`src/reconcile.ts` → `test/reconcile.test.ts`).
+  (`src/verdict.ts` → `test/verdict.test.ts`).
 
 ## Coverage
 

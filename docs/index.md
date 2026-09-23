@@ -10,8 +10,11 @@ relevant to your task before editing code — see
 [AGENTS.md](../AGENTS.md#documentation-lifecycle--every-task).
 
 - [What pr-lifecycle is](overview.md) — the event-driven lifecycle reconciler, its
-  design constraints, how it relates to sibling packages, and the open design
-  questions.
+  design constraints and settled decisions, how it relates to sibling packages,
+  and the remaining open questions.
+- [Reconciler core design](reconciler-design.md) — the pure facts → state → plan
+  core: the fact model, verdict trust and head binding, state priority, the label
+  and auto-merge plan, and the properties the tests guarantee.
 - [Testing strategy](testing.md) — how the reconciler is tested: pure state
   computation, fact fixtures, replay/idempotency, security cases, coverage.
 - [Development and CI](development.md) — the toolchain, the CI jobs and what each
