@@ -78,10 +78,18 @@ verdict on the old head.
   before their ruleset gates are ready.
 - **Waiting for Copilot is derived.** It has no visible label, so the label
   roster stays at the four existing verdict labels.
+- **Distributed as a composite action in a sibling repo,
+  [`rmartz/pr-lifecycle-action`](https://github.com/rmartz/pr-lifecycle-action).**
+  This repo publishes the `@rmartz/pr-lifecycle` CLI. The action pins an exact
+  CLI version in its own lockfile, so Dependabot bumps the CLI → a new action
+  release → consumers' SHA pins get bumped by Dependabot, with every link
+  automated. A reusable workflow or JavaScript action in this repo would need a
+  version pin or a committed `dist/` that semantic-release (which never commits
+  back) can't keep current. This matches `repo-hygiene-action` and
+  `bot-automerge-action` (ai-tools#282). The CLI ↔ action interface contract is
+  tracked on #6.
 
 ## Open questions
 
-- Distribution form — a reusable workflow in this repo, or a composite action in
-  a sibling `pr-lifecycle-action` repo (the form the fleet is converging on, per
-  ai-tools#282)?
-- What happens to `/merge`, `merge-pr.py`, and `pr-route.py` once this is live.
+- What happens to `/merge`, `merge-pr.py`, and `pr-route.py` once this is live
+  (#11).
