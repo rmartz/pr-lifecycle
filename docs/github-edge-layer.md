@@ -42,8 +42,8 @@ HTTP status.
   lookup and get `none`, so they can never cast a counting verdict. The HTTP
   client maps an unrecognized review state to `DISMISSED` and any non-`User` actor
   type (e.g. `Organization`) to `Bot`, so new GitHub values fail closed.
-- **Bot eligibility** is computed here with `classifyBotPr` (see
-  [Bot-PR eligibility](bot-eligibility.md)) from the PR author, head ref, labels,
+- **Bot eligibility** is computed with `classifyBotPr` (see
+  [Bot-PR eligibility](bot-eligibility.md)) from the PR author, head ref,
   and whether the head is in a fork. The PR's commits are fetched only for a
   Dependabot PR from this repository, and its changed files only for a same-repo
   `release-please--` branch: the cases where they can change the answer
