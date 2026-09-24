@@ -14,7 +14,11 @@ export type {
   DependabotUpdateType,
 } from './bot-eligibility.js';
 export { runCli, USAGE } from './cli.js';
-export type { CliIo } from './cli.js';
+export type { CliDeps, CliIo } from './cli.js';
+export { parseArgs } from './cli/args.js';
+export type { ParsedArgs, ReconcileArgs } from './cli/args.js';
+export { formatSummary, SCHEMA_VERSION, toReconcileJson } from './cli/output.js';
+export type { ReconcileJson, ReconcileTarget } from './cli/output.js';
 export { ACTOR_TYPES, PR_STATUSES, REPO_PERMISSIONS, REVIEW_STATES } from './facts.js';
 export type {
   ActorType,
