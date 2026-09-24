@@ -1,14 +1,14 @@
 ---
 type: Design
-title: UAT gate design
+title: UAT gate
 description: The opt-in `uat` check-run a consumer ruleset can require — where the UAT requirement comes from (the head-bound verdict, not a label), the human-only `UAT passed` / `no UAT needed` overrides and how their actor is verified, and the decisions behind it.
 tags: [reconciler, design, uat, check-run, security]
 ---
 
-# UAT gate design
+# UAT gate
 
-**Status: decided, not yet built** (#8 implements it; the decisions are from
-#25). UAT is the one merge gate this package owns
+**Status: built** (`src/uat.ts`, posted by `src/github/uat-check.ts`; the
+decisions are from #25). UAT is the one merge gate this package owns
 ([overview](overview.md#design-constraints)). It becomes a check-run so a
 consumer's ruleset can require it, and native auto-merge then waits on it like
 any other required check.
@@ -82,8 +82,20 @@ separate identity is tracked in rmartz/dotfiles#1585.
   or when it is required and an override counts. Otherwise it stays
   `in_progress` (a hold, not a failure), with a summary saying what it's waiting
   for. It never fails.
+- **Arming waits for it.** With `--arm-auto-merge`, an `approved` PR is armed
+  only once the gate passes, and an armed PR whose gate starts holding (a new
+  verdict requires UAT) is disarmed. So UAT holds the merge even in a repo whose
+  ruleset doesn't require `uat` yet, and a stale `success` on the head can never
+  let a direct merge through.
+- **CI never waits on it.** The CI gate always treats `uat` as a hold check, so a
+  pending `uat` never keeps a PR in `awaiting-ci` (see
+  [CI gate](reconciler-design.md#ci-gate)).
+- **Posted only when it changes,** before any arm, with the workflow token. A PAT
+  can't create check-runs (see [Execute](github-edge-layer.md#execute)).
 - **Triggers:** the `labeled`/`unlabeled` and review events the reconciler
   already runs on.
+- **Rulesets:** require `uat` from the GitHub Actions app, so a `uat` check
+  posted by any other app can't satisfy it.
 
 ## Open questions
 

@@ -20,7 +20,7 @@ installs a pinned version and invokes it, so everything on this page is a
 ```
 ai-pr-lifecycle reconcile --repo <owner/repo> --pr <n>
   [--arm-auto-merge] [--auto-update] [--trusted-authors a,b] [--skip-copilot-review]
-  [--hold-checks a,b] [--ignore-checks a,b] [--dry-run] [--json]
+  [--uat-gate] [--hold-checks a,b] [--ignore-checks a,b] [--dry-run] [--json]
   [--no-token-advisory]
 ```
 
@@ -32,6 +32,7 @@ ai-pr-lifecycle reconcile --repo <owner/repo> --pr <n>
 | `--auto-update`           | Bring an approved PR that merge-safety labels `update required` up to date (`policy.autoUpdate`): `update-branch` for most PRs, a `@dependabot rebase` request for Dependabot's (see [Auto-update](github-edge-layer.md#auto-update)). Needs a [release token](#release-token). Off by default. |
 | `--trusted-authors <a,b>` | Narrow trust to these logins; they still need write access (`policy.trustedAuthors`). An empty list is an error.                                                                                                                                                                                |
 | `--skip-copilot-review`   | Don't wait for a Copilot review (`policy.skipCopilotReview`).                                                                                                                                                                                                                                   |
+| `--uat-gate`              | Post the [`uat` check-run](uat-gate.md) on the head, and arm or merge only once it passes (`policy.uatGate`). Needs `checks: write` on an app token such as `GITHUB_TOKEN`. Off by default.                                                                                                     |
 | `--hold-checks <a,b>`     | Required checks whose _pending_ is a hold, not a running build; their failures still count (`policy.holdChecks`, default `pr-policy`).                                                                                                                                                          |
 | `--ignore-checks <a,b>`   | Required checks the CI gate never counts (`policy.ignoredChecks`, default `merge-safety`). An empty value counts every check.                                                                                                                                                                   |
 | `--dry-run`               | Gather and plan, but write nothing.                                                                                                                                                                                                                                                             |
@@ -50,8 +51,11 @@ The policy options are described in the [core design](reconciler-design.md).
 
 **Token permissions.** `pull-requests: write` (PR, reviews, labels, comments,
 disarming), `contents: read` (branch rules, the base branch head, commits),
-`checks: read` and `statuses: read` (the CI gate). The collaborator-permission
-lookup also needs at least read access to the repository.
+`checks: read` and `statuses: read` (the CI gate), and, with `--uat-gate`,
+`checks: write` (the `uat` check-run; only an app token such as `GITHUB_TOKEN`
+can create one). Reading who applied an override label is covered by
+`pull-requests`. The
+collaborator-permission lookup also needs at least read access to the repository.
 
 **git.** [Approval carry-over](reconciler-design.md#approval-carry-over) needs
 `git` ≥ 2.40 on `PATH` (GitHub-hosted runners have it), and uses the same token,
@@ -133,7 +137,8 @@ never omitted:
   },
   "autoMergeSkipped": null,
   "update": "none",
-  "updateSkipped": null
+  "updateSkipped": null,
+  "uatGate": null
 }
 ```
 
@@ -144,7 +149,12 @@ was done: `arm`, `merge` (the PR was already mergeable), `disarm`, or `none`.
 when an arm or merge was skipped (see [Release token](#release-token)), else `null`.
 `update` is the branch update done: `update-branch`, `dependabot-rebase`, or
 `none`; `updateSkipped` is `{ "action": "update-branch" | "dependabot-rebase",
-"reason": "token-missing" }` when one was skipped, else `null`. `botEligibility` is described in
+"reason": "token-missing" }` when one was skipped, else `null`. `uatGate` is `null` without
+`--uat-gate` or for a closed PR, else `{ "passes", "required", "reason",
+"override" }`: `reason` is one of `verdict-exempt`, `bot-eligible`, `override`,
+`verdict-required`, `verdict-unspecified`, or `no-verdict`, and `override` is the
+passing override label (`UAT passed` or `no UAT needed`) or `null` (see
+[UAT gate](uat-gate.md)). `botEligibility` is described in
 [Bot-PR eligibility](bot-eligibility.md). `carryOver` reports
 [approval carry-over](reconciler-design.md#approval-carry-over): the verified clean
 ancestors whose reviews count, and why the walk stopped (e.g. `… is not the clean

@@ -20,8 +20,8 @@ Source: `src/github/`.
 
 `GitHubClient` (`client.ts`) is a narrow, domain-shaped interface: get the PR,
 list reviews, list commits, get a collaborator's permission, list/create repo labels,
-add/remove PR labels, list/post PR comments, enable/disable auto-merge, merge, and
-update the branch. All decisions live in
+add/remove PR labels, list/post PR comments, list the PR's `labeled` events,
+list and post check-runs, enable/disable auto-merge, merge, and update the branch. All decisions live in
 `gather.ts` and `execute.ts`, which are tested against an in-memory fake
 (`test/github/fake-client.ts`). The real implementation, `createHttpClient`
 (`http-client.ts`), only maps requests and responses: REST for reads and labels,
@@ -50,13 +50,28 @@ HTTP status.
 - **Branch updater.** A PR authored by `dependabot[bot]` is updated by Dependabot;
   its comments are read (for `rebasePending`) only when an update could be
   planned: auto-update on, the PR open and labelled `update required`.
+- **UAT overrides** (only with `--uat-gate`, and only for an open PR). A label
+  records nobody, so for each override label present (`UAT passed`, `tested`,
+  `no UAT needed`) the PR's issue events are read once, and the **latest**
+  `labeled` event for it names the applier: re-applying a label replaces who
+  applied it. The applier's permission is looked up like a review author's; a bot
+  or a deleted account gets none. The head's existing `uat` check-runs are read
+  too, so an unchanged result isn't posted again.
 
 ## Execute
 
 Writes happen in a **fail-safe order**: disarm auto-merge → remove labels → add
-labels → arm (or merge) → update. If a run dies partway, auto-merge is never
-left armed on a PR that isn't approved, arming happens only after the labels that
-explain it are written, and the update, which moves the head, comes last.
+labels → post the `uat` check-run → arm (or merge) → update. If a run dies
+partway, auto-merge is never left armed on a PR that isn't approved, arming
+happens only after the labels and the UAT result that explain it are written, and
+the update, which moves the head, comes last.
+
+- **The `uat` check-run** is posted with the workflow token on the head, and only
+  when the head doesn't already show the same result: every `uat` run there has
+  the same status, conclusion, and title. Any run that differs, including one
+  another app posted, gets a fresh one, so the latest `uat` run is always this
+  package's. GitHub only lets apps create check-runs: `GITHUB_TOKEN` with
+  `checks: write` can, a personal access token gets 403, and the run fails.
 
 - **Tolerated errors.** Removing a label that's already gone (404) and creating a
   label that already exists (422, e.g. from a concurrent run) both mean the goal

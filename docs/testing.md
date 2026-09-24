@@ -27,7 +27,9 @@ wrong merge. The test suite is designed around that.
   facts that produce exactly that state.
 - **Security rules, including the negative case.** A verdict from a
   non-allowlisted author — even carrying a well-formed `skill-meta` marker — must
-  not approve. An approval bound to a non-current head SHA must not count.
+  not approve. An approval bound to a non-current head SHA must not count. The
+  same holds for the UAT gate: a forged `uat: exempt` marker, or an override
+  label applied by a bot or a triage-only user, must not pass it.
 - **Replay and idempotency.** Reconciling the same facts twice yields no second
   change; applying event sequences in any order converges to the same labels.
 - **No-op safety.** A PR whose labels already match its state produces no writes.
@@ -36,8 +38,9 @@ wrong merge. The test suite is designed around that.
 
 `test/properties.test.ts` uses [fast-check](https://fast-check.dev) to generate
 random fact sets and policies and assert the core's guarantees hold for all of
-them: idempotency, order independence, inertness of untrusted and stale reviews,
-and scoped label writes. When you add a state, fact, or rule, extend the
+them: idempotency, order independence, inertness of untrusted and stale reviews
+and of untrusted UAT overrides, no arming while the UAT gate holds, and scoped
+label writes. When you add a state, fact, or rule, extend the
 arbitraries so the new input is generated, and add a property for any new
 guarantee. Deterministic example tests still cover every state and rule directly:
 a property shows an invariant holds, an example shows the intended behavior.

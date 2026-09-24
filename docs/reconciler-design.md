@@ -35,6 +35,7 @@ Source: `src/` (`facts.ts`, `verdict.ts`, `state.ts`, `plan.ts`).
 | `updater`              | `dependabot` for a PR opened by `dependabot[bot]` (it rebases its own branch), else `github` (`update-branch`)       |
 | `rebasePending`        | Dependabot PRs only: a rebase is running (PR body) or was already requested for this head (a marker comment)         |
 | `reviews`              | PR reviews: author login, type (`User`/`Bot`), repo permission, `commit_id`, state, body, submitted time             |
+| `uatOverrides`         | [UAT gate](uat-gate.md) override labels on the PR, each with who last applied it (only with `policy.uatGate`)        |
 
 The author's **repo permission** is a fact gathered at the edge (the collaborator
 permission API), so trust evaluation stays pure.
@@ -150,7 +151,9 @@ pr-policy reports **pending** while waiting on a sign-off and **fails** for
 fixable problems such as a bad title, so it's a hold check: a sign-off wait must
 not look like CI still running, but a fixable failure should route to a fix.
 merge-safety currently fails for "update needed" and "base is red", which other
-states handle, so it's ignored. Once it reports Pending instead, as planned, it
+states handle, so it's ignored. This package's own `uat` check is **always** a
+hold, whatever `holdChecks` says: it waits on a person, and on a PR with no
+verdict yet it waits on the very review CI must go green for. Once it reports Pending instead, as planned, it
 can become a hold check.
 
 A trusted human verdict outranks bot eligibility, so a person can hold a
@@ -229,7 +232,12 @@ The CLI always does; library callers that omit it simply get no carry-over.
   this mirrors `gh pr merge --auto`) and `arm` otherwise. It disarms when the
   state is anything else and auto-merge is on. A direct merge doesn't claim
   `auto-merge enabled`. With arming off, auto-merge is never touched and
-  `auto-merge enabled` isn't owned.
+  `auto-merge enabled` isn't owned. With the [UAT gate](uat-gate.md) on, an
+  `approved` PR is armed (or merged) only once the gate passes; until then it
+  stays `approved` but unarmed, and an armed one is disarmed.
+- **UAT gate (opt-in via `policy.uatGate`, default off).** The plan carries the
+  [gate result](uat-gate.md) for every open PR; the edge posts it as the `uat`
+  check-run.
 - **Auto-update (opt-in via `policy.autoUpdate`, default off).** When the state
   is `approved` and merge-safety's `update required` label is present (read,
   never written), the plan's `update` is `update-branch`, or `dependabot-rebase`
@@ -254,7 +262,11 @@ The CLI always does; library callers that omit it simply get no carry-over.
 - **Scoped writes.** A plan never adds or removes a label outside the owned set.
 - **No unapproved armed PR.** In arming mode, an armed open PR that isn't
   `approved`, whatever its CI, conflict or review state, is always disarmed, and
-  a PR is only ever armed or merged when `approved`.
+  a PR is only ever armed or merged when `approved` (and, with the UAT gate on,
+  only when the gate passes).
+- **UAT overrides are trusted like verdicts.** An override applied by anyone who
+  couldn't merge the PR never changes the gate, and untrusted or stale reviews
+  (including forged `uat: exempt` markers) never change the plan.
 - **Updates are approved-only and Dependabot-safe.** An `update` is only ever
   planned for an `approved` PR, never `update-branch` for a Dependabot PR, and a
   rebase is requested at most once per head.

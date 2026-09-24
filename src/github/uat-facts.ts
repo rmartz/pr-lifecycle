@@ -1,5 +1,5 @@
 import type { ReconcilePolicy } from '../facts.js';
-import type { UatOverrideFact } from '../uat.js';
+import type { UatOverrideFact, UatOverrideLabel } from '../uat.js';
 import { overrideForLabel, UAT_CHECK_NAME } from '../uat.js';
 import type { CheckRunData, GitHubClient, LabelEventData, PullRequestData } from './client.js';
 import { lookupPermission } from './permissions.js';
@@ -36,11 +36,8 @@ async function toOverrideFact(
   client: GitHubClient,
   events: readonly LabelEventData[],
   name: string,
-): Promise<UatOverrideFact | undefined> {
-  const label = overrideForLabel(name);
-  if (label === undefined) {
-    return undefined;
-  }
+  label: UatOverrideLabel,
+): Promise<UatOverrideFact> {
   const event = latestLabeling(events, name);
   if (event?.login === undefined) {
     // Nobody verifiable applied it, so it can't count.
@@ -56,13 +53,15 @@ async function gatherOverrides(
   pr: number,
   labels: readonly string[],
 ): Promise<UatOverrideFact[]> {
-  const names = labels.filter((name) => overrideForLabel(name) !== undefined);
-  if (names.length === 0) {
+  const present = labels.flatMap((name) => {
+    const label = overrideForLabel(name);
+    return label === undefined ? [] : [{ name, label }];
+  });
+  if (present.length === 0) {
     return [];
   }
   const events = await client.listLabelEvents(pr);
-  const facts = await Promise.all(names.map((name) => toOverrideFact(client, events, name)));
-  return facts.filter((fact) => fact !== undefined);
+  return Promise.all(present.map(({ name, label }) => toOverrideFact(client, events, name, label)));
 }
 
 export async function gatherUatFacts(
