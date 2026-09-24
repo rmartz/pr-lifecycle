@@ -85,8 +85,9 @@ secrets); without it, all npm updates silently stop.
 
 A push to `main` runs semantic-release with the `conventionalcommits` preset on
 both the commit analyzer and notes generator, so `feat` → minor, `fix` → patch,
-`!` → major, and other types release nothing. It publishes to GitHub Packages and
-creates the `v*` tag and GitHub Release using the built-in `GITHUB_TOKEN`. Because
+`!` → major, and other types release nothing. It publishes to npmjs through OIDC
+trusted publishing (no `NPM_TOKEN`) and creates the `v*` tag and GitHub Release
+using the built-in `GITHUB_TOKEN`. Because
 the repo squash-merges with the PR title, the PR title is what determines the
 release.
 

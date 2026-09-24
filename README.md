@@ -48,8 +48,9 @@ pnpm run hygiene
 
 Versioned by [semantic-release](.releaserc.json): a push to `main` analyzes the
 Conventional-Commit history since the last `v*` tag and, when a release is
-warranted, publishes the package to GitHub Packages and creates the tag and
-GitHub Release.
+warranted, publishes the package to npmjs (public, via OIDC trusted publishing
+with provenance) and creates the tag and GitHub Release. Versions up to 5.0.0
+were published to GitHub Packages and stay there for existing pins.
 
 ## License
 
