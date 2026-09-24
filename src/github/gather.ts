@@ -136,8 +136,10 @@ async function gatherLineageFor(
       },
       reviews,
     });
-  } catch {
-    return undefined;
+  } catch (error) {
+    // Fail closed, but keep the reason: `undefined` would read as "didn't run".
+    const message = error instanceof Error ? error.message : String(error);
+    return { cleanAncestors: [], stoppedBecause: `verification failed: ${message}` };
   }
 }
 

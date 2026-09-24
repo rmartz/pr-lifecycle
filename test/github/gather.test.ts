@@ -242,21 +242,22 @@ const neverCalledGit: GitRunner = {
   },
 };
 
-describe('gatherFacts — lineage', () => {
-  it('fails closed when getBranchHeadSha throws', async () => {
+// Carry-over errors fail closed (nothing carries) but keep the reason, so a
+// failed walk is never mistaken for one that didn't run.
+describe('gatherFacts — lineage error boundary', () => {
+  it('fails closed with the reason when getBranchHeadSha throws', async () => {
     const client = makeClient();
     client.failNext('getBranchHeadSha', new Error('rate limit'));
 
     const { lineage } = await gatherFacts(client, 7, {}, { lineage: { git: neverCalledGit } });
 
-    expect(lineage).toBeUndefined();
+    expect(lineage).toEqual({
+      cleanAncestors: [],
+      stoppedBecause: 'verification failed: rate limit',
+    });
   });
-});
 
-describe('gatherFacts — lineage error boundary', () => {
-  // gatherLineage itself rejecting (not just the base-head lookup before it) must
-  // also fail closed: no carry-over, never an aborted run.
-  it('fails closed when gatherLineage itself rejects', async () => {
+  it('fails closed with the reason when gatherLineage itself rejects', async () => {
     const review = makeReviewData({ commitSha: OLD_SHA, state: 'COMMENTED' });
     // The body's first read is gatherLineage's scan for reviewed ancestors; throw
     // there only, so the later mapping into facts still succeeds.
@@ -274,6 +275,9 @@ describe('gatherFacts — lineage error boundary', () => {
 
     const { lineage } = await gatherFacts(client, 7, {}, { lineage: { git: neverCalledGit } });
 
-    expect(lineage).toBeUndefined();
+    expect(lineage).toEqual({
+      cleanAncestors: [],
+      stoppedBecause: 'verification failed: malformed review',
+    });
   });
 });
