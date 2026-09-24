@@ -1,15 +1,19 @@
+import type { ChangedFile } from './release-diff.js';
+import { classifyReleaseDiff } from './release-diff.js';
+
 /**
  * Bot-PR eligibility: is this a bot PR trusted enough to count as `approved`
  * without a review (state priority 7 in docs/reconciler-design.md)? Ported from
- * @rmartz/bot-automerge's classifier, with one deliberate tightening: the head
- * branch must live in the base repository. See docs/bot-eligibility.md.
+ * @rmartz/bot-automerge's classifier, with deliberate tightenings: the head
+ * branch must live in the base repository, and a release-please PR is recognized
+ * by its branch and a release-only diff, never by a label. See
+ * docs/bot-eligibility.md.
  *
  * FAIL-SAFE: every uncertain or unrecognized case is not eligible.
  */
 
 export const DEPENDABOT_LOGIN = 'dependabot[bot]';
 export const RELEASE_PLEASE_BRANCH_PREFIX = 'release-please--';
-export const RELEASE_PLEASE_PENDING_LABEL = 'autorelease: pending';
 
 /** Dependabot's semver update types, lowest to highest risk. */
 export const DEPENDABOT_UPDATE_TYPES = [
@@ -37,9 +41,13 @@ export interface BotPrFacts {
   headRef: string;
   /** True when the head branch lives in a fork, not the base repository. */
   isCrossRepository: boolean;
-  labels: readonly string[];
   /** The PR's commits; only consulted for Dependabot PRs. */
   commits: readonly BotPrCommit[];
+  /**
+   * The PR's changed files; only consulted for release-please PRs. Undefined when
+   * not fetched or not read in full, which is never eligible.
+   */
+  changedFiles: readonly ChangedFile[] | undefined;
 }
 
 export interface BotEligibility {
@@ -132,11 +140,19 @@ export function classifyBotPr(facts: BotPrFacts): BotEligibility {
   if (facts.authorLogin === DEPENDABOT_LOGIN) {
     return classifyDependabot(facts.commits);
   }
-  if (
-    facts.headRef.startsWith(RELEASE_PLEASE_BRANCH_PREFIX) ||
-    facts.labels.includes(RELEASE_PLEASE_PENDING_LABEL)
-  ) {
-    return result(true, 'release-please release PR — eligible', 'release-please');
+  // Only the branch identifies release-please: pushing one needs write access,
+  // while a label can be applied with triage alone. The branch still isn't
+  // enough on its own — anyone with write access can push arbitrary code to one
+  // — so the diff must be a pure release too.
+  if (facts.headRef.startsWith(RELEASE_PLEASE_BRANCH_PREFIX)) {
+    const diff = classifyReleaseDiff(facts.changedFiles);
+    return diff.release
+      ? result(true, 'release-please release PR — eligible', 'release-please')
+      : result(
+          false,
+          `release-please branch, but not a pure release (${diff.reason}) — held for review`,
+          'release-please',
+        );
   }
   return result(false, 'not a recognized bot PR');
 }

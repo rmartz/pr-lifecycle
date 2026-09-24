@@ -1,5 +1,5 @@
 import type { BotEligibility } from '../bot-eligibility.js';
-import { classifyBotPr, DEPENDABOT_LOGIN } from '../bot-eligibility.js';
+import { DEPENDABOT_LOGIN } from '../bot-eligibility.js';
 import type {
   BranchUpdater,
   PullRequestFacts,
@@ -10,6 +10,7 @@ import type {
 import { REPO_PERMISSIONS } from '../facts.js';
 import type { GitRunner } from '../lineage/git.js';
 import { UPDATE_REQUIRED_LABEL } from '../plan.js';
+import { gatherBotEligibility } from './bot-facts.js';
 import { gatherCiFacts } from './ci-facts.js';
 import type { GitHubClient, PullRequestData, ReviewData } from './client.js';
 import { isApiStatus } from './client.js';
@@ -40,25 +41,6 @@ export interface GatherOptions {
    * earlier-commit verdicts simply don't count).
    */
   lineage?: { git: GitRunner; token?: string };
-}
-
-/**
- * Classify the PR for bot eligibility. Commits are only fetched for a Dependabot
- * PR from this repository — the one case where they can change the answer.
- */
-async function gatherBotEligibility(
-  client: GitHubClient,
-  pr: number,
-  pull: PullRequestData,
-): Promise<BotEligibility> {
-  const needsCommits = pull.authorLogin === DEPENDABOT_LOGIN && !pull.isCrossRepository;
-  return classifyBotPr({
-    authorLogin: pull.authorLogin ?? 'ghost',
-    headRef: pull.headRef,
-    isCrossRepository: pull.isCrossRepository,
-    labels: pull.labels,
-    commits: needsCommits ? await client.listCommits(pr) : [],
-  });
 }
 
 function isRepoPermission(value: string): value is RepoPermission {

@@ -1,5 +1,6 @@
 import type { PullRequestFacts, ReviewAuthor, ReviewFact } from '../src/facts.js';
 import type { ReconcilePlan } from '../src/plan.js';
+import type { ChangedFile } from '../src/release-diff.js';
 import { COPILOT_REVIEWER_LOGIN } from '../src/state.js';
 
 export const HEAD_SHA = 'a'.repeat(40);
@@ -67,4 +68,36 @@ export function applyPlan(facts: PullRequestFacts, plan: ReconcilePlan): PullReq
   // A rebase request stays pending until Dependabot pushes a new head.
   const rebasePending = facts.rebasePending || plan.update === 'dependabot-rebase';
   return { ...facts, labels, autoMergeEnabled, rebasePending };
+}
+
+/** A `package.json` patch that bumps only the version, as release-please writes it. */
+export const VERSION_BUMP_PATCH = [
+  '@@ -1,6 +1,6 @@',
+  ' {',
+  '   "name": "@rmartz/bootstrap",',
+  '-  "version": "1.4.0",',
+  '+  "version": "1.5.0",',
+  '   "type": "module",',
+].join('\n');
+
+export function makeChangedFile(overrides: Partial<ChangedFile> = {}): ChangedFile {
+  return {
+    filename: 'CHANGELOG.md',
+    status: 'modified',
+    patch: '@@ -1,2 +1,6 @@\n # Changelog\n+\n+## 1.5.0\n+\n+* a feature\n',
+    ...overrides,
+  };
+}
+
+/** The files of a real release-please PR (shaped like rmartz/ai-tools#321). */
+export function makeReleaseFiles(): ChangedFile[] {
+  return [
+    makeChangedFile({
+      filename: '.release-please-manifest.json',
+      patch:
+        '@@ -1,3 +1,3 @@\n {\n-  "packages/bootstrap": "1.4.0"\n+  "packages/bootstrap": "1.5.0"\n }',
+    }),
+    makeChangedFile({ filename: 'packages/bootstrap/CHANGELOG.md' }),
+    makeChangedFile({ filename: 'packages/bootstrap/package.json', patch: VERSION_BUMP_PATCH }),
+  ];
 }

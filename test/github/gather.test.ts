@@ -1,15 +1,27 @@
 import { describe, expect, it } from 'vitest';
 
 import type { PullRequestData } from '../../src/github/client.js';
+import { DEPENDABOT_LOGIN } from '../../src/bot-eligibility.js';
 import { GitHubApiError } from '../../src/github/client.js';
 import { gatherFacts } from '../../src/github/gather.js';
 import type { GitRunner } from '../../src/lineage/git.js';
-import { OLD_SHA } from '../fixtures.js';
+import { makeChangedFile, makeReleaseFiles, OLD_SHA } from '../fixtures.js';
 import { FakeGitHubClient, makePullRequestData, makeReviewData } from './fake-client.js';
 
 function makeClient(reviews = [makeReviewData()]) {
   const client = new FakeGitHubClient(makePullRequestData(), reviews);
   client.permissions.set('maintainer', { permission: 'write', roleName: 'write' });
+  return client;
+}
+
+const RELEASE_BRANCH = 'release-please--branches--main';
+
+/** A same-repo release-please PR whose files are a pure release. */
+function makeReleaseClient(): FakeGitHubClient {
+  const client = new FakeGitHubClient(
+    makePullRequestData({ headRef: RELEASE_BRANCH, authorLogin: 'rmartz', changedFileCount: 3 }),
+  );
+  client.files = makeReleaseFiles();
   return client;
 }
 
@@ -111,12 +123,38 @@ describe('gatherFacts — bot eligibility', () => {
     expect(client.calls.some((call) => call.method === 'listCommits')).toBe(false);
   });
 
-  it('marks a same-repo release-please PR eligible', async () => {
-    const client = new FakeGitHubClient(
-      makePullRequestData({ headRef: 'release-please--branches--main' }),
-    );
+  it('marks a same-repo release-please PR with a pure release diff eligible', async () => {
+    const client = makeReleaseClient();
 
     expect((await gatherFacts(client, 7)).facts.botEligible).toBe(true);
+  });
+
+  it('holds a release-please PR whose file list came back short of changed_files', async () => {
+    const client = makeReleaseClient();
+    client.pull.changedFileCount = 3001;
+
+    expect((await gatherFacts(client, 7)).botEligibility.reason).toBe(
+      'release-please branch, but not a pure release (changed files unavailable) — held for review',
+    );
+  });
+
+  it('holds a release-please PR that also changes a source file', async () => {
+    const client = makeReleaseClient();
+    client.files.push(makeChangedFile({ filename: 'src/index.ts' }));
+    client.pull.changedFileCount = client.files.length;
+
+    expect((await gatherFacts(client, 7)).facts.botEligible).toBe(false);
+  });
+
+  it.each([
+    ['a feature branch', { headRef: 'feature/thing' }],
+    ['a fork imitating release-please', { headRef: RELEASE_BRANCH, isCrossRepository: true }],
+    ['a Dependabot PR', { headRef: RELEASE_BRANCH, authorLogin: DEPENDABOT_LOGIN }],
+  ])('does not list changed files for %s', async (_name, overrides) => {
+    const client = new FakeGitHubClient(makePullRequestData(overrides));
+    await gatherFacts(client, 7);
+
+    expect(client.calls.some((call) => call.method === 'listPullRequestFiles')).toBe(false);
   });
 
   it('treats a PR by a deleted account as not a bot PR', async () => {

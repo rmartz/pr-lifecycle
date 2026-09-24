@@ -1,4 +1,5 @@
 import type { ActorType, ReviewState } from '../facts.js';
+import type { ChangedFile } from '../release-diff.js';
 
 /**
  * The narrow GitHub surface the edge layer needs, shaped around the domain rather
@@ -33,6 +34,8 @@ export interface PullRequestData {
   mergeable: boolean | undefined;
   /** GitHub's merge state (`clean`, `blocked`, `behind`, …); undefined while computing. */
   mergeState: string | undefined;
+  /** How many files the PR changes (`changed_files`), to tell a full file list from a truncated one. */
+  changedFileCount: number;
 }
 
 /** A check-run on a commit (the latest run per name). */
@@ -98,6 +101,8 @@ export interface GitHubClient {
   getPullRequest(pr: number): Promise<PullRequestData>;
   listReviews(pr: number): Promise<ReviewData[]>;
   listCommits(pr: number): Promise<CommitData[]>;
+  /** The PR's changed files. GitHub lists at most 3,000, so compare with `changedFileCount`. */
+  listPullRequestFiles(pr: number): Promise<ChangedFile[]>;
   /** The contexts the branch's rulesets require (empty when none are configured). */
   getRequiredStatusChecks(branch: string): Promise<string[]>;
   getBranchHeadSha(branch: string): Promise<string>;

@@ -127,6 +127,21 @@ describe('reconcilePullRequest', () => {
 
     expect([client.pull.labels, client.pull.autoMergeEnabled]).toEqual([[], false]);
   });
+
+  // Triage permission can apply a label but can't push or merge, so the label
+  // must never make a PR eligible.
+  it('never approves a feature PR labelled autorelease: pending', async () => {
+    const client = new FakeGitHubClient(
+      makePullRequestData({ headRef: 'feature/thing', labels: ['autorelease: pending'] }),
+    );
+
+    await reconcilePullRequest(client, 7, ARMING);
+
+    expect([client.pull.labels, client.pull.autoMergeEnabled]).toEqual([
+      ['autorelease: pending'],
+      false,
+    ]);
+  });
 });
 
 describe('reconcilePullRequest — merge or arm', () => {
