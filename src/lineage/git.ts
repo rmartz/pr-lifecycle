@@ -43,7 +43,7 @@ export function createGitRunner(): GitRunner {
               resolve({ code: error.code, stdout, stderr });
               return;
             }
-            reject(error instanceof Error ? error : new Error(String(error)));
+            reject(new Error(`git ${args[0] ?? ''} failed: ${error.message}`, { cause: error }));
           },
         );
       });

@@ -52,7 +52,7 @@ const REST_PULL = {
   title: 'feat: x',
   user: { login: 'dependabot[bot]' },
   head: { sha: 'abc', ref: 'dependabot/x', repo: { id: 11 } },
-  base: { ref: 'main', repo: { id: 11 } },
+  base: { ref: 'main', repo: { id: 11, clone_url: 'https://github.com/rmartz/demo.git' } },
   labels: [{ name: 'approved' }],
   auto_merge: { merge_method: 'squash' },
 };
@@ -114,6 +114,7 @@ describe('createHttpClient requests', () => {
       authorLogin: 'dependabot[bot]',
       headRef: 'dependabot/x',
       baseRef: 'main',
+      cloneUrl: 'https://github.com/rmartz/demo.git',
       isCrossRepository: false,
     });
   });
@@ -205,6 +206,32 @@ describe('createHttpClient requests', () => {
       101,
       { name: 'Test', status: 'queued', conclusion: null, completedAt: null },
       2,
+    ]);
+  });
+
+  it('reads a commit tree and parents', async () => {
+    const { client, requests } = makeTransport([
+      { json: { sha: 'm', tree: { sha: 't1' }, parents: [{ sha: 'p1' }, { sha: 'p2' }] } },
+    ]);
+
+    const commit = await client.getCommit('m');
+
+    expect([commit, requests[0]?.url]).toEqual([
+      { treeSha: 't1', parents: ['p1', 'p2'] },
+      'https://api.github.com/repos/rmartz/demo/git/commits/m',
+    ]);
+  });
+
+  it('compares two commits (status and merge base)', async () => {
+    const { client, requests } = makeTransport([
+      { json: { status: 'ahead', merge_base_commit: { sha: 'mb' }, commits: [] } },
+    ]);
+
+    const comparison = await client.compareCommits('base', 'head');
+
+    expect([comparison, requests[0]?.url]).toEqual([
+      { status: 'ahead', mergeBaseSha: 'mb' },
+      'https://api.github.com/repos/rmartz/demo/compare/base...head?per_page=1',
     ]);
   });
 

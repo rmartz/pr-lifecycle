@@ -49,6 +49,11 @@ The policy options are described in the [core design](reconciler-design.md).
 and `statuses: read` (the CI gate), plus `contents: write` only when arming. The
 collaborator-permission lookup also needs at least read access to the repository.
 
+**git.** [Approval carry-over](reconciler-design.md#approval-carry-over) needs
+`git` ≥ 2.40 on `PATH` (GitHub-hosted runners have it), and uses the same token,
+sent as a header, to fetch the commits it verifies. Without a suitable git, carry-over
+is skipped (an extra review, never an error).
+
 A separate real-actor token for arming and merging, so merges re-trigger
 `on: push` release pipelines, is added in #7.
 
@@ -87,6 +92,10 @@ never omitted:
     "reason": "not a recognized bot PR",
     "prType": null,
     "updateType": null
+  },
+  "carryOver": {
+    "cleanAncestors": [],
+    "stoppedBecause": "no reviews on earlier commits"
   }
 }
 ```
@@ -94,7 +103,10 @@ never omitted:
 `state` is one of the lifecycle states in the
 [core design](reconciler-design.md#state-in-priority-order). `autoMerge` is `arm`,
 `disarm`, or `none`. `botEligibility` is described in
-[Bot-PR eligibility](bot-eligibility.md).
+[Bot-PR eligibility](bot-eligibility.md). `carryOver` reports
+[approval carry-over](reconciler-design.md#approval-carry-over): the verified clean
+ancestors whose reviews count, and why the walk stopped (e.g. `… is not the clean
+automatic merge`). It is `null` when carry-over didn't run (a closed PR).
 
 ## Versioning
 

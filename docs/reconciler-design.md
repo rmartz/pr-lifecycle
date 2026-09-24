@@ -18,18 +18,19 @@ Source: `src/` (`facts.ts`, `verdict.ts`, `state.ts`, `plan.ts`).
 
 ## Facts
 
-| Fact               | Source (edge layer)                                                                                      |
-| ------------------ | -------------------------------------------------------------------------------------------------------- |
-| `status`           | PR `state` / `merged`: `open`, `closed`, or `merged`                                                     |
-| `isDraft`, `title` | PR fields; a `[WIP]` title (any case) is treated like a draft                                            |
-| `headSha`          | PR `head.sha`                                                                                            |
-| `labels`           | current label names                                                                                      |
-| `autoMergeEnabled` | PR `auto_merge` is non-null                                                                              |
-| `botEligible`      | [bot-PR eligibility](bot-eligibility.md): same-repo Dependabot patch/minor, release-please               |
-| `mergeable`        | PR `mergeable`: `true`, `false` (merge conflict), or unknown (`null` → `undefined`: still computing)     |
-| `ciStatus`         | [CI gate](#ci-gate) over the head's required checks: `passing`, `failing`, or `pending`                  |
-| `baseCiFailing`    | the same required checks are failing on the base branch head (fetched only when `ciStatus` is `failing`) |
-| `reviews`          | PR reviews: author login, type (`User`/`Bot`), repo permission, `commit_id`, state, body, submitted time |
+| Fact               | Source (edge layer)                                                                                                  |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------- |
+| `status`           | PR `state` / `merged`: `open`, `closed`, or `merged`                                                                 |
+| `isDraft`, `title` | PR fields; a `[WIP]` title (any case) is treated like a draft                                                        |
+| `headSha`          | PR `head.sha`                                                                                                        |
+| `labels`           | current label names                                                                                                  |
+| `autoMergeEnabled` | PR `auto_merge` is non-null                                                                                          |
+| `botEligible`      | [bot-PR eligibility](bot-eligibility.md): same-repo Dependabot patch/minor, release-please                           |
+| `mergeable`        | PR `mergeable`: `true`, `false` (merge conflict), or unknown (`null` → `undefined`: still computing)                 |
+| `ciStatus`         | [CI gate](#ci-gate) over the head's required checks: `passing`, `failing`, or `pending`                              |
+| `baseCiFailing`    | the same required checks are failing on the base branch head (fetched only when `ciStatus` is `failing`)             |
+| `cleanAncestors`   | commits whose reviews carry over to the head (see [Approval carry-over](#approval-carry-over)); verified at the edge |
+| `reviews`          | PR reviews: author login, type (`User`/`Bot`), repo permission, `commit_id`, state, body, submitted time             |
 
 The author's **repo permission** is a fact gathered at the edge (the collaborator
 permission API), so trust evaluation stays pure.
@@ -64,10 +65,10 @@ A verdict **counts** only when all of the following hold:
    trust: anyone can write one into a comment. This boundary grants no new
    privilege, because a write-permission user can already merge a PR once its
    required checks pass.
-2. **Bound to the current head.** The review's `commit_id` equals `headSha`, and
-   if the marker names a `pr_head`, that equals `headSha` too. A verdict on an
-   older commit never counts, so a push after approval un-approves the PR without
-   any extra logic.
+2. **Bound to the current head.** The review's `commit_id` is the head, or one of
+   the head's [clean ancestors](#approval-carry-over), and if the marker names a
+   `pr_head`, it names that same commit. A verdict on any other older commit never
+   counts, so a real push after approval un-approves the PR without extra logic.
 
 The **latest** counting verdict (by submitted time, then review id) decides.
 
@@ -162,6 +163,53 @@ are unaffected. A timeout alternative ("treat Copilot as done after N minutes")
 was rejected: no event fires when nothing happens, so it would need a scheduled
 trigger.
 
+## Approval carry-over
+
+Head binding makes any push drop the approval, so without carry-over every base
+update would cost a full review cycle. A review bound to commit `A` also counts
+for the head `H` when every commit on the first-parent chain from `H` back to `A`
+is a **verified clean base merge** (`src/github/lineage-facts.ts`,
+`src/lineage/verify.ts`). This applies to verdicts **and** to Copilot's review:
+Copilot won't re-review after a push (`review_on_push` is off), so without it
+every update would strand the PR in `awaiting-copilot`. Each step must satisfy:
+
+1. It is a merge commit with **exactly two parents**, and the second parent is
+   **on the base branch** (reachable from the base head, via the compare API).
+2. **Its tree is byte-identical to the automatic merge**, recomputed with
+   `git merge-tree --write-tree --merge-base=<M> <first> <second>`, which must also
+   report no conflicts.
+
+**Content, not provenance.** GitHub's `web-flow` committer also signs web-editor
+conflict resolutions and in-browser edits, so "GitHub made this commit" doesn't
+mean clean; rule 2 ignores who made the commit. Any extra edit, hand-resolved
+conflict, reverted base change (`-s ours`) or octopus merge fails. It was
+validated against **real GitHub update-branch merges**: 8 of 8 from the fleet's
+history reproduced byte for byte, and each tampered variant was rejected.
+
+**Safety of the check itself.**
+
+- The commits are fetched as **git data only** (`fetch --depth=1` by SHA into a
+  throwaway bare repo); nothing is checked out and no PR code runs.
+- The token travels only as a `GIT_CONFIG_*` header (as `actions/checkout`
+  does), never in argv or the URL.
+- Every SHA from the API is validated as a hex object id before it reaches git's
+  argv, the URL must be `https://` or `file://`, and `--end-of-options` precedes
+  it, so no API value can be read as a git option.
+
+**Fails closed.** Any API or git error, git older than 2.40, a missing binary, or
+a chain longer than 20 steps means no carry-over, which costs an extra review and
+never produces a false approval. The walk runs only when some review sits on an
+earlier commit, and stops as soon as every such commit is reached.
+
+**Semantic breakage is covered by the state order, not by this rule.** A
+textually clean merge can still break the build; failing CI outranks every
+verdict, so a carried approval on a broken head becomes `ci-failing`. While CI
+runs, the carried approval keeps the PR `approved` and armed, which is safe
+because GitHub's auto-merge waits for required checks.
+
+Carry-over runs when the caller supplies a git runner (`GatherOptions.lineage`).
+The CLI always does; library callers that omit it simply get no carry-over.
+
 ## Plan
 
 - **Labels are output only.** The core owns the six lifecycle labels
@@ -186,3 +234,5 @@ trigger.
 - **Scoped writes.** A plan never adds or removes a label outside the owned set.
 - **No unapproved armed PR.** In arming mode, an armed open PR that isn't
   `approved`, whatever its CI, conflict or review state, is always disarmed.
+- **Carry-over grants nothing new.** A review on a clean ancestor counts exactly
+  as if the same reviewer had posted it on the head.
