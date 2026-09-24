@@ -1,11 +1,19 @@
 import type { BotEligibility } from '../bot-eligibility.js';
 import { classifyBotPr, DEPENDABOT_LOGIN } from '../bot-eligibility.js';
-import type { PullRequestFacts, ReconcilePolicy, RepoPermission, ReviewFact } from '../facts.js';
+import type {
+  BranchUpdater,
+  PullRequestFacts,
+  ReconcilePolicy,
+  RepoPermission,
+  ReviewFact,
+} from '../facts.js';
 import { REPO_PERMISSIONS } from '../facts.js';
 import type { GitRunner } from '../lineage/git.js';
+import { UPDATE_REQUIRED_LABEL } from '../plan.js';
 import { gatherCiFacts } from './ci-facts.js';
 import type { GitHubClient, PullRequestData, ReviewData } from './client.js';
 import { isApiStatus } from './client.js';
+import { DEPENDABOT_REBASING_NOTICE, isRebasePending } from './dependabot-rebase.js';
 import type { Lineage } from './lineage-facts.js';
 import { gatherLineage } from './lineage-facts.js';
 
@@ -144,6 +152,33 @@ async function gatherLineageFor(
 }
 
 /**
+ * Whether a Dependabot rebase is already running or requested for this head. The
+ * comments are only read when an update could actually be planned.
+ */
+async function gatherRebasePending(
+  client: GitHubClient,
+  pr: number,
+  pull: PullRequestData,
+  updater: BranchUpdater,
+  policy: ReconcilePolicy,
+): Promise<boolean> {
+  if (updater !== 'dependabot') {
+    return false;
+  }
+  if (pull.body.includes(DEPENDABOT_REBASING_NOTICE)) {
+    return true;
+  }
+  const couldUpdate =
+    policy.autoUpdate === true &&
+    pull.state === 'open' &&
+    pull.labels.includes(UPDATE_REQUIRED_LABEL);
+  if (!couldUpdate) {
+    return false;
+  }
+  return isRebasePending(pull.body, await client.listIssueComments(pr), pull.headSha);
+}
+
+/**
  * Merge states in which GitHub merges without waiting on anything, so arming
  * auto-merge fails ("clean status"). Mirrors `gh`'s `isImmediatelyMergeable`;
  * `unstable` means only non-required checks are failing.
@@ -157,11 +192,14 @@ export async function gatherFacts(
   options: GatherOptions = {},
 ): Promise<GatheredPullRequest> {
   const [pull, reviews] = await Promise.all([client.getPullRequest(pr), client.listReviews(pr)]);
-  const [permissions, botEligibility, ci, lineage] = await Promise.all([
+  // Dependabot rebases its own branches; the author login can't be forged.
+  const updater: BranchUpdater = pull.authorLogin === DEPENDABOT_LOGIN ? 'dependabot' : 'github';
+  const [permissions, botEligibility, ci, lineage, rebasePending] = await Promise.all([
     lookupPermissions(client, reviews),
     gatherBotEligibility(client, pr, pull),
     gatherCiFacts(client, pull, policy),
     gatherLineageFor(client, pull, reviews, options),
+    gatherRebasePending(client, pr, pull, updater, policy),
   ]);
   return {
     nodeId: pull.nodeId,
@@ -180,6 +218,8 @@ export async function gatherFacts(
       ciStatus: ci.ciStatus,
       baseCiFailing: ci.baseCiFailing,
       cleanAncestors: lineage?.cleanAncestors ?? [],
+      updater,
+      rebasePending,
       reviews: reviews.map((review) => toReviewFact(review, permissions)),
     },
   };

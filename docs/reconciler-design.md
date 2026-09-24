@@ -1,14 +1,15 @@
 ---
 type: Design
 title: Reconciler core design
-description: How the pure reconciler core turns a PR's facts into a lifecycle state, a minimal label plan, and an auto-merge action — the fact model, trust rules, state priority, and the properties the tests guarantee.
+description: How the pure reconciler core turns a PR's facts into a lifecycle state, a minimal label plan, an auto-merge action, and a branch update — the fact model, trust rules, state priority, and the properties the tests guarantee.
 tags: [reconciler, design, labels, auto-merge, security]
 ---
 
 # Reconciler core design
 
 The core is a **pure function**: `planReconcile(facts, policy)` returns the PR's
-lifecycle state plus the label and auto-merge changes that converge the PR to it.
+lifecycle state plus the label, auto-merge, and branch-update changes that
+converge the PR to it.
 It performs no I/O. A separate edge layer gathers the facts from GitHub and applies
 the plan. Because the output depends only on current facts, never on the event
 that triggered the run, replaying, reordering or dropping events cannot drive a PR
@@ -31,6 +32,8 @@ Source: `src/` (`facts.ts`, `verdict.ts`, `state.ts`, `plan.ts`).
 | `ciStatus`             | [CI gate](#ci-gate) over the head's required checks: `passing`, `failing`, or `pending`                              |
 | `baseCiFailing`        | the same required checks are failing on the base branch head (fetched only when `ciStatus` is `failing`)             |
 | `cleanAncestors`       | commits whose reviews carry over to the head (see [Approval carry-over](#approval-carry-over)); verified at the edge |
+| `updater`              | `dependabot` for a PR opened by `dependabot[bot]` (it rebases its own branch), else `github` (`update-branch`)       |
+| `rebasePending`        | Dependabot PRs only: a rebase is running (PR body) or was already requested for this head (a marker comment)         |
 | `reviews`              | PR reviews: author login, type (`User`/`Bot`), repo permission, `commit_id`, state, body, submitted time             |
 
 The author's **repo permission** is a fact gathered at the edge (the collaborator
@@ -227,10 +230,19 @@ The CLI always does; library callers that omit it simply get no carry-over.
   state is anything else and auto-merge is on. A direct merge doesn't claim
   `auto-merge enabled`. With arming off, auto-merge is never touched and
   `auto-merge enabled` isn't owned.
-- **`withoutArming(plan)`** strips an `arm` or `merge` (and the `auto-merge
-enabled` it would add) and keeps everything else, a disarm included. The edge
-  layer applies it when no real-actor token is available (see
-  [GitHub edge layer](github-edge-layer.md#arming-and-merging)).
+- **Auto-update (opt-in via `policy.autoUpdate`, default off).** When the state
+  is `approved` and merge-safety's `update required` label is present (read,
+  never written), the plan's `update` is `update-branch`, or `dependabot-rebase`
+  for a Dependabot PR (none while `rebasePending`). A Dependabot PR is **never**
+  planned `update-branch`: a foreign commit permanently breaks its rebasing. No
+  update is planned for a PR being merged in the same pass, or without the
+  label: absent merge-safety there is no auto-update. The update keeps the
+  approval through [carry-over](#approval-carry-over); see
+  [Auto-update](github-edge-layer.md#auto-update) for how it's executed.
+- **`withoutReleaseActions(plan)`** strips an `arm` or `merge` (and the
+  `auto-merge enabled` it would add) and any `update`, and keeps everything else,
+  a disarm included. The edge layer applies it when no real-actor token is
+  available (see [GitHub edge layer](github-edge-layer.md#arming-and-merging)).
 - A `closed` PR yields an empty plan: its final labels stay as the audit record.
 
 ## Guaranteed properties (tested)
@@ -243,7 +255,11 @@ enabled` it would add) and keeps everything else, a disarm included. The edge
 - **No unapproved armed PR.** In arming mode, an armed open PR that isn't
   `approved`, whatever its CI, conflict or review state, is always disarmed, and
   a PR is only ever armed or merged when `approved`.
-- **`withoutArming` removes arming and nothing else.** No arm, merge, or
-  `auto-merge enabled` survives it; every other change, a disarm included, does.
+- **Updates are approved-only and Dependabot-safe.** An `update` is only ever
+  planned for an `approved` PR, never `update-branch` for a Dependabot PR, and a
+  rebase is requested at most once per head.
+- **`withoutReleaseActions` removes release actions and nothing else.** No arm,
+  merge, update, or `auto-merge enabled` survives it; every other change, a
+  disarm included, does.
 - **Carry-over grants nothing new.** A review on a clean ancestor counts exactly
   as if the same reviewer had posted it on the head.

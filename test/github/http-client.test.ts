@@ -50,6 +50,7 @@ const REST_PULL = {
   merged: false,
   draft: true,
   title: 'feat: x',
+  body: 'Bumps x from 1.0.0 to 1.0.1.',
   user: { login: 'dependabot[bot]' },
   head: { sha: 'abc', ref: 'dependabot/x', repo: { id: 11 } },
   base: { ref: 'main', repo: { id: 11, clone_url: 'https://github.com/rmartz/demo.git' } },
@@ -108,6 +109,7 @@ describe('createHttpClient requests', () => {
       merged: false,
       draft: true,
       title: 'feat: x',
+      body: 'Bumps x from 1.0.0 to 1.0.1.',
       headSha: 'abc',
       labels: ['approved'],
       autoMergeEnabled: true,
@@ -117,6 +119,12 @@ describe('createHttpClient requests', () => {
       cloneUrl: 'https://github.com/rmartz/demo.git',
       isCrossRepository: false,
     });
+  });
+
+  it('maps a null body to an empty string', async () => {
+    const { client } = makeTransport([{ json: { ...REST_PULL, body: null } }]);
+
+    expect((await client.getPullRequest(7)).body).toBe('');
   });
 
   it('detects a fork by repo id', async () => {

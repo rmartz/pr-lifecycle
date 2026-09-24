@@ -15,6 +15,7 @@ function makePlan(overrides: Partial<ReconcilePlan> = {}): ReconcilePlan {
     addLabels: [],
     removeLabels: [],
     autoMerge: 'none',
+    update: 'none',
     ...overrides,
   };
 }

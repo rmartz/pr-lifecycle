@@ -23,6 +23,13 @@ export const REVIEW_STATES = [
 export type ReviewState = (typeof REVIEW_STATES)[number];
 
 export const PR_STATUSES = ['closed', 'merged', 'open'] as const;
+
+/**
+ * Who brings a PR's branch up to date with its base. Dependabot owns its branches
+ * and rebases them itself when asked; anything else uses GitHub's update-branch.
+ */
+export const BRANCH_UPDATERS = ['dependabot', 'github'] as const;
+export type BranchUpdater = (typeof BRANCH_UPDATERS)[number];
 export type PullRequestStatus = (typeof PR_STATUSES)[number];
 
 export interface ReviewAuthor {
@@ -73,6 +80,15 @@ export interface PullRequestFacts {
    * docs/reconciler-design.md §Approval carry-over). Verified at the edge.
    */
   cleanAncestors: readonly string[];
+  /** Who updates the branch (see `BranchUpdater`). */
+  updater: BranchUpdater;
+  /**
+   * For a Dependabot PR: a rebase is running (the PR body says so) or was already
+   * requested for this head, so asking again would only add noise. A request is
+   * made at most once per head, whether Dependabot then rebases or replies with an
+   * error. Always `false` for other PRs.
+   */
+  rebasePending: boolean;
   reviews: readonly ReviewFact[];
 }
 
@@ -85,6 +101,12 @@ export interface ReconcilePolicy {
   trustedAuthors?: readonly string[];
   /** Arm/disarm native auto-merge from the lifecycle state. Off by default. */
   armAutoMerge?: boolean;
+  /**
+   * Bring an approved PR up to date when merge-safety labels it `update required`:
+   * `update-branch` for most PRs, a `@dependabot rebase` request for Dependabot's.
+   * Off by default.
+   */
+  autoUpdate?: boolean;
   /**
    * Don't wait for a Copilot review before `review-requested`, for repos without
    * Copilot code review (where the wait would never end). Off by default.

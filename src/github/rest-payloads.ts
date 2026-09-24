@@ -16,6 +16,7 @@ export interface RestPull {
   merged: boolean;
   draft?: boolean;
   title: string;
+  body: string | null;
   user: { login: string } | null;
   /** `head.repo` is null when the fork was deleted. */
   head: { sha: string; ref: string; repo: { id: number } | null };

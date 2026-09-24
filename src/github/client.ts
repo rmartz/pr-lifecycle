@@ -15,6 +15,8 @@ export interface PullRequestData {
   merged: boolean;
   draft: boolean;
   title: string;
+  /** The PR description (empty when none); Dependabot reports a running rebase here. */
+  body: string;
   headSha: string;
   labels: string[];
   autoMergeEnabled: boolean;
@@ -122,14 +124,23 @@ export interface GitHubClient {
   /** Squash-merge now, bound to `expectedHeadOid` like `enableAutoMerge`. */
   mergePullRequest(pullRequestNodeId: string, expectedHeadOid: string): Promise<void>;
   disableAutoMerge(pullRequestNodeId: string): Promise<void>;
+  /**
+   * Merge the base into the PR branch, bound to `expectedHeadSha`. Throws a
+   * GitHubApiError with status 422 when the head moved or there is nothing to merge.
+   */
+  updateBranch(pr: number, expectedHeadSha: string): Promise<void>;
 }
 
 /**
- * The writes that must come from a real actor, so the merge they cause re-triggers
- * `on: push` workflows (a `GITHUB_TOKEN` merge triggers nothing). Kept to these two
- * calls so the release token is never used for anything else, reads included.
+ * The writes that must come from a real actor: a merge or branch update made with
+ * `GITHUB_TOKEN` triggers no workflows (so no release, and no CI on the new head),
+ * and Dependabot only takes commands from people. Kept to these calls so the
+ * release token is never used for anything else, reads included.
  */
-export type ReleaseActions = Pick<GitHubClient, 'enableAutoMerge' | 'mergePullRequest'>;
+export type ReleaseActions = Pick<
+  GitHubClient,
+  'createIssueComment' | 'enableAutoMerge' | 'mergePullRequest' | 'updateBranch'
+>;
 
 export class GitHubApiError extends Error {
   readonly status: number;
