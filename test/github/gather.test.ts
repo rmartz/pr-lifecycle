@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { PullRequestData } from '../../src/github/client.js';
 import { GitHubApiError } from '../../src/github/client.js';
 import { gatherFacts } from '../../src/github/gather.js';
+import type { GitRunner } from '../../src/lineage/git.js';
 import { OLD_SHA } from '../fixtures.js';
 import { FakeGitHubClient, makePullRequestData, makeReviewData } from './fake-client.js';
 
@@ -232,5 +233,22 @@ describe('gatherFacts — reviews', () => {
       { login: 'ghost', type: 'User', permission: 'none' },
       [],
     ]);
+  });
+});
+
+const neverCalledGit: GitRunner = {
+  run() {
+    throw new Error('git should not be called');
+  },
+};
+
+describe('gatherFacts — lineage', () => {
+  it('fails closed when getBranchHeadSha throws', async () => {
+    const client = makeClient();
+    client.failNext('getBranchHeadSha', new Error('rate limit'));
+
+    const { lineage } = await gatherFacts(client, 7, {}, { lineage: { git: neverCalledGit } });
+
+    expect(lineage).toBeUndefined();
   });
 });
