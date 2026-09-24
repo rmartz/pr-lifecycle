@@ -90,12 +90,7 @@ export {
 export type { AutoMergeAction, LifecycleLabel, ReconcilePlan, UpdateAction } from './plan.js';
 export { COPILOT_REVIEWER_LOGIN, computeState, LIFECYCLE_STATES } from './state.js';
 export type { LifecycleState } from './state.js';
-export {
-  computeUatGate,
-  overrideForLabel,
-  UAT_CHECK_NAME,
-  UAT_OVERRIDE_LABELS,
-} from './uat.js';
+export { computeUatGate, overrideForLabel, UAT_CHECK_NAME, UAT_OVERRIDE_LABELS } from './uat.js';
 export type { UatGate, UatGateReason, UatOverrideFact, UatOverrideLabel } from './uat.js';
 export {
   currentVerdict,
