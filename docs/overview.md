@@ -23,7 +23,7 @@ they resolve.
 > and the [`ai-pr-lifecycle reconcile` CLI](cli.md) are implemented. The composite
 > action that runs it in consumer repos is built in
 > [`rmartz/pr-lifecycle-action`](https://github.com/rmartz/pr-lifecycle-action).
-> Remaining work (the UAT check, dogfooding) is
+> Remaining work (the [UAT gate](uat-gate.md), dogfooding) is
 > tracked in the **Reconciler v1** milestone.
 
 ## Lifecycle
@@ -56,7 +56,7 @@ verdict on the old head.
 4. **Merge gating belongs to the consumer's ruleset.** This package arms
    auto-merge and never inspects, names, or waits on a specific check, and never
    renames a PR. The one gate it owns is **UAT**: if UAT gates merges, this package
-   exposes it as a check the ruleset can require.
+   exposes it as a check the ruleset can require (see [UAT gate design](uat-gate.md)).
 
 ## Relationship to other packages
 
