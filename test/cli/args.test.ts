@@ -27,7 +27,7 @@ describe('parseArgs — reconcile', () => {
       owner: 'rmartz',
       repo: 'demo',
       pr: 7,
-      policy: { armAutoMerge: false, skipCopilotReview: false },
+      policy: { armAutoMerge: false, autoUpdate: false, skipCopilotReview: false },
       dryRun: false,
       json: false,
       tokenAdvisory: true,
@@ -35,8 +35,9 @@ describe('parseArgs — reconcile', () => {
   });
 
   it.each([
-    ['--arm-auto-merge', { policy: { armAutoMerge: true, skipCopilotReview: false } }],
-    ['--skip-copilot-review', { policy: { armAutoMerge: false, skipCopilotReview: true } }],
+    ['--arm-auto-merge', { policy: { armAutoMerge: true, autoUpdate: false } }],
+    ['--auto-update', { policy: { armAutoMerge: false, autoUpdate: true } }],
+    ['--skip-copilot-review', { policy: { autoUpdate: false, skipCopilotReview: true } }],
     ['--dry-run', { dryRun: true }],
     ['--json', { json: true }],
     ['--no-token-advisory', { tokenAdvisory: false }],

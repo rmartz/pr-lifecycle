@@ -23,7 +23,7 @@ they resolve.
 > and the [`ai-pr-lifecycle reconcile` CLI](cli.md) are implemented. The composite
 > action that runs it in consumer repos is built in
 > [`rmartz/pr-lifecycle-action`](https://github.com/rmartz/pr-lifecycle-action).
-> Remaining work (the auto-update action, the UAT check, dogfooding) is
+> Remaining work (the UAT check, dogfooding) is
 > tracked in the **Reconciler v1** milestone.
 
 ## Lifecycle

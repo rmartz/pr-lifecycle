@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { reconcilePullRequest } from '../../src/github/reconcile.js';
 import { createGitRunner } from '../../src/lineage/git.js';
+import { UPDATE_REQUIRED_LABEL } from '../../src/plan.js';
 import { COPILOT_REVIEWER_LOGIN } from '../../src/state.js';
 import { makeVerdictBody } from '../fixtures.js';
 import { GitFixture } from '../lineage/fixture.js';
@@ -91,5 +92,37 @@ describe('reconcilePullRequest with approval carry-over', () => {
     const { lineage } = await reconcilePullRequest(client, 7, {}, LINEAGE);
 
     expect(lineage).toBeUndefined();
+  });
+});
+
+describe('reconcilePullRequest auto-update, end to end', () => {
+  it('updates an approved PR, then keeps it approved and armed once CI is green', async () => {
+    // The update the fake update-branch will produce: a clean merge of main,
+    // kept on a ref (so carry-over can fetch it) while the PR stays on A.
+    let updated = '';
+    const client = approvedPr((fixture) => {
+      updated = fixture.mergeClean('main');
+      fixture.git('branch', 'updated');
+      fixture.git('reset', '--hard', 'HEAD~1');
+    });
+    client.pull.labels = [UPDATE_REQUIRED_LABEL];
+    client.updatedHeadSha = updated;
+    const policy = { armAutoMerge: true, autoUpdate: true };
+
+    await reconcilePullRequest(client, 7, policy, LINEAGE);
+    // merge-safety clears its label, and required CI passes on the new head.
+    client.pull.labels = client.pull.labels.filter((name) => name !== UPDATE_REQUIRED_LABEL);
+    client.requiredChecks.set('main', ['test']);
+    client.checkRuns.set(updated, [
+      { name: 'test', status: 'completed', conclusion: 'success', completedAt: null },
+    ]);
+    const { plan } = await reconcilePullRequest(client, 7, policy, LINEAGE);
+
+    expect([client.pull.headSha, plan.state, client.pull.autoMergeEnabled, plan.update]).toEqual([
+      updated,
+      'approved',
+      true,
+      'none',
+    ]);
   });
 });

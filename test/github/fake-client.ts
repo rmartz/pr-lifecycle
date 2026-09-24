@@ -28,6 +28,7 @@ export function makePullRequestData(overrides: Partial<PullRequestData> = {}): P
     merged: false,
     draft: false,
     title: 'feat: add a thing',
+    body: '',
     headSha: HEAD_SHA,
     labels: [],
     autoMergeEnabled: false,
@@ -226,6 +227,18 @@ export class FakeGitHubClient implements GitHubClient {
   disableAutoMerge(nodeId: string): Promise<void> {
     this.record('disableAutoMerge', nodeId);
     this.pull.autoMergeEnabled = false;
+    return Promise.resolve();
+  }
+
+  /** The head `updateBranch` moves the PR to (a merge of the base). */
+  updatedHeadSha = 'd'.repeat(40);
+
+  updateBranch(pr: number, expectedHeadSha: string): Promise<void> {
+    this.record('updateBranch', pr, expectedHeadSha);
+    if (expectedHeadSha !== this.pull.headSha) {
+      return Promise.reject(new GitHubApiError(422, 'expected head sha did not match'));
+    }
+    this.pull.headSha = this.updatedHeadSha;
     return Promise.resolve();
   }
 }

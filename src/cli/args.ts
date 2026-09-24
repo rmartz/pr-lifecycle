@@ -41,6 +41,7 @@ function parseList(value: string): string[] {
 function parseReconcile(args: readonly string[]): ParsedArgs {
   const values: Partial<Record<ValueOption, string>> = {};
   let armAutoMerge = false;
+  let autoUpdate = false;
   let skipCopilotReview = false;
   let dryRun = false;
   let json = false;
@@ -51,6 +52,9 @@ function parseReconcile(args: readonly string[]): ParsedArgs {
     switch (arg) {
       case '--arm-auto-merge':
         armAutoMerge = true;
+        break;
+      case '--auto-update':
+        autoUpdate = true;
         break;
       case '--skip-copilot-review':
         skipCopilotReview = true;
@@ -108,6 +112,7 @@ function parseReconcile(args: readonly string[]): ParsedArgs {
     pr: Number(prArg),
     policy: {
       armAutoMerge,
+      autoUpdate,
       skipCopilotReview,
       ...(trustedAuthors === undefined ? {} : { trustedAuthors }),
       ...(holdChecks === undefined ? {} : { holdChecks }),

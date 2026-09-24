@@ -1,13 +1,15 @@
 import type { ReconcilePlan } from '../plan.js';
 import type { GitHubClient, ReleaseActions } from './client.js';
 import { GitHubApiError, isApiStatus } from './client.js';
+import { buildRebaseRequestBody } from './dependabot-rebase.js';
 import { labelDefinition } from './label-roster.js';
 
 /**
  * Executes a reconcile plan against GitHub. Writes happen in a fail-safe order —
- * disarm, remove labels, add labels, arm — so a run that dies midway never leaves
- * auto-merge armed on a PR that is not approved. Arming and merging go through
- * `release` (a real-actor token) and are bound to the planned head. See
+ * disarm, remove labels, add labels, arm, update — so a run that dies midway never
+ * leaves auto-merge armed on a PR that is not approved, and an update (which moves
+ * the head) comes last. Arming, merging, and updating go through `release` (a
+ * real-actor token) and are bound to the planned head. See
  * docs/github-edge-layer.md.
  */
 
@@ -83,5 +85,27 @@ export async function executePlan(
   }
   if (plan.autoMerge === 'merge') {
     await release.mergePullRequest(target.nodeId, target.headSha);
+  }
+  switch (plan.update) {
+    case 'update-branch':
+      await updateBranch(release, target);
+      break;
+    case 'dependabot-rebase':
+      await release.createIssueComment(target.pr, buildRebaseRequestBody(target.headSha));
+      break;
+    case 'none':
+      break;
+  }
+}
+
+async function updateBranch(release: ReleaseActions, target: PlanTarget): Promise<void> {
+  try {
+    await release.updateBranch(target.pr, target.headSha);
+  } catch (error) {
+    // 422: the head moved since the read, or the base has nothing new. Either way
+    // the push (or the base's) triggers a fresh event that re-evaluates.
+    if (!isApiStatus(error, 422)) {
+      throw error;
+    }
   }
 }

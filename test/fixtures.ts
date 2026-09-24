@@ -35,6 +35,8 @@ export function makeFacts(overrides: Partial<PullRequestFacts> = {}): PullReques
     ciStatus: 'passing',
     baseCiFailing: false,
     cleanAncestors: [],
+    updater: 'github',
+    rebasePending: false,
     reviews: [],
     ...overrides,
   };
@@ -62,5 +64,7 @@ export function applyPlan(facts: PullRequestFacts, plan: ReconcilePlan): PullReq
   }
   const autoMergeEnabled =
     plan.autoMerge === 'none' ? facts.autoMergeEnabled : plan.autoMerge === 'arm';
-  return { ...facts, labels, autoMergeEnabled };
+  // A rebase request stays pending until Dependabot pushes a new head.
+  const rebasePending = facts.rebasePending || plan.update === 'dependabot-rebase';
+  return { ...facts, labels, autoMergeEnabled, rebasePending };
 }
