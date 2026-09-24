@@ -45,6 +45,7 @@ reconcile options:
                             (Dependabot PRs are asked to rebase, never updated)
   --trusted-authors <a,b>   Only these logins (with write access) may cast verdicts
   --skip-copilot-review     Don't wait for a Copilot review
+  --uat-gate                Post the 'uat' check-run; arm only once UAT passes
   --hold-checks <a,b>       Required checks whose pending is a hold (default: pr-policy)
   --ignore-checks <a,b>     Required checks CI never counts (default: merge-safety)
   --dry-run                 Compute the plan without writing anything

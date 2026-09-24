@@ -34,6 +34,15 @@ export interface RestCheckRun {
   status: string;
   conclusion: string | null;
   completed_at: string | null;
+  output?: { title: string | null };
+}
+
+/** An issue event; only `labeled` events (which carry `label`) are read. */
+export interface RestIssueEvent {
+  event: string;
+  actor: { login: string; type: string } | null;
+  label?: { name: string };
+  created_at: string;
 }
 
 export interface RestRule {

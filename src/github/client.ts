@@ -41,6 +41,29 @@ export interface CheckRunData {
   status: string;
   conclusion: string | null;
   completedAt: string | null;
+  /** The run's output title (`null` when it has none). */
+  title: string | null;
+}
+
+/** A check-run to post on a commit: still running (a hold), or passed. */
+export interface CheckRunWrite {
+  name: string;
+  headSha: string;
+  status: 'completed' | 'in_progress';
+  /** Set exactly when `status` is `completed`. */
+  conclusion: 'success' | undefined;
+  title: string;
+  summary: string;
+}
+
+/** A `labeled` event from the PR's issue events: which label, and who applied it. */
+export interface LabelEventData {
+  label: string;
+  /** Undefined when the actor's account was deleted. */
+  login: string | undefined;
+  type: ActorType;
+  /** ISO-8601 time the label was applied. */
+  createdAt: string;
 }
 
 /** A commit status (the latest per context) — the channel some CI uses instead of checks. */
@@ -103,6 +126,10 @@ export interface GitHubClient {
   getBranchHeadSha(branch: string): Promise<string>;
   listCheckRuns(sha: string): Promise<CheckRunData[]>;
   listCommitStatuses(sha: string): Promise<CommitStatusData[]>;
+  /** Needs an app token (e.g. `GITHUB_TOKEN`) with `checks: write`; a PAT gets 403. */
+  createCheckRun(run: CheckRunWrite): Promise<void>;
+  /** The PR's `labeled` events, oldest first. */
+  listLabelEvents(pr: number): Promise<LabelEventData[]>;
   getCommit(sha: string): Promise<CommitObject>;
   compareCommits(base: string, head: string): Promise<CommitComparison>;
   /** Throws a GitHubApiError with status 404 when the user is not a collaborator. */

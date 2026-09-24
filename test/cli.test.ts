@@ -182,6 +182,7 @@ describe('runCli — --json contract (schemaVersion 1)', () => {
         autoMergeSkipped: null,
         update: 'none',
         updateSkipped: null,
+        uatGate: null,
       },
     ]);
   });

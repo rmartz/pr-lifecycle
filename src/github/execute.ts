@@ -1,14 +1,16 @@
 import type { ReconcilePlan } from '../plan.js';
-import type { GitHubClient, ReleaseActions } from './client.js';
+import type { CheckRunData, GitHubClient, ReleaseActions } from './client.js';
 import { GitHubApiError, isApiStatus } from './client.js';
 import { buildRebaseRequestBody } from './dependabot-rebase.js';
 import { labelDefinition } from './label-roster.js';
+import { isUatCheckCurrent, uatCheckRun } from './uat-check.js';
 
 /**
  * Executes a reconcile plan against GitHub. Writes happen in a fail-safe order —
- * disarm, remove labels, add labels, arm, update — so a run that dies midway never
- * leaves auto-merge armed on a PR that is not approved, and an update (which moves
- * the head) comes last. Arming, merging, and updating go through `release` (a
+ * disarm, remove labels, add labels, the `uat` check, arm, update — so a run that
+ * dies midway never leaves auto-merge armed on a PR that is not approved, the UAT
+ * hold is on the head before anything is armed, and an update (which moves the
+ * head) comes last. Arming, merging, and updating go through `release` (a
  * real-actor token) and are bound to the planned head. See
  * docs/github-edge-layer.md.
  */
@@ -18,6 +20,8 @@ export interface PlanTarget {
   nodeId: string;
   /** The head the plan was computed for; a merge or arm is rejected if it moved. */
   headSha: string;
+  /** The `uat` check-runs already on the head, so an unchanged gate isn't re-posted. */
+  uatChecks?: readonly CheckRunData[];
 }
 
 /**
@@ -79,6 +83,12 @@ export async function executePlan(
   if (plan.addLabels.length > 0) {
     await ensureLabelsExist(client, plan.addLabels);
     await client.addLabels(target.pr, plan.addLabels);
+  }
+  if (plan.uatGate !== undefined) {
+    const run = uatCheckRun(plan.uatGate, target.headSha);
+    if (!isUatCheckCurrent(target.uatChecks ?? [], run)) {
+      await client.createCheckRun(run);
+    }
   }
   if (plan.autoMerge === 'arm') {
     await armOrMerge(release, target);

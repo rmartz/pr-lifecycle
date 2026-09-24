@@ -1,3 +1,5 @@
+import { UAT_CHECK_NAME } from './uat.js';
+
 /**
  * The CI gate: is the PR's required CI passing, failing, or still running?
  * Pure — the edge layer gathers the raw check results; this decides. See
@@ -80,7 +82,10 @@ export function computeCiStatus(
   requiredChecks: readonly string[],
   policy: CiCheckPolicy = {},
 ): CiStatus {
-  const holds = new Set(policy.holdChecks ?? DEFAULT_HOLD_CHECKS);
+  // This package's own `uat` check is always a hold: it is pending while it waits
+  // for a person, and counting that as running CI would keep a PR from ever
+  // reaching review (the review decides whether UAT is needed at all).
+  const holds = new Set([...(policy.holdChecks ?? DEFAULT_HOLD_CHECKS), UAT_CHECK_NAME]);
   const ignored = new Set(policy.ignoredChecks ?? DEFAULT_IGNORED_CHECKS);
   let pending = false;
   for (const name of new Set(requiredChecks)) {

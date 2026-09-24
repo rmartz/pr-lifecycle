@@ -114,7 +114,7 @@ describe('reconcilePullRequest auto-update, end to end', () => {
     client.pull.labels = client.pull.labels.filter((name) => name !== UPDATE_REQUIRED_LABEL);
     client.requiredChecks.set('main', ['test']);
     client.checkRuns.set(updated, [
-      { name: 'test', status: 'completed', conclusion: 'success', completedAt: null },
+      { name: 'test', status: 'completed', conclusion: 'success', completedAt: null, title: null },
     ]);
     const { plan } = await reconcilePullRequest(client, 7, policy, LINEAGE);
 

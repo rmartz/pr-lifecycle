@@ -1,12 +1,14 @@
 import type {
   CollaboratorPermission,
   CheckRunData,
+  CheckRunWrite,
   CommitComparison,
   CommitData,
   CommitObject,
   CommitStatusData,
   GitHubClient,
   LabelDefinition,
+  LabelEventData,
   PullRequestData,
   ReviewData,
 } from '../../src/github/client.js';
@@ -74,6 +76,8 @@ export class FakeGitHubClient implements GitHubClient {
   repoLabels = new Map<string, LabelDefinition>();
   /** Conversation comment bodies on the PR, oldest first. */
   comments: string[] = [];
+  /** The PR's `labeled` events, oldest first. */
+  labelEvents: LabelEventData[] = [];
   readonly calls: FakeCall[] = [];
   private readonly failures = new Map<keyof GitHubClient, Error>();
 
@@ -100,6 +104,7 @@ export class FakeGitHubClient implements GitHubClient {
       'getCollaboratorPermission',
       'listRepoLabels',
       'listIssueComments',
+      'listLabelEvents',
     ]);
     return this.calls.filter((call) => !reads.has(call.method));
   }
@@ -131,6 +136,31 @@ export class FakeGitHubClient implements GitHubClient {
   listCheckRuns(sha: string): Promise<CheckRunData[]> {
     this.record('listCheckRuns', sha);
     return Promise.resolve([...(this.checkRuns.get(sha) ?? [])]);
+  }
+
+  /** Posts a run that, like `filter=latest`, replaces any earlier run of the same name. */
+  createCheckRun(run: CheckRunWrite): Promise<void> {
+    this.record('createCheckRun', run);
+    const others = (this.checkRuns.get(run.headSha) ?? []).filter(
+      (existing) => existing.name !== run.name,
+    );
+    const completed = run.status === 'completed';
+    this.checkRuns.set(run.headSha, [
+      ...others,
+      {
+        name: run.name,
+        status: run.status,
+        conclusion: run.conclusion ?? null,
+        completedAt: completed ? '2026-09-24T00:00:00Z' : null,
+        title: run.title,
+      },
+    ]);
+    return Promise.resolve();
+  }
+
+  listLabelEvents(pr: number): Promise<LabelEventData[]> {
+    this.record('listLabelEvents', pr);
+    return Promise.resolve([...this.labelEvents]);
   }
 
   getCommit(sha: string): Promise<CommitObject> {

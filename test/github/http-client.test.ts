@@ -221,7 +221,7 @@ describe('createHttpClient requests', () => {
 
     expect([runs.length, runs[100], requests.length]).toEqual([
       101,
-      { name: 'Test', status: 'queued', conclusion: null, completedAt: null },
+      { name: 'Test', status: 'queued', conclusion: null, completedAt: null, title: null },
       2,
     ]);
   });

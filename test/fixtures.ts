@@ -38,13 +38,18 @@ export function makeFacts(overrides: Partial<PullRequestFacts> = {}): PullReques
     updater: 'github',
     rebasePending: false,
     reviews: [],
+    uatOverrides: [],
     ...overrides,
   };
 }
 
 /** A review body carrying a /review skill-meta marker, as post-review-verdict.py writes it. */
-export function makeVerdictBody(outcome: string, prHead: string | undefined = HEAD_SHA): string {
-  const meta = { skill: 'review', pr_head: prHead, skill_hash: 'c'.repeat(40), outcome };
+export function makeVerdictBody(
+  outcome: string,
+  prHead: string | undefined = HEAD_SHA,
+  extra: Record<string, unknown> = {},
+): string {
+  const meta = { skill: 'review', pr_head: prHead, skill_hash: 'c'.repeat(40), outcome, ...extra };
   return `Looks good.\n\n---\n\n_Claude Opus 5.5_\n<!-- skill-meta: ${JSON.stringify(meta)} -->\n`;
 }
 

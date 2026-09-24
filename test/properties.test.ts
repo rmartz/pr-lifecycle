@@ -10,7 +10,9 @@ import {
   UPDATE_REQUIRED_LABEL,
   withoutReleaseActions,
 } from '../src/plan.js';
-import { COPILOT_REVIEWER_LOGIN, computeState } from '../src/state.js';
+import { COPILOT_REVIEWER_LOGIN } from '../src/state.js';
+import type { UatOverrideFact } from '../src/uat.js';
+import { computeUatGate, UAT_OVERRIDE_LABELS } from '../src/uat.js';
 import { applyPlan, HEAD_SHA, makeVerdictBody, OLD_SHA } from './fixtures.js';
 
 // Property-based guarantees from docs/reconciler-design.md §Guaranteed properties.
@@ -27,8 +29,11 @@ const bodyArb = fc.oneof(
     .tuple(
       fc.constantFrom('approved', 'changes-requested', 'escalation-needed', 'skipped'),
       fc.option(shaArb, { nil: undefined }),
+      fc.constantFrom(undefined, 'exempt', 'required', 'bogus'),
     )
-    .map(([outcome, head]) => makeVerdictBody(outcome, head)),
+    .map(([outcome, head, uat]) =>
+      makeVerdictBody(outcome, head, uat === undefined ? {} : { uat }),
+    ),
 );
 
 const authorArb: fc.Arbitrary<ReviewAuthor> = fc.record({
@@ -61,6 +66,16 @@ function reviewsArb(author = authorArb, commitSha = shaArb) {
   });
 }
 
+function uatOverridesArb(
+  author: fc.Arbitrary<ReviewAuthor>,
+): fc.Arbitrary<UatOverrideFact[]> {
+  const override = fc.record({
+    label: fc.constantFrom(...UAT_OVERRIDE_LABELS),
+    appliedBy: fc.option(author, { nil: undefined }),
+  });
+  return fc.array(override, { maxLength: 2 });
+}
+
 const factsArb: fc.Arbitrary<PullRequestFacts> = fc.record({
   status: fc.constantFrom('open', 'open', 'open', 'closed', 'merged'),
   isDraft: fc.boolean(),
@@ -77,6 +92,7 @@ const factsArb: fc.Arbitrary<PullRequestFacts> = fc.record({
   updater: fc.constantFrom(...BRANCH_UPDATERS),
   rebasePending: fc.boolean(),
   reviews: reviewsArb(),
+  uatOverrides: uatOverridesArb(authorArb),
 });
 
 /**
@@ -104,6 +120,7 @@ const policyArb: fc.Arbitrary<ReconcilePolicy> = fc.record(
     armAutoMerge: fc.boolean(),
     autoUpdate: fc.boolean(),
     skipCopilotReview: fc.boolean(),
+    uatGate: fc.boolean(),
   },
   { requiredKeys: [] },
 );
@@ -161,7 +178,7 @@ describe('reconciler properties', () => {
         (facts, policy, extra) => {
           const polluted = { ...facts, reviews: [...facts.reviews, ...withIdOffset(extra)] };
 
-          expect(computeState(polluted, policy)).toBe(computeState(facts, policy));
+          expect(planReconcile(polluted, policy)).toEqual(planReconcile(facts, policy));
         },
       ),
       SECURITY_RUNS,
@@ -177,7 +194,7 @@ describe('reconciler properties', () => {
         (facts, policy, extra) => {
           const polluted = { ...facts, reviews: [...facts.reviews, ...withIdOffset(extra)] };
 
-          expect(computeState(polluted, policy)).toBe(computeState(facts, policy));
+          expect(planReconcile(polluted, policy)).toEqual(planReconcile(facts, policy));
         },
       ),
       SECURITY_RUNS,
@@ -202,7 +219,7 @@ describe('reconciler properties', () => {
         (facts, policy, extra) => {
           const polluted = { ...facts, reviews: [...facts.reviews, ...withIdOffset(extra)] };
 
-          expect(computeState(polluted, policy)).toBe(computeState(facts, policy));
+          expect(planReconcile(polluted, policy)).toEqual(planReconcile(facts, policy));
         },
       ),
       SECURITY_RUNS,
@@ -239,7 +256,35 @@ describe('reconciler properties', () => {
             })),
           };
 
-          expect(computeState(carried, policy)).toBe(computeState(onHead, policy));
+          expect(planReconcile(carried, policy)).toEqual(planReconcile(onHead, policy));
+        },
+      ),
+      SECURITY_RUNS,
+    );
+  });
+
+  it('never arms or merges while the UAT gate holds', () => {
+    fc.assert(
+      fc.property(factsArb, policyArb, (facts, policy) => {
+        const plan = planReconcile(facts, { ...policy, uatGate: true });
+        const merging = plan.autoMerge === 'arm' || plan.autoMerge === 'merge';
+
+        expect(!merging || plan.uatGate?.passes === true).toBe(true);
+      }),
+      SECURITY_RUNS,
+    );
+  });
+
+  it('ignores UAT overrides applied by anyone who could not merge the PR', () => {
+    fc.assert(
+      fc.property(
+        openFactsArb,
+        policyArb,
+        uatOverridesArb(untrustedAuthorArb),
+        (facts, policy, extra) => {
+          const polluted = { ...facts, uatOverrides: [...facts.uatOverrides, ...extra] };
+
+          expect(computeUatGate(polluted, policy)).toEqual(computeUatGate(facts, policy));
         },
       ),
       SECURITY_RUNS,

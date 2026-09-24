@@ -5,6 +5,7 @@
  */
 
 import type { CiStatus } from './ci.js';
+import type { UatOverrideFact } from './uat.js';
 
 export const REPO_PERMISSIONS = ['admin', 'maintain', 'none', 'read', 'triage', 'write'] as const;
 export type RepoPermission = (typeof REPO_PERMISSIONS)[number];
@@ -90,6 +91,12 @@ export interface PullRequestFacts {
    */
   rebasePending: boolean;
   reviews: readonly ReviewFact[];
+  /**
+   * The UAT override labels on the PR (`UAT passed`, `no UAT needed`, and their
+   * aliases), each with who last applied it. Gathered only when `policy.uatGate`
+   * is on; empty otherwise.
+   */
+  uatOverrides: readonly UatOverrideFact[];
 }
 
 export interface ReconcilePolicy {
@@ -119,4 +126,9 @@ export interface ReconcilePolicy {
   holdChecks?: readonly string[];
   /** Required checks the CI gate never counts. Defaults to `DEFAULT_IGNORED_CHECKS`. */
   ignoredChecks?: readonly string[];
+  /**
+   * Post the `uat` check-run on the head, and arm auto-merge only once it passes
+   * (docs/uat-gate.md). Off by default; needs `checks: write` on an app token.
+   */
+  uatGate?: boolean;
 }

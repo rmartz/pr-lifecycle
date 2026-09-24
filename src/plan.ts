@@ -1,6 +1,8 @@
 import type { BranchUpdater, PullRequestFacts, ReconcilePolicy } from './facts.js';
 import type { LifecycleState } from './state.js';
 import { computeState } from './state.js';
+import type { UatGate } from './uat.js';
+import { computeUatGate } from './uat.js';
 
 /**
  * The reconcile plan: the minimal label and auto-merge changes that converge a PR
@@ -43,6 +45,8 @@ export interface ReconcilePlan {
   removeLabels: string[];
   autoMerge: AutoMergeAction;
   update: UpdateAction;
+  /** The UAT gate, posted as the `uat` check-run; undefined when the gate is off or the PR is closed. */
+  uatGate: UatGate | undefined;
 }
 
 /** The lifecycle labels a state shows: the state label, plus a reason label for CI. */
@@ -97,10 +101,21 @@ function planUpdate(
 export function planReconcile(facts: PullRequestFacts, policy: ReconcilePolicy): ReconcilePlan {
   const state = computeState(facts, policy);
   if (state === 'closed') {
-    return { state, addLabels: [], removeLabels: [], autoMerge: 'none', update: 'none' };
+    return {
+      state,
+      addLabels: [],
+      removeLabels: [],
+      autoMerge: 'none',
+      update: 'none',
+      uatGate: undefined,
+    };
   }
+  const uatGate = policy.uatGate === true ? computeUatGate(facts, policy) : undefined;
   const arming = policy.armAutoMerge === true;
-  const shouldArm = arming && state === 'approved';
+  // An approved PR still waiting on UAT stays approved but unarmed, even if the
+  // consumer's ruleset doesn't require the `uat` check: arming it would let
+  // GitHub merge a change nobody tested.
+  const shouldArm = arming && state === 'approved' && (uatGate?.passes ?? true);
 
   let autoMerge: AutoMergeAction = 'none';
   if (arming && shouldArm !== facts.autoMergeEnabled) {
@@ -128,6 +143,7 @@ export function planReconcile(facts: PullRequestFacts, policy: ReconcilePolicy):
     removeLabels: owned.filter((name) => present.has(name) && !desired.has(name)),
     autoMerge,
     update: planUpdate(facts, policy, state, autoMerge),
+    uatGate,
   };
 }
 

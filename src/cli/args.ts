@@ -43,6 +43,7 @@ function parseReconcile(args: readonly string[]): ParsedArgs {
   let armAutoMerge = false;
   let autoUpdate = false;
   let skipCopilotReview = false;
+  let uatGate = false;
   let dryRun = false;
   let json = false;
   let tokenAdvisory = true;
@@ -58,6 +59,9 @@ function parseReconcile(args: readonly string[]): ParsedArgs {
         break;
       case '--skip-copilot-review':
         skipCopilotReview = true;
+        break;
+      case '--uat-gate':
+        uatGate = true;
         break;
       case '--dry-run':
         dryRun = true;
@@ -114,6 +118,7 @@ function parseReconcile(args: readonly string[]): ParsedArgs {
       armAutoMerge,
       autoUpdate,
       skipCopilotReview,
+      uatGate,
       ...(trustedAuthors === undefined ? {} : { trustedAuthors }),
       ...(holdChecks === undefined ? {} : { holdChecks }),
       ...(ignoredChecks === undefined ? {} : { ignoredChecks }),

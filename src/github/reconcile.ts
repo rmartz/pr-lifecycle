@@ -54,14 +54,20 @@ export async function reconcilePullRequest(
   policy: ReconcilePolicy,
   options: ReconcileOptions = {},
 ): Promise<ReconcileResult> {
-  const { facts, nodeId, botEligibility, lineage } = await gatherFacts(client, pr, policy, options);
+  const { facts, nodeId, botEligibility, lineage, uatChecks } = await gatherFacts(
+    client,
+    pr,
+    policy,
+    options,
+  );
   const planned = planReconcile(facts, policy);
   const unavailable = options.release === 'unavailable';
   const plan = unavailable ? withoutReleaseActions(planned) : planned;
   if (options.dryRun !== true) {
     const release =
       options.release === 'unavailable' ? REFUSE_RELEASE : (options.release ?? client);
-    await executePlan(client, { pr, nodeId, headSha: facts.headSha }, plan, release);
+    const target = { pr, nodeId, headSha: facts.headSha, uatChecks };
+    await executePlan(client, target, plan, release);
   }
   const wanted = planned.autoMerge;
   const skippedAutoMerge =

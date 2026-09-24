@@ -14,6 +14,7 @@ function makeRun(name: string, conclusion: string | null): CheckRunData {
     status: conclusion === null ? 'in_progress' : 'completed',
     conclusion,
     completedAt: conclusion === null ? null : '2026-09-24T00:00:00Z',
+    title: null,
   };
 }
 

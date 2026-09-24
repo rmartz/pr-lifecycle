@@ -10,6 +10,10 @@ import type { PullRequestFacts, ReconcilePolicy, ReviewAuthor, ReviewFact } from
 export const VERDICTS = ['approved', 'changes-requested', 'escalation-needed'] as const;
 export type Verdict = (typeof VERDICTS)[number];
 
+/** The values of a /review marker's `uat` field: does the change need a person to test it? */
+export const UAT_REQUIREMENTS = ['exempt', 'required'] as const;
+export type UatRequirement = (typeof UAT_REQUIREMENTS)[number];
+
 const TRUSTED_PERMISSIONS: ReadonlySet<ReviewAuthor['permission']> = new Set([
   'admin',
   'maintain',
@@ -28,12 +32,22 @@ interface SkillMeta {
   skill?: unknown;
   outcome?: unknown;
   pr_head?: unknown;
+  uat?: unknown;
 }
 
 export interface ParsedVerdict {
   verdict: Verdict;
   /** The head SHA the marker says was reviewed, when the marker names one. */
   markerHead: string | undefined;
+  /**
+   * The marker's UAT decision. Undefined for a native review, a marker without the
+   * field, or an unrecognized value; the UAT gate treats all three as required.
+   */
+  uat: UatRequirement | undefined;
+}
+
+function isUatRequirement(value: unknown): value is UatRequirement {
+  return UAT_REQUIREMENTS.some((requirement) => requirement === value);
 }
 
 function isVerdict(value: unknown): value is Verdict {
@@ -74,13 +88,14 @@ export function parseVerdict(review: ReviewFact): ParsedVerdict | undefined {
     return {
       verdict: meta.outcome,
       markerHead: typeof meta.pr_head === 'string' ? meta.pr_head : undefined,
+      uat: isUatRequirement(meta.uat) ? meta.uat : undefined,
     };
   }
   switch (review.state) {
     case 'APPROVED':
-      return { verdict: 'approved', markerHead: undefined };
+      return { verdict: 'approved', markerHead: undefined, uat: undefined };
     case 'CHANGES_REQUESTED':
-      return { verdict: 'changes-requested', markerHead: undefined };
+      return { verdict: 'changes-requested', markerHead: undefined, uat: undefined };
     case 'COMMENTED':
       return undefined;
   }
@@ -102,7 +117,6 @@ function compareSubmission(a: ReviewFact, b: ReviewFact): number {
   return Date.parse(a.submittedAt) - Date.parse(b.submittedAt) || a.id - b.id;
 }
 
-/** The latest verdict that counts for the PR's current head, if any. */
 /**
  * The commits whose reviews count for the head: the head itself, plus every
  * commit whose only changes since are verified clean base merges. A clean base
@@ -113,12 +127,17 @@ export function countingCommits(facts: PullRequestFacts): ReadonlySet<string> {
   return new Set([facts.headSha, ...facts.cleanAncestors]);
 }
 
-export function currentVerdict(
+/**
+ * The latest verdict that counts for the PR's current head, if any, with the UAT
+ * decision it carries (so the requirement is bound to the head exactly as the
+ * verdict is).
+ */
+export function latestCountingVerdict(
   facts: PullRequestFacts,
   policy: ReconcilePolicy,
-): Verdict | undefined {
+): ParsedVerdict | undefined {
   const countingShas = countingCommits(facts);
-  let latest: { review: ReviewFact; verdict: Verdict } | undefined;
+  let latest: { review: ReviewFact; parsed: ParsedVerdict } | undefined;
   for (const review of facts.reviews) {
     const parsed = parseVerdict(review);
     const counts =
@@ -128,8 +147,16 @@ export function currentVerdict(
       // The marker, when present, must name the same commit the review is bound to.
       (parsed.markerHead === undefined || parsed.markerHead === review.commitSha);
     if (counts && (latest === undefined || compareSubmission(review, latest.review) > 0)) {
-      latest = { review, verdict: parsed.verdict };
+      latest = { review, parsed };
     }
   }
-  return latest?.verdict;
+  return latest?.parsed;
+}
+
+/** The latest counting verdict's outcome, if any. */
+export function currentVerdict(
+  facts: PullRequestFacts,
+  policy: ReconcilePolicy,
+): Verdict | undefined {
+  return latestCountingVerdict(facts, policy)?.verdict;
 }

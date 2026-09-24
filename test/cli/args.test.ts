@@ -27,7 +27,7 @@ describe('parseArgs — reconcile', () => {
       owner: 'rmartz',
       repo: 'demo',
       pr: 7,
-      policy: { armAutoMerge: false, autoUpdate: false, skipCopilotReview: false },
+      policy: { armAutoMerge: false, autoUpdate: false, skipCopilotReview: false, uatGate: false },
       dryRun: false,
       json: false,
       tokenAdvisory: true,

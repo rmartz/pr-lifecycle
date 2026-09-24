@@ -34,7 +34,14 @@ const AUTO_UPDATE = { autoUpdate: true };
 const TARGET = { pr: 7, nodeId: 'PR_node', headSha: HEAD_SHA };
 
 function makePlan(update: ReconcilePlan['update']): ReconcilePlan {
-  return { state: 'approved', addLabels: [], removeLabels: [], autoMerge: 'none', update };
+  return {
+    state: 'approved',
+    addLabels: [],
+    removeLabels: [],
+    autoMerge: 'none',
+    update,
+    uatGate: undefined,
+  };
 }
 
 describe('gatherFacts — branch updater', () => {

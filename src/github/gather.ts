@@ -7,15 +7,15 @@ import type {
   RepoPermission,
   ReviewFact,
 } from '../facts.js';
-import { REPO_PERMISSIONS } from '../facts.js';
 import type { GitRunner } from '../lineage/git.js';
 import { UPDATE_REQUIRED_LABEL } from '../plan.js';
 import { gatherCiFacts } from './ci-facts.js';
-import type { GitHubClient, PullRequestData, ReviewData } from './client.js';
-import { isApiStatus } from './client.js';
+import type { CheckRunData, GitHubClient, PullRequestData, ReviewData } from './client.js';
 import { DEPENDABOT_REBASING_NOTICE, isRebasePending } from './dependabot-rebase.js';
 import type { Lineage } from './lineage-facts.js';
 import { gatherLineage } from './lineage-facts.js';
+import { lookupPermission } from './permissions.js';
+import { gatherUatFacts } from './uat-facts.js';
 
 /**
  * Gathers a PR's facts from GitHub for the pure core. Everything is read before
@@ -31,6 +31,8 @@ export interface GatheredPullRequest {
   botEligibility: BotEligibility;
   /** How far approval carry-over verified, for reporting (absent when off). */
   lineage: Lineage | undefined;
+  /** The `uat` check-runs already on the head (empty when the UAT gate is off). */
+  uatChecks: CheckRunData[];
 }
 
 export interface GatherOptions {
@@ -59,30 +61,6 @@ async function gatherBotEligibility(
     labels: pull.labels,
     commits: needsCommits ? await client.listCommits(pr) : [],
   });
-}
-
-function isRepoPermission(value: string): value is RepoPermission {
-  return REPO_PERMISSIONS.some((permission) => permission === value);
-}
-
-/**
- * The author's permission, preferring the fine-grained role (which distinguishes
- * maintain and triage) and falling back to the legacy level for custom roles.
- * A non-collaborator (404) has no permission.
- */
-async function lookupPermission(client: GitHubClient, login: string): Promise<RepoPermission> {
-  try {
-    const { permission, roleName } = await client.getCollaboratorPermission(login);
-    if (isRepoPermission(roleName)) {
-      return roleName;
-    }
-    return isRepoPermission(permission) ? permission : 'none';
-  } catch (error) {
-    if (isApiStatus(error, 404)) {
-      return 'none';
-    }
-    throw error;
-  }
 }
 
 /**
@@ -194,17 +172,19 @@ export async function gatherFacts(
   const [pull, reviews] = await Promise.all([client.getPullRequest(pr), client.listReviews(pr)]);
   // Dependabot rebases its own branches; the author login can't be forged.
   const updater: BranchUpdater = pull.authorLogin === DEPENDABOT_LOGIN ? 'dependabot' : 'github';
-  const [permissions, botEligibility, ci, lineage, rebasePending] = await Promise.all([
+  const [permissions, botEligibility, ci, lineage, rebasePending, uat] = await Promise.all([
     lookupPermissions(client, reviews),
     gatherBotEligibility(client, pr, pull),
     gatherCiFacts(client, pull, policy),
     gatherLineageFor(client, pull, reviews, options),
     gatherRebasePending(client, pr, pull, updater, policy),
+    gatherUatFacts(client, pr, pull, policy),
   ]);
   return {
     nodeId: pull.nodeId,
     botEligibility,
     lineage,
+    uatChecks: uat.checks,
     facts: {
       status: pull.merged ? 'merged' : pull.state,
       isDraft: pull.draft,
@@ -221,6 +201,7 @@ export async function gatherFacts(
       updater,
       rebasePending,
       reviews: reviews.map((review) => toReviewFact(review, permissions)),
+      uatOverrides: uat.overrides,
     },
   };
 }

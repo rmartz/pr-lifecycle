@@ -43,6 +43,13 @@ export interface ReconcileJson {
     action: 'dependabot-rebase' | 'update-branch';
     reason: 'token-missing';
   } | null;
+  /** The UAT gate posted as the `uat` check-run; `null` when the gate is off or the PR is closed. */
+  uatGate: {
+    passes: boolean;
+    required: boolean;
+    reason: string;
+    override: string | null;
+  } | null;
 }
 
 export function toReconcileJson(target: ReconcileTarget, result: ReconcileResult): ReconcileJson {
@@ -72,6 +79,15 @@ export function toReconcileJson(target: ReconcileTarget, result: ReconcileResult
     update: plan.update,
     updateSkipped:
       skippedUpdate === undefined ? null : { action: skippedUpdate, reason: 'token-missing' },
+    uatGate:
+      plan.uatGate === undefined
+        ? null
+        : {
+            passes: plan.uatGate.passes,
+            required: plan.uatGate.required,
+            reason: plan.uatGate.reason,
+            override: plan.uatGate.override ?? null,
+          },
   };
 }
 
@@ -89,6 +105,7 @@ export function formatSummary(target: ReconcileTarget, result: ReconcileResult):
     ...(result.skippedUpdate === undefined
       ? []
       : [`update ${result.skippedUpdate} skipped (no release token)`]),
+    ...(plan.uatGate === undefined ? [] : [`uat ${plan.uatGate.passes ? 'pass' : 'hold'}`]),
   ];
   const prefix = target.dryRun ? '[dry-run] ' : '';
   const body = changes.length === 0 ? 'no changes' : changes.join(', ');
