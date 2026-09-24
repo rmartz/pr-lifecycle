@@ -74,20 +74,20 @@ The **latest** counting verdict (by submitted time, then review id) decides.
 
 ## State, in priority order
 
-| #   | Condition                                                           | State               | Lifecycle label              |
-| --- | ------------------------------------------------------------------- | ------------------- | ---------------------------- |
-| 1   | status is `closed` or `merged`                                      | `closed`            | untouched (no plan)          |
-| 2   | draft, or `[WIP]` title                                             | `draft`             | none                         |
-| 3   | `mergeable` is `false` (merge conflict)                             | `fix-required`      | `fix required`               |
-| 4   | `ciStatus` is `failing` and `baseCiFailing`                         | `blocked-base-red`  | none                         |
-| 5   | `ciStatus` is `failing`                                             | `ci-failing`        | `fix required`, `ci failing` |
-| 6   | counting verdict `approved`                                         | `approved`          | `approved`                   |
-| 6   | counting verdict `changes-requested`                                | `changes-requested` | `changes requested`          |
-| 6   | counting verdict `escalation-needed`                                | `escalation-needed` | `escalation needed`          |
-| 7   | `botEligible`                                                       | `approved`          | `approved`                   |
-| 8   | `ciStatus` is `pending`                                             | `awaiting-ci`       | none                         |
-| 9   | a Copilot review exists on `headSha`, or `policy.skipCopilotReview` | `review-requested`  | `review requested`           |
-| 10  | otherwise                                                           | `awaiting-copilot`  | none                         |
+| #   | Condition                                                                      | State               | Lifecycle label              |
+| --- | ------------------------------------------------------------------------------ | ------------------- | ---------------------------- |
+| 1   | status is `closed` or `merged`                                                 | `closed`            | untouched (no plan)          |
+| 2   | draft, or `[WIP]` title                                                        | `draft`             | none                         |
+| 3   | `mergeable` is `false` (merge conflict)                                        | `fix-required`      | `fix required`               |
+| 4   | `ciStatus` is `failing` and `baseCiFailing`                                    | `blocked-base-red`  | none                         |
+| 5   | `ciStatus` is `failing`                                                        | `ci-failing`        | `fix required`, `ci failing` |
+| 6   | counting verdict `approved`                                                    | `approved`          | `approved`                   |
+| 6   | counting verdict `changes-requested`                                           | `changes-requested` | `changes requested`          |
+| 6   | counting verdict `escalation-needed`                                           | `escalation-needed` | `escalation needed`          |
+| 7   | `botEligible`                                                                  | `approved`          | `approved`                   |
+| 8   | `ciStatus` is `pending`                                                        | `awaiting-ci`       | none                         |
+| 9   | Copilot reviewed the head (or a clean ancestor), or `policy.skipCopilotReview` | `review-requested`  | `review requested`           |
+| 10  | otherwise                                                                      | `awaiting-copilot`  | none                         |
 
 **A merge conflict outranks every verdict.** It needs a code change, and the
 resolution is a new commit that no approval could survive anyway, so an approved
