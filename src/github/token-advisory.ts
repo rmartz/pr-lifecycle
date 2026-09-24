@@ -18,9 +18,9 @@ export function buildTokenAdvisoryBody(skipped: 'arm' | 'merge'): string {
   return [
     TOKEN_ADVISORY_MARKER,
     '## PR lifecycle: auto-merge skipped',
-    `This PR is approved and would have been **${action}**, but no release token is configured (the \`release-token\` input, \`PR_LIFECYCLE_RELEASE_TOKEN\` to the CLI).`,
+    `This PR is approved and would have been **${action}**, but no release token is configured (the \`release-token\` input, \`PR_LIFECYCLE_TOKEN\` to the CLI).`,
     "A merge made with `GITHUB_TOKEN` doesn't trigger `on: push` workflows such as releases, so the lifecycle doesn't fall back to it. Labels are still kept up to date; merge this PR by hand, or add the token and re-run.",
-    `To fix it, store a fine-grained PAT with **Contents** and **Pull requests** read/write on this repository as an Actions secret, **and** as a Dependabot secret if bot PRs are auto-merged (Dependabot-triggered runs only see Dependabot secrets). See ${RELEASE_TOKEN_DOCS_URL}.`,
+    `To fix it, store a fine-grained PAT with **Contents** and **Pull requests** read/write on this repository as the \`PR_LIFECYCLE_TOKEN\` Actions secret, **and** as a Dependabot secret of the same name if bot PRs are auto-merged (Dependabot-triggered runs only see Dependabot secrets). See ${RELEASE_TOKEN_DOCS_URL}.`,
     '<sub>pr-lifecycle</sub>',
   ].join('\n\n');
 }

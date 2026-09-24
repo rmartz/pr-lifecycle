@@ -51,7 +51,7 @@ reconcile options:
 
 Environment:
   GITHUB_TOKEN              Token for reads and writes (required)
-  PR_LIFECYCLE_RELEASE_TOKEN
+  PR_LIFECYCLE_TOKEN
                             Real-actor token for arming and merging; without it,
                             --arm-auto-merge keeps labels but skips arm/merge
   GITHUB_API_URL            API base URL (GitHub Enterprise Server)`;
@@ -85,7 +85,7 @@ export async function runCli(argv: readonly string[], io: CliIo, deps: CliDeps):
       ...(apiUrl === undefined || apiUrl === '' ? {} : { apiUrl }),
     });
   const client = clientFor(token);
-  const releaseToken = deps.env['PR_LIFECYCLE_RELEASE_TOKEN'];
+  const releaseToken = deps.env['PR_LIFECYCLE_TOKEN'];
   const hasReleaseToken = releaseToken !== undefined && releaseToken !== '';
   const target = { owner: args.owner, repo: args.repo, pr: args.pr, dryRun: args.dryRun };
 
@@ -99,7 +99,7 @@ export async function runCli(argv: readonly string[], io: CliIo, deps: CliDeps):
     });
     if (result.skippedAutoMerge !== undefined) {
       io.stderr(
-        `warning: ${args.owner}/${args.repo}#${args.pr} is approved, but auto-merge ${result.skippedAutoMerge} was skipped: PR_LIFECYCLE_RELEASE_TOKEN is not set`,
+        `warning: ${args.owner}/${args.repo}#${args.pr} is approved, but auto-merge ${result.skippedAutoMerge} was skipped: PR_LIFECYCLE_TOKEN is not set`,
       );
       if (args.tokenAdvisory && !args.dryRun) {
         await adviseMissingToken(client, args.pr, result.skippedAutoMerge, io);

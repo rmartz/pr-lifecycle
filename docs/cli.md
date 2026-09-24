@@ -41,11 +41,11 @@ The policy options are described in the [core design](reconciler-design.md).
 
 ## Environment
 
-| Variable                     | Use                                                                                   |
-| ---------------------------- | ------------------------------------------------------------------------------------- |
-| `GITHUB_TOKEN`               | Token for all reads and writes (required; missing → exit 2).                          |
-| `PR_LIFECYCLE_RELEASE_TOKEN` | Real-actor token used **only** to arm and merge. See [Release token](#release-token). |
-| `GITHUB_API_URL`             | API base URL for GitHub Enterprise Server (defaults to github.com).                   |
+| Variable             | Use                                                                                   |
+| -------------------- | ------------------------------------------------------------------------------------- |
+| `GITHUB_TOKEN`       | Token for all reads and writes (required; missing → exit 2).                          |
+| `PR_LIFECYCLE_TOKEN` | Real-actor token used **only** to arm and merge. See [Release token](#release-token). |
+| `GITHUB_API_URL`     | API base URL for GitHub Enterprise Server (defaults to github.com).                   |
 
 **Token permissions.** `pull-requests: write` (PR, reviews, labels, comments,
 disarming), `contents: read` (branch rules, the base branch head, commits),
@@ -62,7 +62,7 @@ is skipped (an extra review, never an error).
 A merge made with `GITHUB_TOKEN`, including one GitHub performs because
 `GITHUB_TOKEN` armed auto-merge, triggers **no** `on: push` workflows, so a
 consumer's release pipeline never runs. Arming and merging therefore use
-`PR_LIFECYCLE_RELEASE_TOKEN`, and nothing else does (no reads, no labels).
+`PR_LIFECYCLE_TOKEN`, and nothing else does (no reads, no labels).
 
 - **Which PRs.** Every PR the lifecycle arms or merges, not only release PRs:
   every merge to `main` should fire its `on: push` workflows. This departs from
@@ -72,7 +72,7 @@ consumer's release pipeline never runs. Arming and merging therefore use
   token-agnostic, so a GitHub App installation token can replace it later with no
   CLI change.
 - **Where to store it.** A personal account has no shared secrets, so it's stored
-  per repo, as an **Actions** secret and also as a **Dependabot** secret when bot
+  per repo as `PR_LIFECYCLE_TOKEN`, as an **Actions** secret and also as a **Dependabot** secret when bot
   PRs are auto-merged. A run triggered by Dependabot sees only Dependabot secrets
   ([GitHub docs](https://docs.github.com/en/code-security/dependabot/troubleshooting-dependabot/troubleshooting-dependabot-on-github-actions)),
   and bot PRs are armed on exactly those runs.
@@ -84,7 +84,7 @@ consumer's release pipeline never runs. Arming and merging therefore use
   (found again by its marker), since a job-log warning goes unread. Pass
   `--no-token-advisory` to suppress it. A failure to post the comment only warns.
 - **Local use.** When `GITHUB_TOKEN` is already a real user's token (e.g. a
-  coordinator run), set `PR_LIFECYCLE_RELEASE_TOKEN` to the same value.
+  coordinator run), set `PR_LIFECYCLE_TOKEN` to the same value.
 
 ## Exit codes
 

@@ -13,7 +13,7 @@ const NO_RELEASE_TOKEN = { GITHUB_TOKEN: 't0k' };
 /** Deps giving each token its own fake, to see which token each call used. */
 function makeTokenDeps(main: FakeGitHubClient, release: FakeGitHubClient): CliDeps {
   return {
-    env: { GITHUB_TOKEN: 't0k', PR_LIFECYCLE_RELEASE_TOKEN: 'r3l' },
+    env: { GITHUB_TOKEN: 't0k', PR_LIFECYCLE_TOKEN: 'r3l' },
     createClient: (options) => (options.token === 'r3l' ? release : main),
     git: { run: () => Promise.reject(new Error('git must not run in CLI tests')) },
   };
@@ -61,7 +61,7 @@ describe('runCli — release token missing', () => {
     await runCli(ARM, io, makeDeps(makeApprovedClient(), NO_RELEASE_TOKEN).deps);
 
     expect(err).toEqual([
-      'warning: rmartz/demo#7 is approved, but auto-merge arm was skipped: PR_LIFECYCLE_RELEASE_TOKEN is not set',
+      'warning: rmartz/demo#7 is approved, but auto-merge arm was skipped: PR_LIFECYCLE_TOKEN is not set',
     ]);
   });
 
@@ -97,7 +97,7 @@ describe('runCli — release token missing', () => {
 
   it('treats an empty release token as missing', async () => {
     const client = makeApprovedClient();
-    const env = { GITHUB_TOKEN: 't0k', PR_LIFECYCLE_RELEASE_TOKEN: '' };
+    const env = { GITHUB_TOKEN: 't0k', PR_LIFECYCLE_TOKEN: '' };
 
     await runCli(ARM, makeIo().io, makeDeps(client, env).deps);
 

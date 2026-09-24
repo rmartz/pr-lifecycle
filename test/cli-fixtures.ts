@@ -33,7 +33,7 @@ export function makeApprovedClient() {
  */
 export function makeDeps(
   client: FakeGitHubClient,
-  env: CliDeps['env'] = { GITHUB_TOKEN: 't0k', PR_LIFECYCLE_RELEASE_TOKEN: 'r3l' },
+  env: CliDeps['env'] = { GITHUB_TOKEN: 't0k', PR_LIFECYCLE_TOKEN: 'r3l' },
 ) {
   const created: HttpClientOptions[] = [];
   const deps: CliDeps = {
