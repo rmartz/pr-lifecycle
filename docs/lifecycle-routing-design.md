@@ -148,7 +148,7 @@ Each issue lists its dependencies; see the **Reconciler v1** milestone.
 | Piece                                                      | Issue                                          | Depends on                  |
 | ---------------------------------------------------------- | ---------------------------------------------- | --------------------------- |
 | CI gate: `awaiting-ci` / `ci failing` / `blocked-base-red` | #20                                            | —                           |
-| Merge-conflict state                                       | #21                                            | —                           |
+| Merge-conflict state (**done**)                            | #21                                            | —                           |
 | Approval carry-over across clean base updates              | #22                                            | (#20 before production use) |
 | Auto-update approved PRs flagged `update required`         | #23                                            | #7, #22, #20                |
 | `fix required` / `ci failing` in the fleet roster          | rmartz/dotfiles (roster + coordinator routing) | —                           |
