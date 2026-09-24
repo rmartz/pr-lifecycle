@@ -1,6 +1,7 @@
 // @ts-check
 import js from '@eslint/js';
 import importPlugin from 'eslint-plugin-import';
+import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
 /**
@@ -108,8 +109,13 @@ export default tseslint.config(
     },
   },
   {
-    // Plain JS/MJS files (this config itself is ignored) get no type info.
+    // Plain JS/MJS files (Node scripts under scripts/; this config itself is
+    // ignored) get no type info, but do run under Node.
     files: ['**/*.{js,mjs,cjs}'],
     ...tseslint.configs.disableTypeChecked,
+    languageOptions: {
+      ...tseslint.configs.disableTypeChecked.languageOptions,
+      globals: globals.node,
+    },
   },
 );

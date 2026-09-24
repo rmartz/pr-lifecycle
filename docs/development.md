@@ -40,7 +40,7 @@ pins npmjs as the base registry so Dependabot resolves public packages correctly
 
 | Workflow                | Trigger                     | Gates                                                                                                        |
 | ----------------------- | --------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| `ci.yml`                | PR + push to `main`         | Typecheck, Lint, Format, Build, Test (with coverage)                                                         |
+| `ci.yml`                | PR + push to `main`         | Typecheck, Lint, Format, Build, Test (with coverage), Release notes (changelog toolchain renders)            |
 | `repo-hygiene.yml`      | PR + push to `main`         | conflict markers, action/package pins, docs links, AGENTS/CLAUDE pairing, OKF frontmatter + index, file caps |
 | `pr-title-lint.yml`     | PR opened/edited/synced     | Conventional-Commit PR title, no `[WIP]`                                                                     |
 | `merge-safety.yml`      | `pull_request_target`, push | the `merge-safety` check-run (base currency, conflicts)                                                      |
@@ -89,3 +89,23 @@ both the commit analyzer and notes generator, so `feat` → minor, `fix` → pat
 creates the `v*` tag and GitHub Release using the built-in `GITHUB_TOKEN`. Because
 the repo squash-merges with the PR title, the PR title is what determines the
 release.
+
+**The release toolchain is verified on every PR.** semantic-release only runs on
+`main`, after merge, so a broken release config would otherwise surface only as
+a failed publish. The CI **Release notes** job (`pnpm run verify:release-notes`,
+`scripts/verify-changelog-render.mjs`) renders notes through the real
+`@semantic-release/release-notes-generator` with the installed preset and
+`.releaserc.json` options. It needs no token, no network and no push, so it works
+on Dependabot and fork PRs. A `semantic-release --dry-run` is deliberately not
+used: on a PR branch it exits before rendering notes (a false pass), and forcing
+it onto the branch runs a push-permission check that fails on the read-only token
+Dependabot PRs get.
+
+This guard exists because the break already happened once:
+`conventional-changelog-conventionalcommits` 10.x needs a newer
+`conventional-changelog-writer` than semantic-release 25 ships, and every Release
+run on `main` failed until the preset was pinned back to 9.x. Keep
+`@semantic-release/release-notes-generator` pinned to the version semantic-release
+resolves, so the guard renders with the same writer the real release uses. A
+Dependabot major bump of the preset should now fail this job rather than reach
+`main`.
