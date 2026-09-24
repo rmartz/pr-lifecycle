@@ -23,6 +23,8 @@ export interface PullRequestData {
   headRef: string;
   /** The base branch name, whose rulesets define the required checks. */
   baseRef: string;
+  /** Clone URL of the base repository, used to fetch commits for carry-over checks. */
+  cloneUrl: string;
   /** True when the head branch lives in a fork (or a deleted repo), not the base. */
   isCrossRepository: boolean;
   /** `false` is a merge conflict; `undefined` means GitHub is still computing it. */
@@ -41,6 +43,19 @@ export interface CheckRunData {
 export interface CommitStatusData {
   context: string;
   state: string;
+}
+
+/** A git commit's structure: its tree and parents (for carry-over verification). */
+export interface CommitObject {
+  treeSha: string;
+  parents: string[];
+}
+
+/** The compare API's answer: how `head` relates to `base`, and their merge base. */
+export interface CommitComparison {
+  /** `ahead` / `identical` mean `head` contains `base`. */
+  status: string;
+  mergeBaseSha: string;
 }
 
 export interface CommitData {
@@ -84,6 +99,8 @@ export interface GitHubClient {
   getBranchHeadSha(branch: string): Promise<string>;
   listCheckRuns(sha: string): Promise<CheckRunData[]>;
   listCommitStatuses(sha: string): Promise<CommitStatusData[]>;
+  getCommit(sha: string): Promise<CommitObject>;
+  compareCommits(base: string, head: string): Promise<CommitComparison>;
   /** Throws a GitHubApiError with status 404 when the user is not a collaborator. */
   getCollaboratorPermission(login: string): Promise<CollaboratorPermission>;
   listRepoLabels(): Promise<string[]>;

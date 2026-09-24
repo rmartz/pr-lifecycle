@@ -16,8 +16,8 @@ relevant to your task before editing code — see
   core: the fact model, verdict trust and head binding, state priority, the label
   and auto-merge plan, and the properties the tests guarantee.
 - [Lifecycle routing design (v2)](lifecycle-routing-design.md) — the routing
-  extension: what is built (CI gate, merge-conflict and base-health states) and
-  what remains (approval carry-over across clean base updates, and auto-update).
+  extension: what is built (CI gate, merge-conflict and base-health states,
+  approval carry-over) and what remains (auto-update).
 - [GitHub edge layer](github-edge-layer.md) — gathering facts from and applying
   plans to GitHub: the client seam, permission mapping, fail-safe write order,
   tolerated errors, and the HTTP client.

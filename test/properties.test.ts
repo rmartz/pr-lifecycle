@@ -66,6 +66,7 @@ const factsArb: fc.Arbitrary<PullRequestFacts> = fc.record({
   mergeable: fc.constantFrom(true, true, false, undefined),
   ciStatus: fc.constantFrom('passing', 'passing', 'pending', 'failing'),
   baseCiFailing: fc.boolean(),
+  cleanAncestors: fc.constantFrom([], [], [OLD_SHA]),
   reviews: reviewsArb(),
 });
 
@@ -80,6 +81,9 @@ const openFactsArb: fc.Arbitrary<PullRequestFacts> = factsArb.map((facts) => ({
   isDraft: false,
   title: 'feat: thing',
   botEligible: false,
+  // No carry-over: the inertness properties are about commits whose verdicts
+  // must not count.
+  cleanAncestors: [],
 }));
 
 /** Security properties get more runs than the default 100. */
@@ -189,6 +193,43 @@ describe('reconciler properties', () => {
           const polluted = { ...facts, reviews: [...facts.reviews, ...withIdOffset(extra)] };
 
           expect(computeState(polluted, policy)).toBe(computeState(facts, policy));
+        },
+      ),
+      SECURITY_RUNS,
+    );
+  });
+
+  // Carry-over grants nothing new: a verdict on a verified clean ancestor counts
+  // exactly as if the same reviewer had posted it on the head.
+  it('treats a carried-over verdict exactly like one on the head', () => {
+    const onAncestor = reviewArb(authorArb, fc.constant(OLD_SHA));
+    fc.assert(
+      fc.property(
+        openFactsArb,
+        policyArb,
+        fc.uniqueArray(onAncestor, { selector: (review) => review.id, maxLength: 6 }),
+        (facts, policy, reviews) => {
+          // Compare like with like: each review's marker (when present) names the
+          // commit the review is bound to, on both sides. A review whose marker
+          // contradicts its binding is rejected by design on either side.
+          const carried = {
+            ...facts,
+            cleanAncestors: [OLD_SHA],
+            reviews: reviews.map((review) => ({
+              ...review,
+              body: review.body.replaceAll(HEAD_SHA, OLD_SHA),
+            })),
+          };
+          const onHead = {
+            ...facts,
+            reviews: reviews.map((review) => ({
+              ...review,
+              commitSha: HEAD_SHA,
+              body: review.body.replaceAll(OLD_SHA, HEAD_SHA),
+            })),
+          };
+
+          expect(computeState(carried, policy)).toBe(computeState(onHead, policy));
         },
       ),
       SECURITY_RUNS,

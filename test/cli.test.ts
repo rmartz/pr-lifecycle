@@ -37,6 +37,9 @@ function makeDeps(client: FakeGitHubClient, env: CliDeps['env'] = { GITHUB_TOKEN
       created.push(options);
       return client;
     },
+    // None of these PRs has a review on an earlier commit, so carry-over must
+    // never reach git; fail loudly if it does.
+    git: { run: () => Promise.reject(new Error('git must not run in CLI tests')) },
   };
   return { deps, created };
 }
@@ -214,6 +217,7 @@ describe('runCli — --json contract (schemaVersion 1)', () => {
           prType: null,
           updateType: null,
         },
+        carryOver: { cleanAncestors: [], stoppedBecause: 'no reviews on earlier commits' },
       },
     ]);
   });

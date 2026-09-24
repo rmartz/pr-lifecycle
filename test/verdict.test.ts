@@ -180,6 +180,42 @@ describe('currentVerdict', () => {
     expect(currentVerdict(makeFacts({ reviews: [review] }), {})).toBeUndefined();
   });
 
+  it('carries a verdict on a verified clean ancestor over to the head', () => {
+    const review = makeReview({ commitSha: OLD_SHA, body: makeVerdictBody('approved', OLD_SHA) });
+
+    expect(currentVerdict(makeFacts({ reviews: [review], cleanAncestors: [OLD_SHA] }), {})).toBe(
+      'approved',
+    );
+  });
+
+  it('carries an unmarked native approval on a clean ancestor', () => {
+    const review = makeReview({ commitSha: OLD_SHA, state: 'APPROVED' });
+
+    expect(currentVerdict(makeFacts({ reviews: [review], cleanAncestors: [OLD_SHA] }), {})).toBe(
+      'approved',
+    );
+  });
+
+  it('does not carry a verdict whose marker names a different commit than it is bound to', () => {
+    const review = makeReview({ commitSha: OLD_SHA, body: makeVerdictBody('approved', HEAD_SHA) });
+
+    expect(
+      currentVerdict(makeFacts({ reviews: [review], cleanAncestors: [OLD_SHA] }), {}),
+    ).toBeUndefined();
+  });
+
+  it('never carries an untrusted verdict, even from a clean ancestor', () => {
+    const review = makeReview({
+      commitSha: OLD_SHA,
+      author: makeAuthor({ login: 'drive-by', permission: 'read' }),
+      body: makeVerdictBody('approved', OLD_SHA),
+    });
+
+    expect(
+      currentVerdict(makeFacts({ reviews: [review], cleanAncestors: [OLD_SHA] }), {}),
+    ).toBeUndefined();
+  });
+
   it('ignores a verdict whose marker head is not the head', () => {
     const review = makeReview({ body: makeVerdictBody('approved', OLD_SHA) });
 

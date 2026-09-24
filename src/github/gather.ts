@@ -2,9 +2,12 @@ import type { BotEligibility } from '../bot-eligibility.js';
 import { classifyBotPr, DEPENDABOT_LOGIN } from '../bot-eligibility.js';
 import type { PullRequestFacts, ReconcilePolicy, RepoPermission, ReviewFact } from '../facts.js';
 import { REPO_PERMISSIONS } from '../facts.js';
+import type { GitRunner } from '../lineage/git.js';
 import { gatherCiFacts } from './ci-facts.js';
 import type { GitHubClient, PullRequestData, ReviewData } from './client.js';
 import { isApiStatus } from './client.js';
+import type { Lineage } from './lineage-facts.js';
+import { gatherLineage } from './lineage-facts.js';
 
 /**
  * Gathers a PR's facts from GitHub for the pure core. Everything is read before
@@ -18,6 +21,17 @@ export interface GatheredPullRequest {
   nodeId: string;
   /** The bot-eligibility verdict behind `facts.botEligible`, with its reason. */
   botEligibility: BotEligibility;
+  /** How far approval carry-over verified, for reporting (absent when off). */
+  lineage: Lineage | undefined;
+}
+
+export interface GatherOptions {
+  /**
+   * Enables approval carry-over across clean base updates, which needs git and a
+   * token that can fetch the repository. Omitted, carry-over is off (fail closed:
+   * earlier-commit verdicts simply don't count).
+   */
+  lineage?: { git: GitRunner; token?: string };
 }
 
 /**
@@ -100,20 +114,52 @@ function toReviewFact(review: ReviewData, permissions: Map<string, RepoPermissio
   };
 }
 
+/** Carry-over only matters for an open PR, and only when enabled. */
+async function gatherLineageFor(
+  client: GitHubClient,
+  pull: PullRequestData,
+  reviews: readonly ReviewData[],
+  options: GatherOptions,
+): Promise<Lineage | undefined> {
+  if (options.lineage === undefined || pull.state !== 'open') {
+    return undefined;
+  }
+  try {
+    const baseHeadSha = await client.getBranchHeadSha(pull.baseRef);
+    // `return await`, not `return`: an un-awaited rejection would escape the catch.
+    return await gatherLineage(client, options.lineage.git, {
+      headSha: pull.headSha,
+      baseHeadSha,
+      source: {
+        url: pull.cloneUrl,
+        ...(options.lineage.token === undefined ? {} : { token: options.lineage.token }),
+      },
+      reviews,
+    });
+  } catch (error) {
+    // Fail closed, but keep the reason: `undefined` would read as "didn't run".
+    const message = error instanceof Error ? error.message : String(error);
+    return { cleanAncestors: [], stoppedBecause: `verification failed: ${message}` };
+  }
+}
+
 export async function gatherFacts(
   client: GitHubClient,
   pr: number,
   policy: ReconcilePolicy = {},
+  options: GatherOptions = {},
 ): Promise<GatheredPullRequest> {
   const [pull, reviews] = await Promise.all([client.getPullRequest(pr), client.listReviews(pr)]);
-  const [permissions, botEligibility, ci] = await Promise.all([
+  const [permissions, botEligibility, ci, lineage] = await Promise.all([
     lookupPermissions(client, reviews),
     gatherBotEligibility(client, pr, pull),
     gatherCiFacts(client, pull, policy),
+    gatherLineageFor(client, pull, reviews, options),
   ]);
   return {
     nodeId: pull.nodeId,
     botEligibility,
+    lineage,
     facts: {
       status: pull.merged ? 'merged' : pull.state,
       isDraft: pull.draft,
@@ -125,6 +171,7 @@ export async function gatherFacts(
       mergeable: pull.mergeable,
       ciStatus: ci.ciStatus,
       baseCiFailing: ci.baseCiFailing,
+      cleanAncestors: lineage?.cleanAncestors ?? [],
       reviews: reviews.map((review) => toReviewFact(review, permissions)),
     },
   };

@@ -61,6 +61,12 @@ export interface PullRequestFacts {
   ciStatus: CiStatus;
   /** Whether the same required checks are failing on the base branch head. */
   baseCiFailing: boolean;
+  /**
+   * Earlier commits whose verdicts carry over to the head: every commit reached
+   * from the head through a chain of verified clean base merges (see
+   * docs/reconciler-design.md §Approval carry-over). Verified at the edge.
+   */
+  cleanAncestors: readonly string[];
   reviews: readonly ReviewFact[];
 }
 

@@ -3,7 +3,9 @@ import { REVIEW_STATES } from '../facts.js';
 import type {
   CheckRunData,
   CollaboratorPermission,
+  CommitComparison,
   CommitData,
+  CommitObject,
   CommitStatusData,
   GitHubClient,
   LabelDefinition,
@@ -41,7 +43,7 @@ interface RestPull {
   user: { login: string } | null;
   /** `head.repo` is null when the fork was deleted. */
   head: { sha: string; ref: string; repo: { id: number } | null };
-  base: { ref: string; repo: { id: number } };
+  base: { ref: string; repo: { id: number; clone_url: string } };
   labels: { name: string }[];
   auto_merge: unknown;
   /** `null` while GitHub computes mergeability in the background. */
@@ -172,6 +174,7 @@ export function createHttpClient(options: HttpClientOptions): GitHubClient {
         authorLogin: pull.user?.login,
         headRef: pull.head.ref,
         baseRef: pull.base.ref,
+        cloneUrl: pull.base.repo.clone_url,
         // Compare repo ids, not names (names change on rename); a deleted head
         // repo is treated as a fork, so it can never look like a trusted branch.
         isCrossRepository: pull.head.repo?.id !== pull.base.repo.id,
@@ -219,6 +222,22 @@ export function createHttpClient(options: HttpClientOptions): GitHubClient {
         conclusion: run.conclusion,
         completedAt: run.completed_at,
       }));
+    },
+    async getCommit(sha): Promise<CommitObject> {
+      const commit = (await request('GET', `${repoPath}/git/commits/${sha}`)) as {
+        tree: { sha: string };
+        parents: { sha: string }[];
+      };
+      return { treeSha: commit.tree.sha, parents: commit.parents.map((parent) => parent.sha) };
+    },
+    async compareCommits(base, head): Promise<CommitComparison> {
+      // Three-dot compare: status relative to `base`, plus their merge base. Only
+      // the summary is needed, so ask for a single commit page.
+      const result = (await request('GET', `${repoPath}/compare/${base}...${head}?per_page=1`)) as {
+        status: string;
+        merge_base_commit: { sha: string };
+      };
+      return { status: result.status, mergeBaseSha: result.merge_base_commit.sha };
     },
     async listCommitStatuses(sha): Promise<CommitStatusData[]> {
       // The combined status holds the latest status per context.
