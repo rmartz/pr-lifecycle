@@ -13,6 +13,7 @@ export const LIFECYCLE_LABELS = [
   'approved',
   'changes requested',
   'escalation needed',
+  'fix required',
   'review requested',
 ] as const;
 export type LifecycleLabel = (typeof LIFECYCLE_LABELS)[number];
@@ -36,6 +37,8 @@ function lifecycleLabel(state: LifecycleState): LifecycleLabel | undefined {
       return 'changes requested';
     case 'escalation-needed':
       return 'escalation needed';
+    case 'fix-required':
+      return 'fix required';
     case 'review-requested':
       return 'review requested';
     case 'awaiting-copilot':

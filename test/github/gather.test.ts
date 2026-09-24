@@ -35,6 +35,12 @@ describe('gatherFacts — pull request fields', () => {
     });
   });
 
+  it.each([false, undefined])('passes mergeable %j through to the facts', async (mergeable) => {
+    const client = new FakeGitHubClient(makePullRequestData({ mergeable }));
+
+    expect((await gatherFacts(client, 7)).facts.mergeable).toBe(mergeable);
+  });
+
   it('returns the node id for the auto-merge mutations', async () => {
     const client = new FakeGitHubClient(makePullRequestData({ nodeId: 'PR_kwDO123' }));
 

@@ -30,6 +30,7 @@ export function makeFacts(overrides: Partial<PullRequestFacts> = {}): PullReques
     labels: [],
     autoMergeEnabled: false,
     botEligible: false,
+    mergeable: true,
     reviews: [],
     ...overrides,
   };

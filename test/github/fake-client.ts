@@ -30,6 +30,7 @@ export function makePullRequestData(overrides: Partial<PullRequestData> = {}): P
     authorLogin: 'contributor',
     headRef: 'feature/thing',
     isCrossRepository: false,
+    mergeable: true,
     ...overrides,
   };
 }

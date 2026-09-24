@@ -63,6 +63,7 @@ const factsArb: fc.Arbitrary<PullRequestFacts> = fc.record({
   labels: fc.subarray([...OWNED_LABELS, 'DevOps', 'ready for UAT']),
   autoMergeEnabled: fc.boolean(),
   botEligible: fc.boolean(),
+  mergeable: fc.constantFrom(true, true, false, undefined),
   reviews: reviewsArb(),
 });
 

@@ -13,6 +13,7 @@ export const LIFECYCLE_STATES = [
   'closed',
   'draft',
   'escalation-needed',
+  'fix-required',
   'review-requested',
 ] as const;
 export type LifecycleState = (typeof LIFECYCLE_STATES)[number];
@@ -27,6 +28,12 @@ export function computeState(facts: PullRequestFacts, policy: ReconcilePolicy): 
   }
   if (facts.isDraft || WIP_PATTERN.test(facts.title)) {
     return 'draft';
+  }
+  // A conflict needs a code change, so it outranks every verdict: the resolution
+  // is a new commit that an approval couldn't survive anyway. Unknown (still
+  // computing) is not a conflict; the next event re-evaluates.
+  if (facts.mergeable === false) {
+    return 'fix-required';
   }
   const verdict = currentVerdict(facts, policy);
   if (verdict !== undefined) {

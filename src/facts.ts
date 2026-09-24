@@ -50,6 +50,11 @@ export interface PullRequestFacts {
   autoMergeEnabled: boolean;
   /** Result of the bot-PR eligibility predicate (Dependabot patch/minor, release-please). */
   botEligible: boolean;
+  /**
+   * Whether the PR merges cleanly into its base: `false` is a merge conflict, and
+   * `undefined` means GitHub hasn't computed it yet (never treated as a conflict).
+   */
+  mergeable: boolean | undefined;
   reviews: readonly ReviewFact[];
 }
 
