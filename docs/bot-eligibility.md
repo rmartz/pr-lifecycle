@@ -1,7 +1,7 @@
 ---
 type: Library
 title: Bot-PR eligibility
-description: Which bot PRs count as approved without a review — Dependabot patch/minor bumps and release-please release PRs from this repository — how the Dependabot update type is read, and why fork PRs are never eligible.
+description: Which bot PRs count as approved without a review — Dependabot patch/minor bumps, and release-please PRs whose branch and diff are a pure release — how the Dependabot update type is read, why a label never identifies a release, and why fork PRs are never eligible.
 resource: src/bot-eligibility.ts
 tags: [bot, dependabot, release-please, security, eligibility]
 ---
@@ -32,10 +32,37 @@ PR with a `changes requested` review.
      bump and needs a review. An unlinked commit author counts as someone else;
    - and the highest update type across its commits is `semver-patch` or
      `semver-minor`. Majors are held for review.
-3. **release-please**: a head branch starting `release-please--`, or the
-   `autorelease: pending` label, is eligible.
+3. **release-please** is recognized by a head branch starting `release-please--`,
+   and is eligible only when its diff is a **pure release** (below). The
+   `autorelease: pending` label is **not** a signal: triage permission can apply
+   it but can't push or merge, so honoring it would let a triage user approve any
+   same-repo PR.
 4. **Anything else** (a human, or an unrecognized bot such as Renovate) is not
    eligible.
+
+## A pure release diff
+
+The branch name alone isn't enough: anyone with write access can push arbitrary
+code to a `release-please--` branch. release-please commits as whoever owns its
+token (in this fleet, the owner's PAT), so commit authors can't tell a release
+apart either. The diff can: `classifyReleaseDiff` (`src/release-diff.ts`)
+accepts it only when every changed file is
+
+- `.release-please-manifest.json` at the repository root,
+- a `CHANGELOG.md` at any depth, or
+- a `package.json` at any depth whose patch changes **exactly one line, its
+  `"version"`** (one removed and one added bare `"version": "…"` member);
+
+and every file's status is `added` or `modified` (a release never deletes,
+renames, or copies one). It fails closed: a missing `package.json` patch (GitHub
+omits patches for large diffs), an empty diff, or a file list short of the PR's
+`changed_files` (GitHub lists at most 3,000) is not a release. Files are fetched
+only for a same-repo `release-please--` branch not authored by Dependabot.
+
+Not yet supported, so held for review: lockfiles (release-please's node strategy
+can bump `package-lock.json`, whose many `"version"` lines can't be told apart
+from a dependency change by patch alone) and `extra-files` from
+`release-please-config.json`.
 
 ## Reading the Dependabot update type
 
@@ -58,7 +85,7 @@ These rules are **ported** from `@rmartz/bot-automerge`'s `classifyBotPr`, not
 imported. Importing would pull a GitHub Packages runtime dependency, and its
 release cadence, into this package for about 100 lines of logic. The rules also
 deliberately differ: bot-automerge detects release-please by branch name or label
-alone, with no repository check, so a fork PR named `release-please--…` would be
-classified as a release PR. Rule 1 closes that here. Once this package owns
+alone, with no diff check. Here the label is ignored and the diff must be a pure
+release (rule 3), and fork PRs are never eligible (rule 1). Once this package owns
 arming for every PR (#10), bot-automerge's own classifier is retired, per
 ai-tools#306.

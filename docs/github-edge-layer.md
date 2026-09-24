@@ -45,8 +45,9 @@ HTTP status.
 - **Bot eligibility** is computed here with `classifyBotPr` (see
   [Bot-PR eligibility](bot-eligibility.md)) from the PR author, head ref, labels,
   and whether the head is in a fork. The PR's commits are fetched only for a
-  Dependabot PR from this repository, the one case where they can change the
-  answer. The verdict, with its `reason`, is returned alongside the facts.
+  Dependabot PR from this repository, and its changed files only for a same-repo
+  `release-please--` branch: the cases where they can change the answer
+  (`bot-facts.ts`). The verdict, with its `reason`, is returned alongside the facts.
 - **Branch updater.** A PR authored by `dependabot[bot]` is updated by Dependabot;
   its comments are read (for `rebasePending`) only when an update could be
   planned: auto-update on, the PR open and labelled `update required`.
