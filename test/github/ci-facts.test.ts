@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { gatherCiFacts } from '../../src/github/ci-facts.js';
 import type { CheckRunData } from '../../src/github/client.js';
+import { GitHubApiError } from '../../src/github/client.js';
 import { HEAD_SHA } from '../fixtures.js';
 import { FakeGitHubClient, makePullRequestData } from './fake-client.js';
 
@@ -95,6 +96,32 @@ describe('gatherCiFacts', () => {
     const facts = await gatherCiFacts(client, client.pull, {});
 
     expect([facts.ciStatus, methods(client)]).toEqual(['passing', ['getRequiredStatusChecks']]);
+  });
+
+  it('treats a plan-limitation 403 (private repo on GitHub Free) as no required checks', async () => {
+    const client = makeClient([makeRun('Build', 'failure')]);
+    client.failNext(
+      'getRequiredStatusChecks',
+      new GitHubApiError(
+        403,
+        'GET /rules/branches/main → 403: {"message":"Upgrade to GitHub Pro or make this repository public to enable this feature."}',
+      ),
+    );
+
+    expect((await gatherCiFacts(client, client.pull, {})).ciStatus).toBe('passing');
+  });
+
+  it('propagates any other 403, so a token missing permissions fails loudly', async () => {
+    const client = makeClient([]);
+    client.failNext(
+      'getRequiredStatusChecks',
+      new GitHubApiError(
+        403,
+        'GET /rules/branches/main → 403: Resource not accessible by integration',
+      ),
+    );
+
+    await expect(gatherCiFacts(client, client.pull, {})).rejects.toThrow('not accessible');
   });
 
   it('spends no calls on a closed PR', async () => {

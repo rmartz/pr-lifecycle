@@ -118,7 +118,11 @@ Pending CI comes **after** verdicts, and that ordering is the safety mechanism:
 
 `ciStatus` (`src/ci.ts`) covers the base branch's **required checks** (the union
 across every active ruleset on the branch; with none required, the gate is
-inactive and CI is `passing`). Each check-run and commit status is normalized:
+inactive and CI is `passing`). A private repo on GitHub Free can't use rulesets,
+and the rules API answers `403 "Upgrade to GitHub Pro…"`. That specific
+plan-limitation answer means "no required checks". Any other error, including a
+403 for missing token permissions, fails the run loudly rather than silently
+switching the gate off. Each check-run and commit status is normalized:
 
 - `success` / `neutral` / `skipped` → passed;
 - `failure` / `cancelled` / `timed_out` / `action_required` / `startup_failure` →
