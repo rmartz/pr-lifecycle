@@ -252,3 +252,28 @@ describe('gatherFacts — lineage', () => {
     expect(lineage).toBeUndefined();
   });
 });
+
+describe('gatherFacts — lineage error boundary', () => {
+  // gatherLineage itself rejecting (not just the base-head lookup before it) must
+  // also fail closed: no carry-over, never an aborted run.
+  it('fails closed when gatherLineage itself rejects', async () => {
+    const review = makeReviewData({ commitSha: OLD_SHA, state: 'COMMENTED' });
+    // The body's first read is gatherLineage's scan for reviewed ancestors; throw
+    // there only, so the later mapping into facts still succeeds.
+    let reads = 0;
+    Object.defineProperty(review, 'body', {
+      get() {
+        reads += 1;
+        if (reads === 1) {
+          throw new Error('malformed review');
+        }
+        return '';
+      },
+    });
+    const client = makeClient([review]);
+
+    const { lineage } = await gatherFacts(client, 7, {}, { lineage: { git: neverCalledGit } });
+
+    expect(lineage).toBeUndefined();
+  });
+});

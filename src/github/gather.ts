@@ -126,7 +126,8 @@ async function gatherLineageFor(
   }
   try {
     const baseHeadSha = await client.getBranchHeadSha(pull.baseRef);
-    return gatherLineage(client, options.lineage.git, {
+    // `return await`, not `return`: an un-awaited rejection would escape the catch.
+    return await gatherLineage(client, options.lineage.git, {
       headSha: pull.headSha,
       baseHeadSha,
       source: {
