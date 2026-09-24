@@ -29,9 +29,9 @@ const PACKAGE_JSON = 'package.json';
 // A release only writes files; it never deletes, renames, or copies one.
 const RELEASE_STATUSES: ReadonlySet<string> = new Set(['added', 'modified']);
 
-// One `"version": "…"` member on a line of its own. Patches are untrusted input,
-// so this has no overlapping quantifiers (no backtracking blowup).
-const VERSION_LINE = /^[ \t]*"version"[ \t]*:[ \t]*"[^"\\\n]*"[ \t]*,?[ \t]*$/;
+// One `"version": "…"` member on a line of its own. Patches are untrusted input;
+// the tail uses a single character class to avoid overlapping quantifiers.
+const VERSION_LINE = /^[ \t]*"version"[ \t]*:[ \t]*"[^"\\\n]*"[,\t ]*$/;
 
 function basename(path: string): string {
   return path.slice(path.lastIndexOf('/') + 1);
