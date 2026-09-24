@@ -138,7 +138,10 @@ export class FakeGitHubClient implements GitHubClient {
   compareCommits(base: string, head: string): Promise<CommitComparison> {
     this.record('compareCommits', base, head);
     return Promise.resolve(
-      this.comparisons.get(`...`) ?? { status: 'diverged', mergeBaseSha: '0'.repeat(40) },
+      this.comparisons.get(`${base}...${head}`) ?? {
+        status: 'diverged',
+        mergeBaseSha: '0'.repeat(40),
+      },
     );
   }
 

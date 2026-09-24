@@ -124,16 +124,20 @@ async function gatherLineageFor(
   if (options.lineage === undefined || pull.state !== 'open') {
     return undefined;
   }
-  const baseHeadSha = await client.getBranchHeadSha(pull.baseRef);
-  return gatherLineage(client, options.lineage.git, {
-    headSha: pull.headSha,
-    baseHeadSha,
-    source: {
-      url: pull.cloneUrl,
-      ...(options.lineage.token === undefined ? {} : { token: options.lineage.token }),
-    },
-    reviews,
-  });
+  try {
+    const baseHeadSha = await client.getBranchHeadSha(pull.baseRef);
+    return gatherLineage(client, options.lineage.git, {
+      headSha: pull.headSha,
+      baseHeadSha,
+      source: {
+        url: pull.cloneUrl,
+        ...(options.lineage.token === undefined ? {} : { token: options.lineage.token }),
+      },
+      reviews,
+    });
+  } catch {
+    return undefined;
+  }
 }
 
 export async function gatherFacts(
