@@ -113,7 +113,7 @@ describe('runCli — release token missing', () => {
 
     expect([code, err[1]]).toEqual([
       0,
-      'warning: could not post the release-token advisory: forbidden',
+      'warning: could not post the missing-token advisory: forbidden',
     ]);
   });
 
@@ -125,7 +125,7 @@ describe('runCli — release token missing', () => {
     const json = JSON.parse(out[0] ?? '') as { autoMerge: string; autoMergeSkipped: unknown };
     expect([json.autoMerge, json.autoMergeSkipped]).toEqual([
       'none',
-      { action: 'arm', reason: 'release-token-missing' },
+      { action: 'arm', reason: 'token-missing' },
     ]);
   });
 

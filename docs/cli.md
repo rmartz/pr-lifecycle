@@ -133,7 +133,7 @@ never omitted:
 `state` is one of the lifecycle states in the
 [core design](reconciler-design.md#state-in-priority-order). `autoMerge` is what
 was done: `arm`, `merge` (the PR was already mergeable), `disarm`, or `none`.
-`autoMergeSkipped` is `{ "action": "arm" | "merge", "reason": "release-token-missing" }`
+`autoMergeSkipped` is `{ "action": "arm" | "merge", "reason": "token-missing" }`
 when an arm or merge was skipped (see [Release token](#release-token)), else `null`. `botEligibility` is described in
 [Bot-PR eligibility](bot-eligibility.md). `carryOver` reports
 [approval carry-over](reconciler-design.md#approval-carry-over): the verified clean

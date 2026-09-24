@@ -129,6 +129,6 @@ async function adviseMissingToken(
     await postTokenAdvisory(client, pr, skipped);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    io.stderr(`warning: could not post the release-token advisory: ${message}`);
+    io.stderr(`warning: could not post the missing-token advisory: ${message}`);
   }
 }

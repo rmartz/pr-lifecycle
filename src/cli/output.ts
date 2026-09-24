@@ -35,7 +35,7 @@ export interface ReconcileJson {
   /** Approval carry-over across clean base updates; `null` when it didn't run. */
   carryOver: { cleanAncestors: string[]; stoppedBecause: string } | null;
   /** An arm or merge the plan wanted but skipped; `null` when nothing was skipped. */
-  autoMergeSkipped: { action: 'arm' | 'merge'; reason: 'release-token-missing' } | null;
+  autoMergeSkipped: { action: 'arm' | 'merge'; reason: 'token-missing' } | null;
 }
 
 export function toReconcileJson(target: ReconcileTarget, result: ReconcileResult): ReconcileJson {
@@ -61,9 +61,7 @@ export function toReconcileJson(target: ReconcileTarget, result: ReconcileResult
         : { cleanAncestors: lineage.cleanAncestors, stoppedBecause: lineage.stoppedBecause },
     // The CLI makes release actions unavailable only for a missing token.
     autoMergeSkipped:
-      skippedAutoMerge === undefined
-        ? null
-        : { action: skippedAutoMerge, reason: 'release-token-missing' },
+      skippedAutoMerge === undefined ? null : { action: skippedAutoMerge, reason: 'token-missing' },
   };
 }
 
