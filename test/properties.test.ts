@@ -66,7 +66,7 @@ const factsArb: fc.Arbitrary<PullRequestFacts> = fc.record({
   isDraft: fc.boolean(),
   title: fc.constantFrom('feat: thing', '[WIP] feat: thing'),
   headSha: fc.constant(HEAD_SHA),
-  labels: fc.subarray([...OWNED_LABELS, UPDATE_REQUIRED_LABEL, 'DevOps', 'ready for UAT']),
+  labels: fc.subarray([...OWNED_LABELS, UPDATE_REQUIRED_LABEL, 'DevOps', 'UAT ready']),
   autoMergeEnabled: fc.boolean(),
   botEligible: fc.boolean(),
   mergeable: fc.constantFrom(true, true, false, undefined),

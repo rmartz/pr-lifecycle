@@ -45,7 +45,7 @@ describe('planReconcile labels', () => {
   });
 
   it('never touches labels it does not own', () => {
-    const facts = makeFacts({ labels: ['DevOps', 'ready for UAT', AUTO_MERGE_LABEL] });
+    const facts = makeFacts({ labels: ['DevOps', 'UAT ready', AUTO_MERGE_LABEL] });
 
     expect(planReconcile(facts, {}).removeLabels).toEqual([]);
   });
