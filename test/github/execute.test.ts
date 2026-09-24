@@ -4,9 +4,10 @@ import { GitHubApiError } from '../../src/github/client.js';
 import { executePlan } from '../../src/github/execute.js';
 import { OWNED_LABEL_DEFINITIONS } from '../../src/github/label-roster.js';
 import type { ReconcilePlan } from '../../src/plan.js';
+import { HEAD_SHA } from '../fixtures.js';
 import { FakeGitHubClient, makePullRequestData } from './fake-client.js';
 
-const TARGET = { pr: 7, nodeId: 'PR_node' };
+const TARGET = { pr: 7, nodeId: 'PR_node', headSha: HEAD_SHA };
 
 function makePlan(overrides: Partial<ReconcilePlan> = {}): ReconcilePlan {
   return {
@@ -106,12 +107,20 @@ describe('executePlan', () => {
     ).rejects.toThrow('forbidden');
   });
 
-  it('arms auto-merge on the PR node', async () => {
+  it('arms auto-merge on the PR node, bound to the planned head', async () => {
     const client = makeClient();
 
     await executePlan(client, TARGET, makePlan({ autoMerge: 'arm' }));
 
-    expect(client.calls).toEqual([{ method: 'enableAutoMerge', args: ['PR_node'] }]);
+    expect(client.calls).toEqual([{ method: 'enableAutoMerge', args: ['PR_node', HEAD_SHA] }]);
+  });
+
+  it('merges the PR node directly, bound to the planned head', async () => {
+    const client = makeClient();
+
+    await executePlan(client, TARGET, makePlan({ autoMerge: 'merge' }));
+
+    expect(client.calls).toEqual([{ method: 'mergePullRequest', args: ['PR_node', HEAD_SHA] }]);
   });
 
   it('disarms auto-merge on the PR node', async () => {
@@ -171,5 +180,82 @@ describe('executePlan', () => {
       executePlan(client, TARGET, makePlan({ addLabels: ['approved'], autoMerge: 'arm' })),
     ).rejects.toThrow('server error');
     expect(client.pull.autoMergeEnabled).toBe(false);
+  });
+});
+
+describe('executePlan — release actions', () => {
+  it('arms through the release actions, never the main client', async () => {
+    const client = makeClient();
+    const release = makeClient();
+
+    await executePlan(client, TARGET, makePlan({ autoMerge: 'arm' }), release);
+
+    expect([client.writes, release.calls.map((call) => call.method)]).toEqual([
+      [],
+      ['enableAutoMerge'],
+    ]);
+  });
+
+  it('merges through the release actions, never the main client', async () => {
+    const client = makeClient();
+    const release = makeClient();
+
+    await executePlan(client, TARGET, makePlan({ autoMerge: 'merge' }), release);
+
+    expect([client.writes, release.calls.map((call) => call.method)]).toEqual([
+      [],
+      ['mergePullRequest'],
+    ]);
+  });
+
+  it('disarms with the main client, since any token may disarm', async () => {
+    const client = makeClient();
+    const release = makeClient();
+
+    await executePlan(client, TARGET, makePlan({ autoMerge: 'disarm' }), release);
+
+    expect([client.writes.map((call) => call.method), release.calls]).toEqual([
+      ['disableAutoMerge'],
+      [],
+    ]);
+  });
+
+  // The PR became mergeable between the read and the arm: merge it, as gh does.
+  it('merges, bound to the same head, when arming finds the PR already clean', async () => {
+    const client = makeClient();
+    client.failNext(
+      'enableAutoMerge',
+      new GitHubApiError(200, 'GraphQL error: Pull request is in clean status'),
+    );
+
+    await executePlan(client, TARGET, makePlan({ autoMerge: 'arm' }));
+
+    expect(client.calls).toEqual([
+      { method: 'enableAutoMerge', args: ['PR_node', HEAD_SHA] },
+      { method: 'mergePullRequest', args: ['PR_node', HEAD_SHA] },
+    ]);
+  });
+
+  // A moved head means unreviewed commits: never retry, never merge.
+  it('propagates any other arming error without merging', async () => {
+    const client = makeClient();
+    client.failNext(
+      'enableAutoMerge',
+      new GitHubApiError(200, 'GraphQL error: Head branch was modified. Review and try again.'),
+    );
+
+    await expect(executePlan(client, TARGET, makePlan({ autoMerge: 'arm' }))).rejects.toThrow(
+      'Head branch was modified',
+    );
+    expect(client.calls.map((call) => call.method)).toEqual(['enableAutoMerge']);
+  });
+
+  it('propagates a rejected direct merge', async () => {
+    const client = makeClient();
+    client.failNext('mergePullRequest', new GitHubApiError(200, 'GraphQL error: Head moved'));
+
+    await expect(executePlan(client, TARGET, makePlan({ autoMerge: 'merge' }))).rejects.toThrow(
+      'Head moved',
+    );
   });
 });

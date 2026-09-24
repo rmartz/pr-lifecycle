@@ -23,7 +23,7 @@ they resolve.
 > and the [`ai-pr-lifecycle reconcile` CLI](cli.md) are implemented. The composite
 > action that runs it in consumer repos is built in
 > [`rmartz/pr-lifecycle-action`](https://github.com/rmartz/pr-lifecycle-action).
-> Remaining work (arming with a real-actor token, the UAT check, dogfooding) is
+> Remaining work (the auto-update action, the UAT check, dogfooding) is
 > tracked in the **Reconciler v1** milestone.
 
 ## Lifecycle
@@ -50,8 +50,9 @@ verdict on the old head.
 3. **Token and event-chaining limits.** Labels written with `GITHUB_TOKEN` trigger
    no other workflows, so each run does its whole reconcile in one job and never
    relies on its own label writes firing anything. A merge armed with
-   `GITHUB_TOKEN` doesn't trigger downstream `on: push` releases; the
-   `RELEASE_PLEASE_PAT` fallback is carried over from bot-automerge unchanged.
+   `GITHUB_TOKEN` doesn't trigger downstream `on: push` releases, so arming and
+   merging use a separate real-actor [release token](cli.md#release-token), and
+   are skipped (never done with `GITHUB_TOKEN`) when it isn't configured.
 4. **Merge gating belongs to the consumer's ruleset.** This package arms
    auto-merge and never inspects, names, or waits on a specific check, and never
    renames a PR. The one gate it owns is **UAT**: if UAT gates merges, this package

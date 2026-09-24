@@ -37,6 +37,7 @@ export function makePullRequestData(overrides: Partial<PullRequestData> = {}): P
     cloneUrl: 'https://github.com/rmartz/demo.git',
     isCrossRepository: false,
     mergeable: true,
+    mergeState: 'blocked',
     ...overrides,
   };
 }
@@ -70,6 +71,8 @@ export class FakeGitHubClient implements GitHubClient {
   /** Collaborators by login; an absent login is a non-collaborator (404). */
   permissions = new Map<string, CollaboratorPermission>();
   repoLabels = new Map<string, LabelDefinition>();
+  /** Conversation comment bodies on the PR, oldest first. */
+  comments: string[] = [];
   readonly calls: FakeCall[] = [];
   private readonly failures = new Map<keyof GitHubClient, Error>();
 
@@ -95,6 +98,7 @@ export class FakeGitHubClient implements GitHubClient {
       'compareCommits',
       'getCollaboratorPermission',
       'listRepoLabels',
+      'listIssueComments',
     ]);
     return this.calls.filter((call) => !reads.has(call.method));
   }
@@ -138,7 +142,10 @@ export class FakeGitHubClient implements GitHubClient {
   compareCommits(base: string, head: string): Promise<CommitComparison> {
     this.record('compareCommits', base, head);
     return Promise.resolve(
-      this.comparisons.get(`...`) ?? { status: 'diverged', mergeBaseSha: '0'.repeat(40) },
+      this.comparisons.get(`${base}...${head}`) ?? {
+        status: 'diverged',
+        mergeBaseSha: '0'.repeat(40),
+      },
     );
   }
 
@@ -192,9 +199,27 @@ export class FakeGitHubClient implements GitHubClient {
     return Promise.resolve();
   }
 
-  enableAutoMerge(nodeId: string): Promise<void> {
-    this.record('enableAutoMerge', nodeId);
+  listIssueComments(pr: number): Promise<string[]> {
+    this.record('listIssueComments', pr);
+    return Promise.resolve([...this.comments]);
+  }
+
+  createIssueComment(pr: number, body: string): Promise<void> {
+    this.record('createIssueComment', pr, body);
+    this.comments.push(body);
+    return Promise.resolve();
+  }
+
+  enableAutoMerge(nodeId: string, expectedHeadOid: string): Promise<void> {
+    this.record('enableAutoMerge', nodeId, expectedHeadOid);
     this.pull.autoMergeEnabled = true;
+    return Promise.resolve();
+  }
+
+  mergePullRequest(nodeId: string, expectedHeadOid: string): Promise<void> {
+    this.record('mergePullRequest', nodeId, expectedHeadOid);
+    this.pull.state = 'closed';
+    this.pull.merged = true;
     return Promise.resolve();
   }
 

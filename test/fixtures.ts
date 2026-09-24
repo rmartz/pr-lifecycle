@@ -31,6 +31,7 @@ export function makeFacts(overrides: Partial<PullRequestFacts> = {}): PullReques
     autoMergeEnabled: false,
     botEligible: false,
     mergeable: true,
+    immediatelyMergeable: false,
     ciStatus: 'passing',
     baseCiFailing: false,
     cleanAncestors: [],
@@ -56,6 +57,9 @@ export function makeCopilotReview(overrides: Partial<ReviewFact> = {}): ReviewFa
 export function applyPlan(facts: PullRequestFacts, plan: ReconcilePlan): PullRequestFacts {
   const removed = new Set(plan.removeLabels);
   const labels = [...facts.labels.filter((name) => !removed.has(name)), ...plan.addLabels];
+  if (plan.autoMerge === 'merge') {
+    return { ...facts, labels, status: 'merged' };
+  }
   const autoMergeEnabled =
     plan.autoMerge === 'none' ? facts.autoMergeEnabled : plan.autoMerge === 'arm';
   return { ...facts, labels, autoMergeEnabled };

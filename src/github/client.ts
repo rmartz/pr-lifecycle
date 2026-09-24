@@ -29,6 +29,8 @@ export interface PullRequestData {
   isCrossRepository: boolean;
   /** `false` is a merge conflict; `undefined` means GitHub is still computing it. */
   mergeable: boolean | undefined;
+  /** GitHub's merge state (`clean`, `blocked`, `behind`, …); undefined while computing. */
+  mergeState: string | undefined;
 }
 
 /** A check-run on a commit (the latest run per name). */
@@ -109,9 +111,25 @@ export interface GitHubClient {
   addLabels(pr: number, names: readonly string[]): Promise<void>;
   /** Throws a GitHubApiError with status 404 when the label is not on the PR. */
   removeLabel(pr: number, name: string): Promise<void>;
-  enableAutoMerge(pullRequestNodeId: string): Promise<void>;
+  /** Bodies of the PR's conversation comments, oldest first. */
+  listIssueComments(pr: number): Promise<string[]>;
+  createIssueComment(pr: number, body: string): Promise<void>;
+  /**
+   * Arm squash auto-merge, bound to `expectedHeadOid`: GitHub rejects it if the
+   * head has moved. Throws "…clean status" when the PR is already mergeable.
+   */
+  enableAutoMerge(pullRequestNodeId: string, expectedHeadOid: string): Promise<void>;
+  /** Squash-merge now, bound to `expectedHeadOid` like `enableAutoMerge`. */
+  mergePullRequest(pullRequestNodeId: string, expectedHeadOid: string): Promise<void>;
   disableAutoMerge(pullRequestNodeId: string): Promise<void>;
 }
+
+/**
+ * The writes that must come from a real actor, so the merge they cause re-triggers
+ * `on: push` workflows (a `GITHUB_TOKEN` merge triggers nothing). Kept to these two
+ * calls so the release token is never used for anything else, reads included.
+ */
+export type ReleaseActions = Pick<GitHubClient, 'enableAutoMerge' | 'mergePullRequest'>;
 
 export class GitHubApiError extends Error {
   readonly status: number;

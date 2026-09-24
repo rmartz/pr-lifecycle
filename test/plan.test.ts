@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { AUTO_MERGE_LABEL, planReconcile } from '../src/plan.js';
+import { AUTO_MERGE_LABEL, planReconcile, withoutArming } from '../src/plan.js';
 import { makeCopilotReview, makeFacts, makeReview, makeVerdictBody, OLD_SHA } from './fixtures.js';
 
 const approvedReviews = [makeReview({ body: makeVerdictBody('approved') })];
@@ -186,5 +186,71 @@ describe('planReconcile auto-merge', () => {
       'approved',
       AUTO_MERGE_LABEL,
     ]);
+  });
+});
+
+describe('planReconcile merge or arm', () => {
+  const approved = { reviews: [makeCopilotReview(), ...approvedReviews] };
+
+  it('merges an approved PR that is immediately mergeable', () => {
+    const plan = planReconcile(makeFacts({ ...approved, immediatelyMergeable: true }), {
+      armAutoMerge: true,
+    });
+
+    expect(plan.autoMerge).toBe('merge');
+  });
+
+  it('does not add the auto-merge label for a direct merge', () => {
+    const plan = planReconcile(makeFacts({ ...approved, immediatelyMergeable: true }), {
+      armAutoMerge: true,
+    });
+
+    expect(plan.addLabels).toEqual(['approved']);
+  });
+
+  it('never merges when arming is off', () => {
+    const plan = planReconcile(makeFacts({ ...approved, immediatelyMergeable: true }), {});
+
+    expect(plan.autoMerge).toBe('none');
+  });
+
+  it('leaves an already armed, mergeable PR to GitHub', () => {
+    const facts = makeFacts({
+      ...approved,
+      immediatelyMergeable: true,
+      autoMergeEnabled: true,
+      labels: ['approved', AUTO_MERGE_LABEL],
+    });
+
+    expect(planReconcile(facts, { armAutoMerge: true }).autoMerge).toBe('none');
+  });
+
+  it('never merges an immediately mergeable PR that is not approved', () => {
+    const facts = makeFacts({ reviews: [makeCopilotReview()], immediatelyMergeable: true });
+
+    expect(planReconcile(facts, { armAutoMerge: true }).autoMerge).toBe('none');
+  });
+});
+
+describe('withoutArming', () => {
+  const approved = { reviews: [makeCopilotReview(), ...approvedReviews] };
+
+  it('turns an arm into nothing and drops the auto-merge label', () => {
+    const plan = withoutArming(planReconcile(makeFacts(approved), { armAutoMerge: true }));
+
+    expect([plan.autoMerge, plan.addLabels]).toEqual(['none', ['approved']]);
+  });
+
+  it('turns a merge into nothing', () => {
+    const facts = makeFacts({ ...approved, immediatelyMergeable: true });
+
+    expect(withoutArming(planReconcile(facts, { armAutoMerge: true })).autoMerge).toBe('none');
+  });
+
+  it('keeps a disarm', () => {
+    const facts = makeFacts({ autoMergeEnabled: true, labels: [AUTO_MERGE_LABEL] });
+    const plan = planReconcile(facts, { armAutoMerge: true });
+
+    expect(withoutArming(plan)).toEqual(plan);
   });
 });

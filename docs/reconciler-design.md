@@ -18,19 +18,20 @@ Source: `src/` (`facts.ts`, `verdict.ts`, `state.ts`, `plan.ts`).
 
 ## Facts
 
-| Fact               | Source (edge layer)                                                                                                  |
-| ------------------ | -------------------------------------------------------------------------------------------------------------------- |
-| `status`           | PR `state` / `merged`: `open`, `closed`, or `merged`                                                                 |
-| `isDraft`, `title` | PR fields; a `[WIP]` title (any case) is treated like a draft                                                        |
-| `headSha`          | PR `head.sha`                                                                                                        |
-| `labels`           | current label names                                                                                                  |
-| `autoMergeEnabled` | PR `auto_merge` is non-null                                                                                          |
-| `botEligible`      | [bot-PR eligibility](bot-eligibility.md): same-repo Dependabot patch/minor, release-please                           |
-| `mergeable`        | PR `mergeable`: `true`, `false` (merge conflict), or unknown (`null` → `undefined`: still computing)                 |
-| `ciStatus`         | [CI gate](#ci-gate) over the head's required checks: `passing`, `failing`, or `pending`                              |
-| `baseCiFailing`    | the same required checks are failing on the base branch head (fetched only when `ciStatus` is `failing`)             |
-| `cleanAncestors`   | commits whose reviews carry over to the head (see [Approval carry-over](#approval-carry-over)); verified at the edge |
-| `reviews`          | PR reviews: author login, type (`User`/`Bot`), repo permission, `commit_id`, state, body, submitted time             |
+| Fact                   | Source (edge layer)                                                                                                  |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `status`               | PR `state` / `merged`: `open`, `closed`, or `merged`                                                                 |
+| `isDraft`, `title`     | PR fields; a `[WIP]` title (any case) is treated like a draft                                                        |
+| `headSha`              | PR `head.sha`                                                                                                        |
+| `labels`               | current label names                                                                                                  |
+| `autoMergeEnabled`     | PR `auto_merge` is non-null                                                                                          |
+| `botEligible`          | [bot-PR eligibility](bot-eligibility.md): same-repo Dependabot patch/minor, release-please                           |
+| `mergeable`            | PR `mergeable`: `true`, `false` (merge conflict), or unknown (`null` → `undefined`: still computing)                 |
+| `immediatelyMergeable` | PR `mergeable_state` is `clean`, `has_hooks`, or `unstable`: GitHub would merge now, so auto-merge can't be armed    |
+| `ciStatus`             | [CI gate](#ci-gate) over the head's required checks: `passing`, `failing`, or `pending`                              |
+| `baseCiFailing`        | the same required checks are failing on the base branch head (fetched only when `ciStatus` is `failing`)             |
+| `cleanAncestors`       | commits whose reviews carry over to the head (see [Approval carry-over](#approval-carry-over)); verified at the edge |
+| `reviews`              | PR reviews: author login, type (`User`/`Bot`), repo permission, `commit_id`, state, body, submitted time             |
 
 The author's **repo permission** is a fact gathered at the edge (the collaborator
 permission API), so trust evaluation stays pure.
@@ -219,10 +220,17 @@ The CLI always does; library callers that omit it simply get no carry-over.
   other owned label present, so a hand-applied `approved` with no verdict behind
   it is removed. Labels the core doesn't own are never touched. When the labels
   already match, the plan is empty.
-- **Auto-merge (opt-in via `policy.armAutoMerge`, default off).** The core arms
-  auto-merge when the state is `approved` and it is off, and disarms it when the
-  state is anything else and it is on. With arming off, auto-merge is never
-  touched and `auto-merge enabled` isn't owned.
+- **Auto-merge (opt-in via `policy.armAutoMerge`, default off).** When the state
+  is `approved` and auto-merge is off, the core plans `merge` if the PR is
+  `immediatelyMergeable` (GitHub refuses to arm a PR that is already mergeable;
+  this mirrors `gh pr merge --auto`) and `arm` otherwise. It disarms when the
+  state is anything else and auto-merge is on. A direct merge doesn't claim
+  `auto-merge enabled`. With arming off, auto-merge is never touched and
+  `auto-merge enabled` isn't owned.
+- **`withoutArming(plan)`** strips an `arm` or `merge` (and the `auto-merge
+enabled` it would add) and keeps everything else, a disarm included. The edge
+  layer applies it when no real-actor token is available (see
+  [GitHub edge layer](github-edge-layer.md#arming-and-merging)).
 - A `closed` PR yields an empty plan: its final labels stay as the audit record.
 
 ## Guaranteed properties (tested)
@@ -233,6 +241,9 @@ The CLI always does; library callers that omit it simply get no carry-over.
   including ones with forged `approved` markers, never changes the state.
 - **Scoped writes.** A plan never adds or removes a label outside the owned set.
 - **No unapproved armed PR.** In arming mode, an armed open PR that isn't
-  `approved`, whatever its CI, conflict or review state, is always disarmed.
+  `approved`, whatever its CI, conflict or review state, is always disarmed, and
+  a PR is only ever armed or merged when `approved`.
+- **`withoutArming` removes arming and nothing else.** No arm, merge, or
+  `auto-merge enabled` survives it; every other change, a disarm included, does.
 - **Carry-over grants nothing new.** A review on a clean ancestor counts exactly
   as if the same reviewer had posted it on the head.

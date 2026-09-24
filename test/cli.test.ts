@@ -1,48 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import type { CliDeps } from '../src/cli.js';
 import { runCli, USAGE } from '../src/cli.js';
 import { GitHubApiError } from '../src/github/client.js';
-import type { HttpClientOptions } from '../src/github/http-client.js';
-import { COPILOT_REVIEWER_LOGIN } from '../src/state.js';
-import { makeVerdictBody } from './fixtures.js';
-import { FakeGitHubClient, makePullRequestData, makeReviewData } from './github/fake-client.js';
-
-const RECONCILE = ['reconcile', '--repo', 'rmartz/demo', '--pr', '7'];
-
-function makeIo() {
-  const out: string[] = [];
-  const err: string[] = [];
-  return {
-    out,
-    err,
-    io: { stdout: (line: string) => out.push(line), stderr: (line: string) => err.push(line) },
-  };
-}
-
-function makeApprovedClient() {
-  const client = new FakeGitHubClient(makePullRequestData(), [
-    makeReviewData({ id: 1, login: COPILOT_REVIEWER_LOGIN, type: 'Bot' }),
-    makeReviewData({ id: 2, body: makeVerdictBody('approved') }),
-  ]);
-  client.permissions.set('maintainer', { permission: 'write', roleName: 'write' });
-  return client;
-}
-
-function makeDeps(client: FakeGitHubClient, env: CliDeps['env'] = { GITHUB_TOKEN: 't0k' }) {
-  const created: HttpClientOptions[] = [];
-  const deps: CliDeps = {
-    env,
-    createClient: (options) => {
-      created.push(options);
-      return client;
-    },
-    // None of these PRs has a review on an earlier commit, so carry-over must
-    // never reach git; fail loudly if it does.
-    git: { run: () => Promise.reject(new Error('git must not run in CLI tests')) },
-  };
-  return { deps, created };
-}
+import { makeApprovedClient, makeDeps, makeIo, RECONCILE } from './cli-fixtures.js';
+import { FakeGitHubClient, makePullRequestData } from './github/fake-client.js';
 
 describe('runCli — help and usage', () => {
   it('prints usage and exits 0 for help', async () => {
@@ -218,6 +179,7 @@ describe('runCli — --json contract (schemaVersion 1)', () => {
           updateType: null,
         },
         carryOver: { cleanAncestors: [], stoppedBecause: 'no reviews on earlier commits' },
+        autoMergeSkipped: null,
       },
     ]);
   });

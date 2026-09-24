@@ -143,6 +143,15 @@ describe('createHttpClient requests', () => {
     expect((await client.getPullRequest(7)).mergeable).toBe(expected);
   });
 
+  it.each([
+    ['clean', 'clean'],
+    [undefined, undefined],
+  ])('maps mergeable_state %j to mergeState %j', async (state, expected) => {
+    const { client } = makeTransport([{ json: { ...REST_PULL, mergeable_state: state } }]);
+
+    expect((await client.getPullRequest(7)).mergeState).toBe(expected);
+  });
+
   it('maps a deleted PR author to undefined', async () => {
     const { client } = makeTransport([{ json: { ...REST_PULL, user: null } }]);
 
@@ -384,22 +393,59 @@ describe('createHttpClient requests', () => {
 
   it.each([
     ['enableAutoMerge', 'enablePullRequestAutoMerge'],
-    ['disableAutoMerge', 'disablePullRequestAutoMerge'],
-  ] as const)('%s sends the %s mutation for the node', async (method, mutation) => {
+    ['mergePullRequest', 'mergePullRequest'],
+  ] as const)('%s sends %s bound to the expected head', async (method, mutation) => {
     const { client, requests } = makeTransport([{ json: { data: {} } }]);
 
-    await client[method]('PR_kw');
+    await client[method]('PR_kw', 'abc123');
 
     const body = requests[0]?.body as { query: string; variables: unknown };
-    expect([body.query.includes(mutation), body.variables]).toEqual([true, { id: 'PR_kw' }]);
+    expect([
+      body.query.includes(`${mutation}(`),
+      body.query.includes('expectedHeadOid: $head'),
+      body.variables,
+    ]).toEqual([true, true, { id: 'PR_kw', head: 'abc123' }]);
   });
 
-  it('arms with the squash merge method', async () => {
+  it.each(['enableAutoMerge', 'mergePullRequest'] as const)(
+    '%s uses the squash merge method',
+    async (method) => {
+      const { client, requests } = makeTransport([{ json: { data: {} } }]);
+
+      await client[method]('PR_kw', 'abc123');
+
+      expect((requests[0]?.body as { query: string }).query).toContain('mergeMethod: SQUASH');
+    },
+  );
+
+  it('disableAutoMerge sends the disable mutation for the node', async () => {
     const { client, requests } = makeTransport([{ json: { data: {} } }]);
 
-    await client.enableAutoMerge('PR_kw');
+    await client.disableAutoMerge('PR_kw');
 
-    expect((requests[0]?.body as { query: string }).query).toContain('mergeMethod: SQUASH');
+    const body = requests[0]?.body as { query: string; variables: unknown };
+    expect([body.query.includes('disablePullRequestAutoMerge'), body.variables]).toEqual([
+      true,
+      { id: 'PR_kw' },
+    ]);
+  });
+
+  it('posts a conversation comment', async () => {
+    const { client, requests } = makeTransport([{ status: 201, json: {} }]);
+
+    await client.createIssueComment(7, 'hello');
+
+    expect([requests[0]?.method, requests[0]?.url, requests[0]?.body]).toEqual([
+      'POST',
+      'https://api.github.com/repos/rmartz/demo/issues/7/comments',
+      { body: 'hello' },
+    ]);
+  });
+
+  it('lists conversation comment bodies, mapping a null body to empty', async () => {
+    const { client } = makeTransport([{ json: [{ body: 'one' }, { body: null }] }]);
+
+    expect(await client.listIssueComments(7)).toEqual(['one', '']);
   });
 });
 
@@ -434,6 +480,6 @@ describe('createHttpClient errors', () => {
       { json: { errors: [{ message: 'Pull request is in clean status' }] } },
     ]);
 
-    await expect(client.enableAutoMerge('PR_kw')).rejects.toBeInstanceOf(GitHubApiError);
+    await expect(client.enableAutoMerge('PR_kw', 'abc123')).rejects.toBeInstanceOf(GitHubApiError);
   });
 });

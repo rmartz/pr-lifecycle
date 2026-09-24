@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { PullRequestFacts, ReconcilePolicy, ReviewAuthor, ReviewFact } from '../src/facts.js';
 import { REPO_PERMISSIONS, REVIEW_STATES } from '../src/facts.js';
-import { AUTO_MERGE_LABEL, LIFECYCLE_LABELS, planReconcile } from '../src/plan.js';
+import { AUTO_MERGE_LABEL, LIFECYCLE_LABELS, planReconcile, withoutArming } from '../src/plan.js';
 import { COPILOT_REVIEWER_LOGIN, computeState } from '../src/state.js';
 import { applyPlan, HEAD_SHA, makeVerdictBody, OLD_SHA } from './fixtures.js';
 
@@ -64,6 +64,7 @@ const factsArb: fc.Arbitrary<PullRequestFacts> = fc.record({
   autoMergeEnabled: fc.boolean(),
   botEligible: fc.boolean(),
   mergeable: fc.constantFrom(true, true, false, undefined),
+  immediatelyMergeable: fc.boolean(),
   ciStatus: fc.constantFrom('passing', 'passing', 'pending', 'failing'),
   baseCiFailing: fc.boolean(),
   cleanAncestors: fc.constantFrom([], [], [OLD_SHA]),
@@ -248,13 +249,40 @@ describe('reconciler properties', () => {
     );
   });
 
-  it('never arms auto-merge unless the PR is approved', () => {
+  it('never arms or merges unless the PR is approved', () => {
     fc.assert(
       fc.property(factsArb, policyArb, (facts, policy) => {
         const plan = planReconcile(facts, policy);
+        const merging = plan.autoMerge === 'arm' || plan.autoMerge === 'merge';
 
-        expect(plan.autoMerge !== 'arm' || plan.state === 'approved').toBe(true);
+        expect(!merging || plan.state === 'approved').toBe(true);
       }),
+      SECURITY_RUNS,
+    );
+  });
+
+  // Without a release token nothing may arm or merge, and the plan must not claim
+  // the auto-merge label — but a disarm (safety) must survive untouched.
+  it('withoutArming removes every arm and merge, and nothing else', () => {
+    fc.assert(
+      fc.property(factsArb, policyArb, (facts, policy) => {
+        const plan = planReconcile(facts, policy);
+        const stripped = withoutArming(plan);
+        const merging = plan.autoMerge === 'arm' || plan.autoMerge === 'merge';
+
+        expect([
+          stripped.autoMerge,
+          stripped.addLabels.includes(AUTO_MERGE_LABEL),
+          stripped.removeLabels,
+          stripped.state,
+        ]).toEqual([
+          merging ? 'none' : plan.autoMerge,
+          !merging && plan.addLabels.includes(AUTO_MERGE_LABEL),
+          plan.removeLabels,
+          plan.state,
+        ]);
+      }),
+      SECURITY_RUNS,
     );
   });
 

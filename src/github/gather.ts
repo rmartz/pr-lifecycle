@@ -136,6 +136,13 @@ async function gatherLineageFor(
   });
 }
 
+/**
+ * Merge states in which GitHub merges without waiting on anything, so arming
+ * auto-merge fails ("clean status"). Mirrors `gh`'s `isImmediatelyMergeable`;
+ * `unstable` means only non-required checks are failing.
+ */
+const IMMEDIATE_MERGE_STATES = new Set(['clean', 'has_hooks', 'unstable']);
+
 export async function gatherFacts(
   client: GitHubClient,
   pr: number,
@@ -162,6 +169,7 @@ export async function gatherFacts(
       autoMergeEnabled: pull.autoMergeEnabled,
       botEligible: botEligibility.eligible,
       mergeable: pull.mergeable,
+      immediatelyMergeable: IMMEDIATE_MERGE_STATES.has(pull.mergeState ?? ''),
       ciStatus: ci.ciStatus,
       baseCiFailing: ci.baseCiFailing,
       cleanAncestors: lineage?.cleanAncestors ?? [],
