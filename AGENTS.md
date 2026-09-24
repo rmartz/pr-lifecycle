@@ -104,8 +104,10 @@ Bootstrap (`ai-ensure-*`) is a one-time starter, not an ongoing manager.
   The repo squash-merges using the PR title, so it is the only conventional
   subject that reaches `main`; branch commits stay plain.
 - **Releases are automated** by semantic-release on push to `main`: it publishes
-  `@rmartz/pr-lifecycle` to GitHub Packages and creates the `v*` tag + GitHub
-  Release. Never bump the version or tag by hand.
+  `@rmartz/pr-lifecycle` to npmjs and creates the `v*` tag + GitHub Release. Never
+  bump the version or tag by hand. npm auth is OIDC trusted publishing tied to the
+  `release.yml` filename (no `NPM_TOKEN`); renaming that workflow breaks
+  publishing until the trusted publisher on npmjs is updated.
 
 ## Agent directive files
 

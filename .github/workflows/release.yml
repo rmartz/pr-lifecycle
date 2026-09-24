@@ -2,10 +2,18 @@ name: Release
 
 # Automated releases via semantic-release. On every push to main it analyzes the
 # Conventional-Commit history since the last `v*` tag and, when a release is
-# warranted, builds and publishes @rmartz/pr-lifecycle to GitHub Packages (public),
-# then creates the git tag + GitHub Release. It commits NOTHING back to the repo
-# (no @semantic-release/git), so the built-in GITHUB_TOKEN suffices (it has
-# packages:write) — no PAT.
+# warranted, builds and publishes @rmartz/pr-lifecycle to npmjs (public), then
+# creates the git tag + GitHub Release. It commits NOTHING back to the repo (no
+# @semantic-release/git), so the built-in GITHUB_TOKEN suffices — no PAT.
+#
+# npm auth is OIDC trusted publishing: npmjs trusts THIS workflow file
+# (`release.yml`) in rmartz/pr-lifecycle, so there is no NPM_TOKEN secret.
+# Renaming this file breaks publishing until the trusted publisher on npmjs is
+# updated to match. Provenance attestations are generated automatically.
+#
+# The GitHub Packages registry config below is for INSTALLING the
+# @rmartz/repo-hygiene devDependency only. Publishing goes to npmjs because
+# package.json's publishConfig pins both `registry` and `@rmartz:registry` there.
 
 on:
   push:
@@ -16,7 +24,8 @@ concurrency: release
 
 permissions:
   contents: write # create tags + GitHub Releases
-  packages: write # publish to GitHub Packages
+  packages: read # install the @rmartz/repo-hygiene devDependency
+  id-token: write # npm trusted publishing (OIDC) + provenance
   issues: write # semantic-release/github comments on released issues
   pull-requests: write # semantic-release/github comments on released PRs
 
@@ -45,7 +54,6 @@ jobs:
         run: pnpm exec semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # @semantic-release/npm publishes to the publishConfig registry (GitHub
-          # Packages) using this token; GITHUB_TOKEN has packages:write.
+          # Only so the GitHub Packages entry in the .npmrc files resolves its
+          # ${NODE_AUTH_TOKEN} placeholder; publishing itself uses OIDC.
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_TOKEN: ${{ secrets.GITHUB_TOKEN }}
