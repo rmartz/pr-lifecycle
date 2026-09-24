@@ -38,6 +38,7 @@ describe('parseArgs — reconcile', () => {
     ['--arm-auto-merge', { policy: { armAutoMerge: true, autoUpdate: false } }],
     ['--auto-update', { policy: { armAutoMerge: false, autoUpdate: true } }],
     ['--skip-copilot-review', { policy: { autoUpdate: false, skipCopilotReview: true } }],
+    ['--uat-gate', { policy: { skipCopilotReview: false, uatGate: true } }],
     ['--dry-run', { dryRun: true }],
     ['--json', { json: true }],
     ['--no-token-advisory', { tokenAdvisory: false }],

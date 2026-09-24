@@ -24,10 +24,10 @@ interface GraphQlResponse {
 export interface HttpTransport {
   /** `/repos/{owner}/{repo}`, URL-encoded, for building REST paths. */
   repoPath: string;
-  request(method: string, path: string, body?: unknown): Promise<unknown>;
+  request: (method: string, path: string, body?: unknown) => Promise<unknown>;
   /** Every page of a list endpoint that returns a bare array. */
-  paginate<T>(path: string): Promise<T[]>;
-  graphql(query: string, variables: Record<string, string>): Promise<void>;
+  paginate: <T>(path: string) => Promise<T[]>;
+  graphql: (query: string, variables: Record<string, string>) => Promise<void>;
 }
 
 export function createTransport(options: HttpClientOptions): HttpTransport {

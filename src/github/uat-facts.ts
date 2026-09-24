@@ -19,7 +19,10 @@ export interface UatFacts {
 const NO_UAT: UatFacts = { overrides: [], checks: [] };
 
 /** The latest `labeled` event for a label name; re-applying a label replaces who applied it. */
-function latestLabeling(events: readonly LabelEventData[], name: string): LabelEventData | undefined {
+function latestLabeling(
+  events: readonly LabelEventData[],
+  name: string,
+): LabelEventData | undefined {
   let latest: LabelEventData | undefined;
   for (const event of events) {
     if (event.label === name && (latest === undefined || event.createdAt >= latest.createdAt)) {

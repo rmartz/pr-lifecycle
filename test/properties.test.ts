@@ -66,9 +66,7 @@ function reviewsArb(author = authorArb, commitSha = shaArb) {
   });
 }
 
-function uatOverridesArb(
-  author: fc.Arbitrary<ReviewAuthor>,
-): fc.Arbitrary<UatOverrideFact[]> {
+function uatOverridesArb(author: fc.Arbitrary<ReviewAuthor>): fc.Arbitrary<UatOverrideFact[]> {
   const override = fc.record({
     label: fc.constantFrom(...UAT_OVERRIDE_LABELS),
     appliedBy: fc.option(author, { nil: undefined }),

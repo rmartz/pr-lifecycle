@@ -17,7 +17,10 @@ function isRepoPermission(value: string): value is RepoPermission {
  * maintain and triage) and falling back to the legacy level for custom roles.
  * A non-collaborator (404) has no permission.
  */
-export async function lookupPermission(client: GitHubClient, login: string): Promise<RepoPermission> {
+export async function lookupPermission(
+  client: GitHubClient,
+  login: string,
+): Promise<RepoPermission> {
   try {
     const { permission, roleName } = await client.getCollaboratorPermission(login);
     if (isRepoPermission(roleName)) {

@@ -455,6 +455,94 @@ describe('createHttpClient requests', () => {
 
     expect(await client.listIssueComments(7)).toEqual(['one', '']);
   });
+
+  it('posts a held check-run with no conclusion', async () => {
+    const { client, requests } = makeTransport([{ status: 201, json: {} }]);
+
+    await client.createCheckRun({
+      name: 'uat',
+      headSha: 'abc',
+      status: 'in_progress',
+      conclusion: undefined,
+      title: 'Waiting for UAT',
+      summary: 'Apply UAT passed.',
+    });
+
+    expect([requests[0]?.method, requests[0]?.url, requests[0]?.body]).toEqual([
+      'POST',
+      'https://api.github.com/repos/rmartz/demo/check-runs',
+      {
+        name: 'uat',
+        head_sha: 'abc',
+        status: 'in_progress',
+        output: { title: 'Waiting for UAT', summary: 'Apply UAT passed.' },
+      },
+    ]);
+  });
+
+  it('posts a passed check-run with its conclusion', async () => {
+    const { client, requests } = makeTransport([{ status: 201, json: {} }]);
+
+    await client.createCheckRun({
+      name: 'uat',
+      headSha: 'abc',
+      status: 'completed',
+      conclusion: 'success',
+      title: 'UAT passed',
+      summary: 'Tested.',
+    });
+
+    expect(requests[0]?.body).toMatchObject({ status: 'completed', conclusion: 'success' });
+  });
+
+  it('reads a check-run output title', async () => {
+    const run = { name: 'uat', status: 'in_progress', conclusion: null, completed_at: null };
+    const { client } = makeTransport([
+      { json: { check_runs: [{ ...run, output: { title: 'Waiting for UAT' } }] } },
+    ]);
+
+    expect((await client.listCheckRuns('abc'))[0]?.title).toBe('Waiting for UAT');
+  });
+
+  it('lists labeled events only, with their actors', async () => {
+    const at = '2026-09-24T10:00:00Z';
+    const { client, requests } = makeTransport([
+      {
+        json: [
+          {
+            event: 'labeled',
+            actor: { login: 'rmartz', type: 'User' },
+            label: { name: 'tested' },
+            created_at: at,
+          },
+          {
+            event: 'unlabeled',
+            actor: { login: 'rmartz', type: 'User' },
+            label: { name: 'tested' },
+            created_at: at,
+          },
+          {
+            event: 'labeled',
+            actor: { login: 'app[bot]', type: 'Bot' },
+            label: { name: 'x' },
+            created_at: at,
+          },
+          { event: 'labeled', actor: null, label: { name: 'y' }, created_at: at },
+        ],
+      },
+    ]);
+
+    const events = await client.listLabelEvents(7);
+
+    expect([requests[0]?.url, events]).toEqual([
+      'https://api.github.com/repos/rmartz/demo/issues/7/events?per_page=100&page=1',
+      [
+        { label: 'tested', login: 'rmartz', type: 'User', createdAt: at },
+        { label: 'x', login: 'app[bot]', type: 'Bot', createdAt: at },
+        { label: 'y', login: undefined, type: 'Bot', createdAt: at },
+      ],
+    ]);
+  });
 });
 
 describe('createHttpClient responses', () => {

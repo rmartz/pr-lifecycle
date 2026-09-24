@@ -187,6 +187,23 @@ describe('runCli — --json contract (schemaVersion 1)', () => {
     ]);
   });
 
+  it('reports the UAT gate under --uat-gate', async () => {
+    const { out, io } = makeIo();
+
+    await runCli(
+      [...RECONCILE, '--json', '--dry-run', '--uat-gate'],
+      io,
+      makeDeps(makeApprovedClient()).deps,
+    );
+
+    expect((JSON.parse(out[0] ?? '') as { uatGate: unknown }).uatGate).toEqual({
+      passes: false,
+      required: true,
+      reason: 'verdict-unspecified',
+      override: null,
+    });
+  });
+
   it('reports bot eligibility with its type and update type', async () => {
     const client = new FakeGitHubClient(
       makePullRequestData({ authorLogin: 'dependabot[bot]', headRef: 'dependabot/x' }),
