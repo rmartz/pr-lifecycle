@@ -36,10 +36,17 @@ export interface ReconcileJson {
   carryOver: { cleanAncestors: string[]; stoppedBecause: string } | null;
   /** An arm or merge the plan wanted but skipped; `null` when nothing was skipped. */
   autoMergeSkipped: { action: 'arm' | 'merge'; reason: 'token-missing' } | null;
+  /** The branch update performed: `none`, `update-branch`, or `dependabot-rebase`. */
+  update: string;
+  /** A branch update the plan wanted but skipped; `null` when nothing was skipped. */
+  updateSkipped: {
+    action: 'dependabot-rebase' | 'update-branch';
+    reason: 'token-missing';
+  } | null;
 }
 
 export function toReconcileJson(target: ReconcileTarget, result: ReconcileResult): ReconcileJson {
-  const { plan, botEligibility, lineage, skippedAutoMerge } = result;
+  const { plan, botEligibility, lineage, skippedAutoMerge, skippedUpdate } = result;
   return {
     schemaVersion: SCHEMA_VERSION,
     repo: `${target.owner}/${target.repo}`,
@@ -62,6 +69,9 @@ export function toReconcileJson(target: ReconcileTarget, result: ReconcileResult
     // The CLI makes release actions unavailable only for a missing token.
     autoMergeSkipped:
       skippedAutoMerge === undefined ? null : { action: skippedAutoMerge, reason: 'token-missing' },
+    update: plan.update,
+    updateSkipped:
+      skippedUpdate === undefined ? null : { action: skippedUpdate, reason: 'token-missing' },
   };
 }
 
@@ -75,6 +85,10 @@ export function formatSummary(target: ReconcileTarget, result: ReconcileResult):
     ...(result.skippedAutoMerge === undefined
       ? []
       : [`auto-merge ${result.skippedAutoMerge} skipped (no release token)`]),
+    ...(plan.update === 'none' ? [] : [`update ${plan.update}`]),
+    ...(result.skippedUpdate === undefined
+      ? []
+      : [`update ${result.skippedUpdate} skipped (no release token)`]),
   ];
   const prefix = target.dryRun ? '[dry-run] ' : '';
   const body = changes.length === 0 ? 'no changes' : changes.join(', ');

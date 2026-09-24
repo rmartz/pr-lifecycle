@@ -105,6 +105,7 @@ export function createHttpClient(options: HttpClientOptions): GitHubClient {
         merged: pull.merged,
         draft: pull.draft === true,
         title: pull.title,
+        body: pull.body ?? '',
         headSha: pull.head.sha,
         labels: pull.labels.map((label) => label.name),
         autoMergeEnabled: pull.auto_merge !== null && pull.auto_merge !== undefined,
@@ -227,6 +228,11 @@ export function createHttpClient(options: HttpClientOptions): GitHubClient {
     },
     async mergePullRequest(pullRequestNodeId, expectedHeadOid) {
       await graphql(MERGE_PULL_REQUEST, { id: pullRequestNodeId, head: expectedHeadOid });
+    },
+    async updateBranch(pr, expectedHeadSha) {
+      await request('PUT', `${repoPath}/pulls/${pr}/update-branch`, {
+        expected_head_sha: expectedHeadSha,
+      });
     },
     async disableAutoMerge(pullRequestNodeId) {
       await graphql(DISABLE_AUTO_MERGE, { id: pullRequestNodeId });

@@ -19,9 +19,16 @@ export { parseArgs } from './cli/args.js';
 export type { ParsedArgs, ReconcileArgs } from './cli/args.js';
 export { formatSummary, SCHEMA_VERSION, toReconcileJson } from './cli/output.js';
 export type { ReconcileJson, ReconcileTarget } from './cli/output.js';
-export { ACTOR_TYPES, PR_STATUSES, REPO_PERMISSIONS, REVIEW_STATES } from './facts.js';
+export {
+  ACTOR_TYPES,
+  BRANCH_UPDATERS,
+  PR_STATUSES,
+  REPO_PERMISSIONS,
+  REVIEW_STATES,
+} from './facts.js';
 export type {
   ActorType,
+  BranchUpdater,
   PullRequestFacts,
   PullRequestStatus,
   ReconcilePolicy,
@@ -40,6 +47,13 @@ export type {
   ReleaseActions,
   ReviewData,
 } from './github/client.js';
+export {
+  buildRebaseRequestBody,
+  DEPENDABOT_REBASE_COMMAND,
+  DEPENDABOT_REBASING_NOTICE,
+  isRebasePending,
+  rebaseRequestMarker,
+} from './github/dependabot-rebase.js';
 export { executePlan } from './github/execute.js';
 export type { PlanTarget } from './github/execute.js';
 export { gatherFacts } from './github/gather.js';
@@ -62,8 +76,14 @@ export { createGitRunner, parseGitVersion } from './lineage/git.js';
 export type { GitResult, GitRunner } from './lineage/git.js';
 export { createMergeVerifier } from './lineage/verify.js';
 export type { MergeStep, MergeVerifier, RepoSource } from './lineage/verify.js';
-export { AUTO_MERGE_LABEL, LIFECYCLE_LABELS, planReconcile, withoutArming } from './plan.js';
-export type { AutoMergeAction, LifecycleLabel, ReconcilePlan } from './plan.js';
+export {
+  AUTO_MERGE_LABEL,
+  LIFECYCLE_LABELS,
+  planReconcile,
+  UPDATE_REQUIRED_LABEL,
+  withoutReleaseActions,
+} from './plan.js';
+export type { AutoMergeAction, LifecycleLabel, ReconcilePlan, UpdateAction } from './plan.js';
 export { COPILOT_REVIEWER_LOGIN, computeState, LIFECYCLE_STATES } from './state.js';
 export type { LifecycleState } from './state.js';
 export { currentVerdict, isTrustedAuthor, parseVerdict, VERDICTS } from './verdict.js';

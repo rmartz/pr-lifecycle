@@ -1,7 +1,7 @@
 import type { BotEligibility } from '../bot-eligibility.js';
 import type { ReconcilePolicy } from '../facts.js';
-import type { ReconcilePlan } from '../plan.js';
-import { planReconcile, withoutArming } from '../plan.js';
+import type { ReconcilePlan, UpdateAction } from '../plan.js';
+import { planReconcile, withoutReleaseActions } from '../plan.js';
 import type { GitHubClient, ReleaseActions } from './client.js';
 import { executePlan } from './execute.js';
 import type { GatherOptions } from './gather.js';
@@ -12,9 +12,9 @@ export interface ReconcileOptions extends GatherOptions {
   /** Compute and return the plan without writing anything. */
   dryRun?: boolean;
   /**
-   * Who arms and merges. Defaults to `client`, right when its token is a real
-   * actor. `'unavailable'` (no real-actor token configured) skips arming and
-   * merging rather than doing them with a token whose merge triggers no workflows.
+   * Who arms, merges, and updates. Defaults to `client`, right when its token is a
+   * real actor. `'unavailable'` (no real-actor token configured) skips them rather
+   * than doing them with a token whose pushes and merges trigger no workflows.
    */
   release?: ReleaseActions | 'unavailable';
 }
@@ -27,16 +27,20 @@ export interface ReconcileResult {
   lineage: Lineage | undefined;
   /** The arm or merge the plan wanted but skipped because `release` was unavailable. */
   skippedAutoMerge: 'arm' | 'merge' | undefined;
+  /** The branch update the plan wanted but skipped because `release` was unavailable. */
+  skippedUpdate: Exclude<UpdateAction, 'none'> | undefined;
 }
 
 /**
- * Stands in for the release actions when none are available. `withoutArming`
- * already removed every arm and merge from the plan, so reaching this is a bug;
- * refusing guarantees it can never fall back to a token whose merge fires nothing.
+ * Stands in for the release actions when none are available. `withoutReleaseActions`
+ * already removed every arm, merge, and update from the plan, so reaching this is a
+ * bug; refusing guarantees it can never fall back to a token whose writes fire nothing.
  */
 const REFUSE_RELEASE: ReleaseActions = {
+  createIssueComment: () => Promise.reject(new Error('rebase requests need a release token')),
   enableAutoMerge: () => Promise.reject(new Error('arming needs a release token')),
   mergePullRequest: () => Promise.reject(new Error('merging needs a release token')),
+  updateBranch: () => Promise.reject(new Error('updating needs a release token')),
 };
 
 /**
@@ -53,7 +57,7 @@ export async function reconcilePullRequest(
   const { facts, nodeId, botEligibility, lineage } = await gatherFacts(client, pr, policy, options);
   const planned = planReconcile(facts, policy);
   const unavailable = options.release === 'unavailable';
-  const plan = unavailable ? withoutArming(planned) : planned;
+  const plan = unavailable ? withoutReleaseActions(planned) : planned;
   if (options.dryRun !== true) {
     const release =
       options.release === 'unavailable' ? REFUSE_RELEASE : (options.release ?? client);
@@ -62,5 +66,6 @@ export async function reconcilePullRequest(
   const wanted = planned.autoMerge;
   const skippedAutoMerge =
     unavailable && (wanted === 'arm' || wanted === 'merge') ? wanted : undefined;
-  return { plan, botEligibility, lineage, skippedAutoMerge };
+  const skippedUpdate = unavailable && planned.update !== 'none' ? planned.update : undefined;
+  return { plan, botEligibility, lineage, skippedAutoMerge, skippedUpdate };
 }

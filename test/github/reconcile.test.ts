@@ -95,6 +95,7 @@ describe('reconcilePullRequest', () => {
       addLabels: ['approved', 'auto-merge enabled'],
       removeLabels: [],
       autoMerge: 'arm',
+      update: 'none',
     });
   });
 

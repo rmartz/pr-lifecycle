@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { AUTO_MERGE_LABEL, planReconcile, withoutArming } from '../src/plan.js';
+import { AUTO_MERGE_LABEL, planReconcile, withoutReleaseActions } from '../src/plan.js';
 import { makeCopilotReview, makeFacts, makeReview, makeVerdictBody, OLD_SHA } from './fixtures.js';
 
 const approvedReviews = [makeReview({ body: makeVerdictBody('approved') })];
@@ -65,6 +65,7 @@ describe('planReconcile labels', () => {
       addLabels: [],
       removeLabels: [],
       autoMerge: 'none',
+      update: 'none',
     });
   });
 });
@@ -232,11 +233,11 @@ describe('planReconcile merge or arm', () => {
   });
 });
 
-describe('withoutArming', () => {
+describe('withoutReleaseActions', () => {
   const approved = { reviews: [makeCopilotReview(), ...approvedReviews] };
 
   it('turns an arm into nothing and drops the auto-merge label', () => {
-    const plan = withoutArming(planReconcile(makeFacts(approved), { armAutoMerge: true }));
+    const plan = withoutReleaseActions(planReconcile(makeFacts(approved), { armAutoMerge: true }));
 
     expect([plan.autoMerge, plan.addLabels]).toEqual(['none', ['approved']]);
   });
@@ -244,13 +245,13 @@ describe('withoutArming', () => {
   it('turns a merge into nothing', () => {
     const facts = makeFacts({ ...approved, immediatelyMergeable: true });
 
-    expect(withoutArming(planReconcile(facts, { armAutoMerge: true })).autoMerge).toBe('none');
+    expect(withoutReleaseActions(planReconcile(facts, { armAutoMerge: true })).autoMerge).toBe('none');
   });
 
   it('keeps a disarm', () => {
     const facts = makeFacts({ autoMergeEnabled: true, labels: [AUTO_MERGE_LABEL] });
     const plan = planReconcile(facts, { armAutoMerge: true });
 
-    expect(withoutArming(plan)).toEqual(plan);
+    expect(withoutReleaseActions(plan)).toEqual(plan);
   });
 });

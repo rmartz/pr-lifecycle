@@ -41,6 +41,8 @@ reconcile options:
   --repo <owner/repo>       Repository (required)
   --pr <number>             Pull request number (required)
   --arm-auto-merge          Arm/disarm native auto-merge from the state
+  --auto-update             Update approved PRs merge-safety flags 'update required'
+                            (Dependabot PRs are asked to rebase, never updated)
   --trusted-authors <a,b>   Only these logins (with write access) may cast verdicts
   --skip-copilot-review     Don't wait for a Copilot review
   --hold-checks <a,b>       Required checks whose pending is a hold (default: pr-policy)
@@ -52,8 +54,8 @@ reconcile options:
 Environment:
   GITHUB_TOKEN              Token for reads and writes (required)
   PR_LIFECYCLE_TOKEN
-                            Real-actor token for arming and merging; without it,
-                            --arm-auto-merge keeps labels but skips arm/merge
+                            Real-actor token for arming, merging, and updating;
+                            without it, labels are kept but those are skipped
   GITHUB_API_URL            API base URL (GitHub Enterprise Server)`;
 
 export async function runCli(argv: readonly string[], io: CliIo, deps: CliDeps): Promise<number> {
@@ -93,8 +95,8 @@ export async function runCli(argv: readonly string[], io: CliIo, deps: CliDeps):
     const result = await reconcilePullRequest(client, args.pr, args.policy, {
       dryRun: args.dryRun,
       lineage: { git: deps.git ?? createGitRunner(), token },
-      // Only arming and merging use the release token (never reads). Without one
-      // they are skipped, not done with GITHUB_TOKEN; see docs/cli.md.
+      // Only arming, merging, and updating use the release token (never reads).
+      // Without one they are skipped, not done with GITHUB_TOKEN; see docs/cli.md.
       release: hasReleaseToken ? clientFor(releaseToken) : 'unavailable',
     });
     if (result.skippedAutoMerge !== undefined) {
@@ -104,6 +106,11 @@ export async function runCli(argv: readonly string[], io: CliIo, deps: CliDeps):
       if (args.tokenAdvisory && !args.dryRun) {
         await adviseMissingToken(client, args.pr, result.skippedAutoMerge, io);
       }
+    }
+    if (result.skippedUpdate !== undefined) {
+      io.stderr(
+        `warning: ${args.owner}/${args.repo}#${args.pr} needs an update, but ${result.skippedUpdate} was skipped: PR_LIFECYCLE_TOKEN is not set`,
+      );
     }
     if (args.json) {
       io.stdout(JSON.stringify(toReconcileJson(target, result)));
