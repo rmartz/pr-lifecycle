@@ -131,6 +131,16 @@ describe('createHttpClient requests', () => {
     expect((await client.getPullRequest(7)).isCrossRepository).toBe(true);
   });
 
+  it.each([
+    [true, true],
+    [false, false],
+    [null, undefined],
+  ])('maps mergeable %j to %j', async (mergeable, expected) => {
+    const { client } = makeTransport([{ json: { ...REST_PULL, mergeable } }]);
+
+    expect((await client.getPullRequest(7)).mergeable).toBe(expected);
+  });
+
   it('maps a deleted PR author to undefined', async () => {
     const { client } = makeTransport([{ json: { ...REST_PULL, user: null } }]);
 

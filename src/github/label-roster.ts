@@ -32,6 +32,12 @@ export const OWNED_LABEL_DEFINITIONS: Record<
     color: 'DB2777',
     description: 'Needs author input or judgment — not addressable by automated fix-review.',
   },
+  // Placeholder color until the fleet roster assigns one (rmartz/dotfiles#1573).
+  'fix required': {
+    name: 'fix required',
+    color: 'D93F0B',
+    description: 'A statically detected problem (merge conflict or failing CI) needs a fix.',
+  },
   'review requested': {
     name: 'review requested',
     color: 'E3B341',

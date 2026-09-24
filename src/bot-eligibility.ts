@@ -1,6 +1,6 @@
 /**
  * Bot-PR eligibility: is this a bot PR trusted enough to count as `approved`
- * without a review (state priority 4 in docs/reconciler-design.md)? Ported from
+ * without a review (state priority 5 in docs/reconciler-design.md)? Ported from
  * @rmartz/bot-automerge's classifier, with one deliberate tightening: the head
  * branch must live in the base repository. See docs/bot-eligibility.md.
  *

@@ -84,8 +84,9 @@ verified clean base update (carry-over rules 1–2, which don't depend on CI). A
 carried approval may stay armed, because GitHub still waits for required CI
 before merging.
 
-An unknown `mergeable` (GitHub still computing) is not a conflict: rule 3 doesn't
-fire, and the next event re-evaluates. A red base (rule 4) is held rather than
+Rule 3 (merge conflict) is **implemented** (#21); its full rule, including the
+unknown-`mergeable` handling, now lives in the
+[core design](reconciler-design.md#state-in-priority-order). A red base (rule 4) is held rather than
 routed to a fix: fix-review can't fix something outside the PR, and merge-safety
 already holds merges while the base is red.
 
@@ -147,7 +148,7 @@ Each issue lists its dependencies; see the **Reconciler v1** milestone.
 | Piece                                                      | Issue                                          | Depends on                  |
 | ---------------------------------------------------------- | ---------------------------------------------- | --------------------------- |
 | CI gate: `awaiting-ci` / `ci failing` / `blocked-base-red` | #20                                            | —                           |
-| Merge-conflict state                                       | #21                                            | —                           |
+| Merge-conflict state (**done**)                            | #21                                            | —                           |
 | Approval carry-over across clean base updates              | #22                                            | (#20 before production use) |
 | Auto-update approved PRs flagged `update required`         | #23                                            | #7, #22, #20                |
 | `fix required` / `ci failing` in the fleet roster          | rmartz/dotfiles (roster + coordinator routing) | —                           |

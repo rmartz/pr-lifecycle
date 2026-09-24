@@ -8,7 +8,7 @@ tags: [bot, dependabot, release-please, security, eligibility]
 
 # Bot-PR eligibility
 
-An eligible bot PR is treated as `approved` without a review (state priority 4
+An eligible bot PR is treated as `approved` without a review (state priority 5
 in the [core design](reconciler-design.md#state-in-priority-order)), so eligibility
 is a merge authorization and every uncertain case resolves to **not eligible**.
 `classifyBotPr` (`src/bot-eligibility.ts`) is a pure function; `gatherFacts`

@@ -116,6 +116,7 @@ export async function gatherFacts(client: GitHubClient, pr: number): Promise<Gat
       labels: pull.labels,
       autoMergeEnabled: pull.autoMergeEnabled,
       botEligible: botEligibility.eligible,
+      mergeable: pull.mergeable,
       reviews: reviews.map((review) => toReviewFact(review, permissions)),
     },
   };

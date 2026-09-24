@@ -26,6 +26,7 @@ Source: `src/` (`facts.ts`, `verdict.ts`, `state.ts`, `plan.ts`).
 | `labels`           | current label names                                                                                      |
 | `autoMergeEnabled` | PR `auto_merge` is non-null                                                                              |
 | `botEligible`      | [bot-PR eligibility](bot-eligibility.md): same-repo Dependabot patch/minor, release-please               |
+| `mergeable`        | PR `mergeable`: `true`, `false` (merge conflict), or unknown (`null` → `undefined`: still computing)     |
 | `reviews`          | PR reviews: author login, type (`User`/`Bot`), repo permission, `commit_id`, state, body, submitted time |
 
 The author's **repo permission** is a fact gathered at the edge (the collaborator
@@ -74,12 +75,23 @@ The **latest** counting verdict (by submitted time, then review id) decides.
 | --- | ------------------------------------------------------------------- | ------------------- | ------------------- |
 | 1   | status is `closed` or `merged`                                      | `closed`            | untouched (no plan) |
 | 2   | draft, or `[WIP]` title                                             | `draft`             | none                |
-| 3   | counting verdict `approved`                                         | `approved`          | `approved`          |
-| 3   | counting verdict `changes-requested`                                | `changes-requested` | `changes requested` |
-| 3   | counting verdict `escalation-needed`                                | `escalation-needed` | `escalation needed` |
-| 4   | `botEligible`                                                       | `approved`          | `approved`          |
-| 5   | a Copilot review exists on `headSha`, or `policy.skipCopilotReview` | `review-requested`  | `review requested`  |
-| 6   | otherwise                                                           | `awaiting-copilot`  | none                |
+| 3   | `mergeable` is `false` (merge conflict)                             | `fix-required`      | `fix required`      |
+| 4   | counting verdict `approved`                                         | `approved`          | `approved`          |
+| 4   | counting verdict `changes-requested`                                | `changes-requested` | `changes requested` |
+| 4   | counting verdict `escalation-needed`                                | `escalation-needed` | `escalation needed` |
+| 5   | `botEligible`                                                       | `approved`          | `approved`          |
+| 6   | a Copilot review exists on `headSha`, or `policy.skipCopilotReview` | `review-requested`  | `review requested`  |
+| 7   | otherwise                                                           | `awaiting-copilot`  | none                |
+
+**A merge conflict outranks every verdict.** It needs a code change, and the
+resolution is a new commit that no approval could survive anyway, so an approved
+PR that develops a conflict loses `approved` and is disarmed. `fix required`
+(a statically detected problem) is deliberately distinct from `changes requested`
+(a reviewer's verdict): it tells fix-review there are no review threads to work
+from. merge-safety's own `merge conflict` label, if present, says why; it isn't
+owned here. An unknown `mergeable` (GitHub computes it lazily, and `null` means
+"not yet") is **not** a conflict: the rule doesn't fire, and the next event
+re-evaluates.
 
 A trusted human verdict outranks bot eligibility, so a person can hold a
 Dependabot PR with a `changes requested` verdict. Copilot is recognized by the
@@ -90,15 +102,16 @@ commit.
 In a repo without Copilot code review, no Copilot review ever arrives, so a PR
 would sit in `awaiting-copilot` forever. `policy.skipCopilotReview` (off by
 default) skips that wait: a ready PR with no counting verdict goes straight to
-`review-requested`. It changes only rule 5; drafts, verdicts and bot eligibility
+`review-requested`. It changes only rule 6; drafts, verdicts and bot eligibility
 are unaffected. A timeout alternative ("treat Copilot as done after N minutes")
 was rejected: no event fires when nothing happens, so it would need a scheduled
 trigger.
 
 ## Plan
 
-- **Labels are output only.** The core owns the four lifecycle labels
-  (`approved`, `changes requested`, `escalation needed`, `review requested`) and,
+- **Labels are output only.** The core owns the five lifecycle labels
+  (`approved`, `changes requested`, `escalation needed`, `fix required`,
+  `review requested`) and,
   in arming mode, `auto-merge enabled`. It adds the desired one and removes every
   other owned label present, so a hand-applied `approved` with no verdict behind
   it is removed. Labels the core doesn't own are never touched. When the labels

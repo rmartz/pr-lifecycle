@@ -23,6 +23,8 @@ export interface PullRequestData {
   headRef: string;
   /** True when the head branch lives in a fork (or a deleted repo), not the base. */
   isCrossRepository: boolean;
+  /** `false` is a merge conflict; `undefined` means GitHub is still computing it. */
+  mergeable: boolean | undefined;
 }
 
 export interface CommitData {

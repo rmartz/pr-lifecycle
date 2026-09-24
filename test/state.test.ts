@@ -30,6 +30,34 @@ describe('computeState', () => {
     expect(computeState(facts, {})).toBe('draft');
   });
 
+  it('is fix-required for a conflicting PR, even with an approval', () => {
+    const facts = makeFacts({
+      mergeable: false,
+      reviews: [makeReview({ body: makeVerdictBody('approved') })],
+    });
+
+    expect(computeState(facts, {})).toBe('fix-required');
+  });
+
+  it('is fix-required for a conflicting eligible bot PR', () => {
+    expect(computeState(makeFacts({ mergeable: false, botEligible: true }), {})).toBe(
+      'fix-required',
+    );
+  });
+
+  it('keeps a conflicting draft a draft', () => {
+    expect(computeState(makeFacts({ mergeable: false, isDraft: true }), {})).toBe('draft');
+  });
+
+  it('treats an unknown mergeable (GitHub still computing) as no conflict', () => {
+    const facts = makeFacts({
+      mergeable: undefined,
+      reviews: [makeReview({ body: makeVerdictBody('approved') })],
+    });
+
+    expect(computeState(facts, {})).toBe('approved');
+  });
+
   it.each(['[WIP] feat: thing', 'feat: thing [wip]'])('is draft for the title %j', (title) => {
     expect(computeState(makeFacts({ title }), {})).toBe('draft');
   });

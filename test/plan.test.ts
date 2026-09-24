@@ -69,6 +69,34 @@ describe('planReconcile labels', () => {
   });
 });
 
+describe('planReconcile merge conflict', () => {
+  const approvedConflict = makeFacts({
+    mergeable: false,
+    labels: ['approved', AUTO_MERGE_LABEL],
+    autoMergeEnabled: true,
+    reviews: approvedReviews,
+  });
+
+  it('replaces approved with fix required', () => {
+    const plan = planReconcile(approvedConflict, { armAutoMerge: true });
+
+    expect([plan.addLabels, plan.removeLabels]).toEqual([
+      ['fix required'],
+      ['approved', AUTO_MERGE_LABEL],
+    ]);
+  });
+
+  it('disarms auto-merge', () => {
+    expect(planReconcile(approvedConflict, { armAutoMerge: true }).autoMerge).toBe('disarm');
+  });
+
+  it('removes a stale fix required once the conflict is resolved', () => {
+    const facts = makeFacts({ labels: ['fix required'], reviews: [makeCopilotReview()] });
+
+    expect(planReconcile(facts, {}).removeLabels).toEqual(['fix required']);
+  });
+});
+
 describe('planReconcile auto-merge', () => {
   it('never touches auto-merge when arming is off', () => {
     const facts = makeFacts({ autoMergeEnabled: true });

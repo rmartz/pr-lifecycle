@@ -42,6 +42,8 @@ interface RestPull {
   base: { repo: { id: number } };
   labels: { name: string }[];
   auto_merge: unknown;
+  /** `null` while GitHub computes mergeability in the background. */
+  mergeable: boolean | null;
 }
 
 interface RestCommit {
@@ -158,6 +160,7 @@ export function createHttpClient(options: HttpClientOptions): GitHubClient {
         // Compare repo ids, not names (names change on rename); a deleted head
         // repo is treated as a fork, so it can never look like a trusted branch.
         isCrossRepository: pull.head.repo?.id !== pull.base.repo.id,
+        mergeable: pull.mergeable ?? undefined,
       };
     },
     async listCommits(pr): Promise<CommitData[]> {
