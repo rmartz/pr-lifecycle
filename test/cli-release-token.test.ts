@@ -4,6 +4,7 @@ import type { CliDeps } from '../src/cli.js';
 import { runCli } from '../src/cli.js';
 import { GitHubApiError } from '../src/github/client.js';
 import { TOKEN_ADVISORY_MARKER } from '../src/github/token-advisory.js';
+import { UPDATE_REQUIRED_LABEL } from '../src/plan.js';
 import { makeApprovedClient, makeDeps, makeIo, RECONCILE } from './cli-fixtures.js';
 import { FakeGitHubClient } from './github/fake-client.js';
 
@@ -39,6 +40,62 @@ describe('runCli — release token', () => {
     await runCli(RECONCILE, makeIo().io, makeTokenDeps(main, release));
 
     expect(release.calls).toEqual([]);
+  });
+});
+
+describe('runCli — auto-update', () => {
+  const UPDATE = [...RECONCILE, '--auto-update'];
+
+  function makeFlaggedClient(): FakeGitHubClient {
+    const client = makeApprovedClient();
+    client.pull.labels = [UPDATE_REQUIRED_LABEL];
+    return client;
+  }
+
+  it('updates with the release token', async () => {
+    const main = makeFlaggedClient();
+    const release = new FakeGitHubClient();
+
+    await runCli(UPDATE, makeIo().io, makeTokenDeps(main, release));
+
+    expect(release.calls.map((call) => call.method)).toEqual(['updateBranch']);
+  });
+
+  it('reports the update in the summary', async () => {
+    const { out, io } = makeIo();
+
+    await runCli(UPDATE, io, makeDeps(makeFlaggedClient()).deps);
+
+    expect(out[0]).toContain('update update-branch');
+  });
+
+  it('skips the update without a release token, and exits 0', async () => {
+    const client = makeFlaggedClient();
+
+    const code = await runCli(UPDATE, makeIo().io, makeDeps(client, NO_RELEASE_TOKEN).deps);
+
+    expect([code, client.calls.some((call) => call.method === 'updateBranch')]).toEqual([0, false]);
+  });
+
+  it('warns on stderr when the update is skipped', async () => {
+    const { err, io } = makeIo();
+
+    await runCli(UPDATE, io, makeDeps(makeFlaggedClient(), NO_RELEASE_TOKEN).deps);
+
+    expect(err).toEqual([
+      'warning: rmartz/demo#7 needs an update, but update-branch was skipped: PR_LIFECYCLE_TOKEN is not set',
+    ]);
+  });
+
+  it('reports the skipped update in --json', async () => {
+    const { out, io } = makeIo();
+
+    await runCli([...UPDATE, '--json'], io, makeDeps(makeFlaggedClient(), NO_RELEASE_TOKEN).deps);
+
+    expect(JSON.parse(out[0] ?? '{}')).toMatchObject({
+      update: 'none',
+      updateSkipped: { action: 'update-branch', reason: 'token-missing' },
+    });
   });
 });
 

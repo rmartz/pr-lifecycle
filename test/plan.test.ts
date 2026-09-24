@@ -245,7 +245,9 @@ describe('withoutReleaseActions', () => {
   it('turns a merge into nothing', () => {
     const facts = makeFacts({ ...approved, immediatelyMergeable: true });
 
-    expect(withoutReleaseActions(planReconcile(facts, { armAutoMerge: true })).autoMerge).toBe('none');
+    expect(withoutReleaseActions(planReconcile(facts, { armAutoMerge: true })).autoMerge).toBe(
+      'none',
+    );
   });
 
   it('keeps a disarm', () => {
