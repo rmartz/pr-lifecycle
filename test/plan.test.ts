@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { AUTO_MERGE_LABEL, planReconcile } from '../src/plan.js';
-import { makeCopilotReview, makeFacts, makeReview, makeVerdictBody } from './fixtures.js';
+import { makeCopilotReview, makeFacts, makeReview, makeVerdictBody, OLD_SHA } from './fixtures.js';
 
 const approvedReviews = [makeReview({ body: makeVerdictBody('approved') })];
 
@@ -94,6 +94,57 @@ describe('planReconcile merge conflict', () => {
     const facts = makeFacts({ labels: ['fix required'], reviews: [makeCopilotReview()] });
 
     expect(planReconcile(facts, {}).removeLabels).toEqual(['fix required']);
+  });
+});
+
+describe('planReconcile CI gate', () => {
+  it('labels failing CI fix required + ci failing', () => {
+    expect(planReconcile(makeFacts({ ciStatus: 'failing' }), {}).addLabels).toEqual([
+      'fix required',
+      'ci failing',
+    ]);
+  });
+
+  it('drops the approval and disarms when CI fails on an approved PR', () => {
+    const facts = makeFacts({
+      ciStatus: 'failing',
+      labels: ['approved', AUTO_MERGE_LABEL],
+      autoMergeEnabled: true,
+      reviews: approvedReviews,
+    });
+
+    const plan = planReconcile(facts, { armAutoMerge: true });
+
+    expect([plan.removeLabels, plan.autoMerge]).toEqual([['approved', AUTO_MERGE_LABEL], 'disarm']);
+  });
+
+  it('removes ci failing (but keeps fix required) when CI passes but a conflict remains', () => {
+    const facts = makeFacts({ mergeable: false, labels: ['fix required', 'ci failing'] });
+
+    expect(planReconcile(facts, {}).removeLabels).toEqual(['ci failing']);
+  });
+
+  it('shows no lifecycle label while the base is red', () => {
+    const facts = makeFacts({
+      ciStatus: 'failing',
+      baseCiFailing: true,
+      labels: ['review requested'],
+    });
+
+    const plan = planReconcile(facts, {});
+
+    expect([plan.addLabels, plan.removeLabels]).toEqual([[], ['review requested']]);
+  });
+
+  it('disarms an unreviewed push onto an armed approved PR while CI runs', () => {
+    const facts = makeFacts({
+      ciStatus: 'pending',
+      autoMergeEnabled: true,
+      labels: ['approved', AUTO_MERGE_LABEL],
+      reviews: [makeReview({ commitSha: OLD_SHA, body: makeVerdictBody('approved', OLD_SHA) })],
+    });
+
+    expect(planReconcile(facts, { armAutoMerge: true }).autoMerge).toBe('disarm');
   });
 });
 

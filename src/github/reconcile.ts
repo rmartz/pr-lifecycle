@@ -28,7 +28,7 @@ export async function reconcilePullRequest(
   policy: ReconcilePolicy,
   options: ReconcileOptions = {},
 ): Promise<ReconcileResult> {
-  const { facts, nodeId, botEligibility } = await gatherFacts(client, pr);
+  const { facts, nodeId, botEligibility } = await gatherFacts(client, pr, policy);
   const plan = planReconcile(facts, policy);
   if (options.dryRun !== true) {
     await executePlan(client, { pr, nodeId }, plan);

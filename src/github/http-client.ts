@@ -1,8 +1,10 @@
 import type { ActorType, ReviewState } from '../facts.js';
 import { REVIEW_STATES } from '../facts.js';
 import type {
+  CheckRunData,
   CollaboratorPermission,
   CommitData,
+  CommitStatusData,
   GitHubClient,
   LabelDefinition,
   PullRequestData,
@@ -39,11 +41,23 @@ interface RestPull {
   user: { login: string } | null;
   /** `head.repo` is null when the fork was deleted. */
   head: { sha: string; ref: string; repo: { id: number } | null };
-  base: { repo: { id: number } };
+  base: { ref: string; repo: { id: number } };
   labels: { name: string }[];
   auto_merge: unknown;
   /** `null` while GitHub computes mergeability in the background. */
   mergeable: boolean | null;
+}
+
+interface RestCheckRun {
+  name: string;
+  status: string;
+  conclusion: string | null;
+  completed_at: string | null;
+}
+
+interface RestRule {
+  type: string;
+  parameters?: { required_status_checks?: { context: string }[] };
 }
 
 interface RestCommit {
@@ -157,11 +171,61 @@ export function createHttpClient(options: HttpClientOptions): GitHubClient {
         autoMergeEnabled: pull.auto_merge !== null && pull.auto_merge !== undefined,
         authorLogin: pull.user?.login,
         headRef: pull.head.ref,
+        baseRef: pull.base.ref,
         // Compare repo ids, not names (names change on rename); a deleted head
         // repo is treated as a fork, so it can never look like a trusted branch.
         isCrossRepository: pull.head.repo?.id !== pull.base.repo.id,
         mergeable: pull.mergeable ?? undefined,
       };
+    },
+    async getRequiredStatusChecks(branch) {
+      // Rules from every active ruleset that targets the branch; several rulesets
+      // can each require checks, so take the union.
+      const rules = await paginate<RestRule>(
+        `${repoPath}/rules/branches/${encodeURIComponent(branch)}`,
+      );
+      const contexts = rules
+        .filter((rule) => rule.type === 'required_status_checks')
+        .flatMap((rule) => rule.parameters?.required_status_checks ?? [])
+        .map((check) => check.context);
+      return [...new Set(contexts)];
+    },
+    async getBranchHeadSha(branch) {
+      const result = (await request(
+        'GET',
+        `${repoPath}/branches/${encodeURIComponent(branch)}`,
+      )) as {
+        commit: { sha: string };
+      };
+      return result.commit.sha;
+    },
+    async listCheckRuns(sha): Promise<CheckRunData[]> {
+      // The default filter=latest returns only the most recent run per name, so
+      // a re-run replaces the failure it retried.
+      const runs: RestCheckRun[] = [];
+      for (let page = 1; ; page += 1) {
+        const batch = (await request(
+          'GET',
+          `${repoPath}/commits/${sha}/check-runs?per_page=${PAGE_SIZE}&page=${page}`,
+        )) as { check_runs: RestCheckRun[] };
+        runs.push(...batch.check_runs);
+        if (batch.check_runs.length < PAGE_SIZE) {
+          break;
+        }
+      }
+      return runs.map((run) => ({
+        name: run.name,
+        status: run.status,
+        conclusion: run.conclusion,
+        completedAt: run.completed_at,
+      }));
+    },
+    async listCommitStatuses(sha): Promise<CommitStatusData[]> {
+      // The combined status holds the latest status per context.
+      const combined = (await request('GET', `${repoPath}/commits/${sha}/status`)) as {
+        statuses: { context: string; state: string }[];
+      };
+      return combined.statuses.map((status) => ({ context: status.context, state: status.state }));
     },
     async listCommits(pr): Promise<CommitData[]> {
       const commits = await paginate<RestCommit>(`${repoPath}/pulls/${pr}/commits`);

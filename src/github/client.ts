@@ -21,10 +21,26 @@ export interface PullRequestData {
   /** The PR author's login; undefined when the account was deleted. */
   authorLogin: string | undefined;
   headRef: string;
+  /** The base branch name, whose rulesets define the required checks. */
+  baseRef: string;
   /** True when the head branch lives in a fork (or a deleted repo), not the base. */
   isCrossRepository: boolean;
   /** `false` is a merge conflict; `undefined` means GitHub is still computing it. */
   mergeable: boolean | undefined;
+}
+
+/** A check-run on a commit (the latest run per name). */
+export interface CheckRunData {
+  name: string;
+  status: string;
+  conclusion: string | null;
+  completedAt: string | null;
+}
+
+/** A commit status (the latest per context) — the channel some CI uses instead of checks. */
+export interface CommitStatusData {
+  context: string;
+  state: string;
 }
 
 export interface CommitData {
@@ -63,6 +79,11 @@ export interface GitHubClient {
   getPullRequest(pr: number): Promise<PullRequestData>;
   listReviews(pr: number): Promise<ReviewData[]>;
   listCommits(pr: number): Promise<CommitData[]>;
+  /** The contexts the branch's rulesets require (empty when none are configured). */
+  getRequiredStatusChecks(branch: string): Promise<string[]>;
+  getBranchHeadSha(branch: string): Promise<string>;
+  listCheckRuns(sha: string): Promise<CheckRunData[]>;
+  listCommitStatuses(sha: string): Promise<CommitStatusData[]>;
   /** Throws a GitHubApiError with status 404 when the user is not a collaborator. */
   getCollaboratorPermission(login: string): Promise<CollaboratorPermission>;
   listRepoLabels(): Promise<string[]>;

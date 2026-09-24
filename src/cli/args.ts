@@ -19,6 +19,8 @@ export interface ReconcileArgs {
 export type ParsedArgs =
   ReconcileArgs | { command: 'help' } | { command: 'error'; message: string };
 
+type ValueOption = '--hold-checks' | '--ignore-checks' | '--pr' | '--repo' | '--trusted-authors';
+
 const REPO_PATTERN = /^([A-Za-z0-9-]+)\/([A-Za-z0-9._-]+)$/;
 const PR_PATTERN = /^[1-9][0-9]*$/;
 
@@ -35,9 +37,7 @@ function parseList(value: string): string[] {
 }
 
 function parseReconcile(args: readonly string[]): ParsedArgs {
-  let repoArg: string | undefined;
-  let prArg: string | undefined;
-  let trustedAuthors: string[] | undefined;
+  const values: Partial<Record<ValueOption, string>> = {};
   let armAutoMerge = false;
   let skipCopilotReview = false;
   let dryRun = false;
@@ -60,19 +60,15 @@ function parseReconcile(args: readonly string[]): ParsedArgs {
         break;
       case '--repo':
       case '--pr':
-      case '--trusted-authors': {
+      case '--trusted-authors':
+      case '--hold-checks':
+      case '--ignore-checks': {
         const value = args[index + 1];
         if (value === undefined || value.startsWith('--')) {
           return usageError(`${arg} requires a value`);
         }
         index += 1;
-        if (arg === '--repo') {
-          repoArg = value;
-        } else if (arg === '--pr') {
-          prArg = value;
-        } else {
-          trustedAuthors = parseList(value);
-        }
+        values[arg] = value;
         break;
       }
       default:
@@ -80,6 +76,8 @@ function parseReconcile(args: readonly string[]): ParsedArgs {
     }
   }
 
+  const repoArg = values['--repo'];
+  const prArg = values['--pr'];
   const repoMatch = repoArg === undefined ? null : REPO_PATTERN.exec(repoArg);
   if (repoMatch?.[1] === undefined || repoMatch[2] === undefined) {
     return usageError('--repo <owner/repo> is required');
@@ -87,10 +85,15 @@ function parseReconcile(args: readonly string[]): ParsedArgs {
   if (prArg === undefined || !PR_PATTERN.test(prArg)) {
     return usageError('--pr <number> is required and must be a positive integer');
   }
+  const trustedAuthors = listOption(values['--trusted-authors']);
   // An empty allowlist would silently trust nobody; treat it as a mistake.
   if (trustedAuthors?.length === 0) {
     return usageError('--trusted-authors needs at least one login');
   }
+  // An empty check list is meaningful (e.g. `--ignore-checks ''` counts every
+  // required check), so unlike trusted authors it is allowed.
+  const holdChecks = listOption(values['--hold-checks']);
+  const ignoredChecks = listOption(values['--ignore-checks']);
 
   return {
     command: 'reconcile',
@@ -101,10 +104,16 @@ function parseReconcile(args: readonly string[]): ParsedArgs {
       armAutoMerge,
       skipCopilotReview,
       ...(trustedAuthors === undefined ? {} : { trustedAuthors }),
+      ...(holdChecks === undefined ? {} : { holdChecks }),
+      ...(ignoredChecks === undefined ? {} : { ignoredChecks }),
     },
     dryRun,
     json,
   };
+}
+
+function listOption(value: string | undefined): string[] | undefined {
+  return value === undefined ? undefined : parseList(value);
 }
 
 export function parseArgs(argv: readonly string[]): ParsedArgs {

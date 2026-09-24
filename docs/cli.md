@@ -19,18 +19,21 @@ installs a pinned version and invokes it, so everything on this page is a
 
 ```
 ai-pr-lifecycle reconcile --repo <owner/repo> --pr <n>
-  [--arm-auto-merge] [--trusted-authors a,b] [--skip-copilot-review] [--dry-run] [--json]
+  [--arm-auto-merge] [--trusted-authors a,b] [--skip-copilot-review]
+  [--hold-checks a,b] [--ignore-checks a,b] [--dry-run] [--json]
 ```
 
-| Flag                      | Effect                                                                                                           |
-| ------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| `--repo <owner/repo>`     | Repository (required).                                                                                           |
-| `--pr <n>`                | Pull request number (required, a positive integer).                                                              |
-| `--arm-auto-merge`        | Arm/disarm native auto-merge from the state (`policy.armAutoMerge`). Off by default.                             |
-| `--trusted-authors <a,b>` | Narrow trust to these logins; they still need write access (`policy.trustedAuthors`). An empty list is an error. |
-| `--skip-copilot-review`   | Don't wait for a Copilot review (`policy.skipCopilotReview`).                                                    |
-| `--dry-run`               | Gather and plan, but write nothing.                                                                              |
-| `--json`                  | Print the result as one JSON object (below) instead of a summary line.                                           |
+| Flag                      | Effect                                                                                                                                 |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `--repo <owner/repo>`     | Repository (required).                                                                                                                 |
+| `--pr <n>`                | Pull request number (required, a positive integer).                                                                                    |
+| `--arm-auto-merge`        | Arm/disarm native auto-merge from the state (`policy.armAutoMerge`). Off by default.                                                   |
+| `--trusted-authors <a,b>` | Narrow trust to these logins; they still need write access (`policy.trustedAuthors`). An empty list is an error.                       |
+| `--skip-copilot-review`   | Don't wait for a Copilot review (`policy.skipCopilotReview`).                                                                          |
+| `--hold-checks <a,b>`     | Required checks whose _pending_ is a hold, not a running build; their failures still count (`policy.holdChecks`, default `pr-policy`). |
+| `--ignore-checks <a,b>`   | Required checks the CI gate never counts (`policy.ignoredChecks`, default `merge-safety`). An empty value counts every check.          |
+| `--dry-run`               | Gather and plan, but write nothing.                                                                                                    |
+| `--json`                  | Print the result as one JSON object (below) instead of a summary line.                                                                 |
 
 The policy options are described in the [core design](reconciler-design.md).
 
@@ -40,6 +43,11 @@ The policy options are described in the [core design](reconciler-design.md).
 | ---------------- | ------------------------------------------------------------------- |
 | `GITHUB_TOKEN`   | Token for all reads and writes (required; missing → exit 2).        |
 | `GITHUB_API_URL` | API base URL for GitHub Enterprise Server (defaults to github.com). |
+
+**Token permissions.** `pull-requests: write` (PR, reviews, labels, auto-merge),
+`contents: read` (branch rules, the base branch head, commits), `checks: read`
+and `statuses: read` (the CI gate), plus `contents: write` only when arming. The
+collaborator-permission lookup also needs at least read access to the repository.
 
 A separate real-actor token for arming and merging, so merges re-trigger
 `on: push` release pipelines, is added in #7.

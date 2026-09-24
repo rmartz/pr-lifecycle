@@ -49,6 +49,69 @@ describe('computeState', () => {
     expect(computeState(makeFacts({ mergeable: false, isDraft: true }), {})).toBe('draft');
   });
 
+  it('is ci-failing when required CI fails, even with an approval', () => {
+    const facts = makeFacts({
+      ciStatus: 'failing',
+      reviews: [makeReview({ body: makeVerdictBody('approved') })],
+    });
+
+    expect(computeState(facts, {})).toBe('ci-failing');
+  });
+
+  it('is blocked-base-red when CI fails on the base branch too', () => {
+    expect(computeState(makeFacts({ ciStatus: 'failing', baseCiFailing: true }), {})).toBe(
+      'blocked-base-red',
+    );
+  });
+
+  it('ignores a red base when the PR itself is passing', () => {
+    const facts = makeFacts({ baseCiFailing: true, reviews: [makeCopilotReview()] });
+
+    expect(computeState(facts, {})).toBe('review-requested');
+  });
+
+  it('ranks a merge conflict above failing CI', () => {
+    expect(computeState(makeFacts({ mergeable: false, ciStatus: 'failing' }), {})).toBe(
+      'fix-required',
+    );
+  });
+
+  it('is awaiting-ci instead of review-requested while CI is running', () => {
+    const facts = makeFacts({ ciStatus: 'pending', reviews: [makeCopilotReview()] });
+
+    expect(computeState(facts, {})).toBe('awaiting-ci');
+  });
+
+  it('is awaiting-ci even when Copilot is skipped', () => {
+    expect(computeState(makeFacts({ ciStatus: 'pending' }), { skipCopilotReview: true })).toBe(
+      'awaiting-ci',
+    );
+  });
+
+  it('keeps an approval on the head while CI is running', () => {
+    const facts = makeFacts({
+      ciStatus: 'pending',
+      reviews: [makeReview({ body: makeVerdictBody('approved') })],
+    });
+
+    expect(computeState(facts, {})).toBe('approved');
+  });
+
+  it('keeps an eligible bot PR approved while CI is running', () => {
+    expect(computeState(makeFacts({ ciStatus: 'pending', botEligible: true }), {})).toBe(
+      'approved',
+    );
+  });
+
+  it('is awaiting-ci after an unreviewed push onto an approved PR', () => {
+    const facts = makeFacts({
+      ciStatus: 'pending',
+      reviews: [makeReview({ commitSha: OLD_SHA, body: makeVerdictBody('approved', OLD_SHA) })],
+    });
+
+    expect(computeState(facts, {})).toBe('awaiting-ci');
+  });
+
   it('treats an unknown mergeable (GitHub still computing) as no conflict', () => {
     const facts = makeFacts({
       mergeable: undefined,

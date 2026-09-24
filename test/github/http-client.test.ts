@@ -52,7 +52,7 @@ const REST_PULL = {
   title: 'feat: x',
   user: { login: 'dependabot[bot]' },
   head: { sha: 'abc', ref: 'dependabot/x', repo: { id: 11 } },
-  base: { repo: { id: 11 } },
+  base: { ref: 'main', repo: { id: 11 } },
   labels: [{ name: 'approved' }],
   auto_merge: { merge_method: 'squash' },
 };
@@ -113,6 +113,7 @@ describe('createHttpClient requests', () => {
       autoMergeEnabled: true,
       authorLogin: 'dependabot[bot]',
       headRef: 'dependabot/x',
+      baseRef: 'main',
       isCrossRepository: false,
     });
   });
@@ -145,6 +146,76 @@ describe('createHttpClient requests', () => {
     const { client } = makeTransport([{ json: { ...REST_PULL, user: null } }]);
 
     expect((await client.getPullRequest(7)).authorLogin).toBeUndefined();
+  });
+
+  it('reads required checks as the union across rulesets', async () => {
+    const { client, requests } = makeTransport([
+      {
+        json: [
+          {
+            type: 'required_status_checks',
+            parameters: { required_status_checks: [{ context: 'Build' }] },
+          },
+          { type: 'pull_request', parameters: {} },
+          {
+            type: 'required_status_checks',
+            parameters: { required_status_checks: [{ context: 'Build' }, { context: 'Test' }] },
+          },
+        ],
+      },
+    ]);
+
+    const required = await client.getRequiredStatusChecks('release/1.x');
+
+    expect([required, requests[0]?.url]).toEqual([
+      ['Build', 'Test'],
+      'https://api.github.com/repos/rmartz/demo/rules/branches/release%2F1.x?per_page=100&page=1',
+    ]);
+  });
+
+  it('reads no required checks when no ruleset requires any', async () => {
+    const { client } = makeTransport([{ json: [{ type: 'deletion' }] }]);
+
+    expect(await client.getRequiredStatusChecks('main')).toEqual([]);
+  });
+
+  it('reads the branch head sha', async () => {
+    const { client } = makeTransport([{ json: { commit: { sha: 'cafe' } } }]);
+
+    expect(await client.getBranchHeadSha('main')).toBe('cafe');
+  });
+
+  it('maps and paginates check-runs', async () => {
+    const run = { name: 'Build', status: 'completed', conclusion: 'success', completed_at: 'x' };
+    const fullPage = Array.from({ length: 100 }, () => run);
+    const { client, requests } = makeTransport([
+      { json: { check_runs: fullPage } },
+      {
+        json: {
+          check_runs: [
+            { ...run, name: 'Test', status: 'queued', conclusion: null, completed_at: null },
+          ],
+        },
+      },
+    ]);
+
+    const runs = await client.listCheckRuns('abc');
+
+    expect([runs.length, runs[100], requests.length]).toEqual([
+      101,
+      { name: 'Test', status: 'queued', conclusion: null, completedAt: null },
+      2,
+    ]);
+  });
+
+  it('reads the combined commit statuses', async () => {
+    const { client } = makeTransport([
+      { json: { statuses: [{ context: 'ci/legacy', state: 'pending', id: 1 }] } },
+    ]);
+
+    expect(await client.listCommitStatuses('abc')).toEqual([
+      { context: 'ci/legacy', state: 'pending' },
+    ]);
   });
 
   it('lists commits with their author logins', async () => {

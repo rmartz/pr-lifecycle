@@ -1,6 +1,8 @@
 import type {
   CollaboratorPermission,
+  CheckRunData,
   CommitData,
+  CommitStatusData,
   GitHubClient,
   LabelDefinition,
   PullRequestData,
@@ -29,6 +31,7 @@ export function makePullRequestData(overrides: Partial<PullRequestData> = {}): P
     autoMergeEnabled: false,
     authorLogin: 'contributor',
     headRef: 'feature/thing',
+    baseRef: 'main',
     isCrossRepository: false,
     mergeable: true,
     ...overrides,
@@ -52,6 +55,11 @@ export class FakeGitHubClient implements GitHubClient {
   pull: PullRequestData;
   reviews: ReviewData[];
   commits: CommitData[] = [];
+  /** Required contexts per branch (none by default: the CI gate is inactive). */
+  requiredChecks = new Map<string, string[]>();
+  branchHeads = new Map<string, string>();
+  checkRuns = new Map<string, CheckRunData[]>();
+  commitStatuses = new Map<string, CommitStatusData[]>();
   /** Collaborators by login; an absent login is a non-collaborator (404). */
   permissions = new Map<string, CollaboratorPermission>();
   repoLabels = new Map<string, LabelDefinition>();
@@ -72,6 +80,10 @@ export class FakeGitHubClient implements GitHubClient {
       'getPullRequest',
       'listReviews',
       'listCommits',
+      'getRequiredStatusChecks',
+      'getBranchHeadSha',
+      'listCheckRuns',
+      'listCommitStatuses',
       'getCollaboratorPermission',
       'listRepoLabels',
     ]);
@@ -90,6 +102,26 @@ export class FakeGitHubClient implements GitHubClient {
   getPullRequest(pr: number): Promise<PullRequestData> {
     this.record('getPullRequest', pr);
     return Promise.resolve({ ...this.pull, labels: [...this.pull.labels] });
+  }
+
+  getRequiredStatusChecks(branch: string): Promise<string[]> {
+    this.record('getRequiredStatusChecks', branch);
+    return Promise.resolve([...(this.requiredChecks.get(branch) ?? [])]);
+  }
+
+  getBranchHeadSha(branch: string): Promise<string> {
+    this.record('getBranchHeadSha', branch);
+    return Promise.resolve(this.branchHeads.get(branch) ?? 'f'.repeat(40));
+  }
+
+  listCheckRuns(sha: string): Promise<CheckRunData[]> {
+    this.record('listCheckRuns', sha);
+    return Promise.resolve([...(this.checkRuns.get(sha) ?? [])]);
+  }
+
+  listCommitStatuses(sha: string): Promise<CommitStatusData[]> {
+    this.record('listCommitStatuses', sha);
+    return Promise.resolve([...(this.commitStatuses.get(sha) ?? [])]);
   }
 
   listCommits(pr: number): Promise<CommitData[]> {

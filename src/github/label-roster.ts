@@ -32,7 +32,12 @@ export const OWNED_LABEL_DEFINITIONS: Record<
     color: 'DB2777',
     description: 'Needs author input or judgment — not addressable by automated fix-review.',
   },
-  // Placeholder color until the fleet roster assigns one (rmartz/dotfiles#1573).
+  // Placeholder colors until the fleet roster assigns them (rmartz/dotfiles#1573).
+  'ci failing': {
+    name: 'ci failing',
+    color: 'B60205',
+    description: "The PR's required CI (excluding gate checks) is failing on its head.",
+  },
   'fix required': {
     name: 'fix required',
     color: 'D93F0B',

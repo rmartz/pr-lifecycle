@@ -227,9 +227,10 @@ describe('gatherFacts — reviews', () => {
 
     const { facts } = await gatherFacts(client, 7);
 
-    expect([facts.reviews[0]?.author, client.calls.length]).toEqual([
+    const lookups = client.calls.filter((call) => call.method === 'getCollaboratorPermission');
+    expect([facts.reviews[0]?.author, lookups]).toEqual([
       { login: 'ghost', type: 'User', permission: 'none' },
-      2,
+      [],
     ]);
   });
 });
