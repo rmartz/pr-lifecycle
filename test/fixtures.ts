@@ -31,6 +31,8 @@ export function makeFacts(overrides: Partial<PullRequestFacts> = {}): PullReques
     autoMergeEnabled: false,
     botEligible: false,
     mergeable: true,
+    ciStatus: 'passing',
+    baseCiFailing: false,
     reviews: [],
     ...overrides,
   };

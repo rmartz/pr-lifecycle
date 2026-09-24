@@ -64,6 +64,8 @@ const factsArb: fc.Arbitrary<PullRequestFacts> = fc.record({
   autoMergeEnabled: fc.boolean(),
   botEligible: fc.boolean(),
   mergeable: fc.constantFrom(true, true, false, undefined),
+  ciStatus: fc.constantFrom('passing', 'passing', 'pending', 'failing'),
+  baseCiFailing: fc.boolean(),
   reviews: reviewsArb(),
 });
 
@@ -212,6 +214,21 @@ describe('reconciler properties', () => {
 
         expect(plan.autoMerge !== 'arm' || plan.state === 'approved').toBe(true);
       }),
+    );
+  });
+
+  // The CI-gate safety rule: an armed PR that isn't approved — e.g. an unreviewed
+  // push onto an approved PR while CI runs — must never stay armed, or GitHub
+  // would merge unreviewed code as soon as CI passed.
+  it('always disarms an armed open PR that is not approved', () => {
+    fc.assert(
+      fc.property(openFactsArb, policyArb, (facts, policy) => {
+        const armed = { ...facts, autoMergeEnabled: true };
+        const plan = planReconcile(armed, { ...policy, armAutoMerge: true });
+
+        expect(plan.state === 'approved' || plan.autoMerge === 'disarm').toBe(true);
+      }),
+      SECURITY_RUNS,
     );
   });
 });

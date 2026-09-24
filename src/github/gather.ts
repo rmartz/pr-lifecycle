@@ -1,7 +1,8 @@
 import type { BotEligibility } from '../bot-eligibility.js';
 import { classifyBotPr, DEPENDABOT_LOGIN } from '../bot-eligibility.js';
-import type { PullRequestFacts, RepoPermission, ReviewFact } from '../facts.js';
+import type { PullRequestFacts, ReconcilePolicy, RepoPermission, ReviewFact } from '../facts.js';
 import { REPO_PERMISSIONS } from '../facts.js';
+import { gatherCiFacts } from './ci-facts.js';
 import type { GitHubClient, PullRequestData, ReviewData } from './client.js';
 import { isApiStatus } from './client.js';
 
@@ -99,11 +100,16 @@ function toReviewFact(review: ReviewData, permissions: Map<string, RepoPermissio
   };
 }
 
-export async function gatherFacts(client: GitHubClient, pr: number): Promise<GatheredPullRequest> {
+export async function gatherFacts(
+  client: GitHubClient,
+  pr: number,
+  policy: ReconcilePolicy = {},
+): Promise<GatheredPullRequest> {
   const [pull, reviews] = await Promise.all([client.getPullRequest(pr), client.listReviews(pr)]);
-  const [permissions, botEligibility] = await Promise.all([
+  const [permissions, botEligibility, ci] = await Promise.all([
     lookupPermissions(client, reviews),
     gatherBotEligibility(client, pr, pull),
+    gatherCiFacts(client, pull, policy),
   ]);
   return {
     nodeId: pull.nodeId,
@@ -117,6 +123,8 @@ export async function gatherFacts(client: GitHubClient, pr: number): Promise<Gat
       autoMergeEnabled: pull.autoMergeEnabled,
       botEligible: botEligibility.eligible,
       mergeable: pull.mergeable,
+      ciStatus: ci.ciStatus,
+      baseCiFailing: ci.baseCiFailing,
       reviews: reviews.map((review) => toReviewFact(review, permissions)),
     },
   };

@@ -4,6 +4,8 @@
  * docs/reconciler-design.md §Facts.
  */
 
+import type { CiStatus } from './ci.js';
+
 export const REPO_PERMISSIONS = ['admin', 'maintain', 'none', 'read', 'triage', 'write'] as const;
 export type RepoPermission = (typeof REPO_PERMISSIONS)[number];
 
@@ -55,6 +57,10 @@ export interface PullRequestFacts {
    * `undefined` means GitHub hasn't computed it yet (never treated as a conflict).
    */
   mergeable: boolean | undefined;
+  /** The CI gate over the head's required checks (see src/ci.ts). */
+  ciStatus: CiStatus;
+  /** Whether the same required checks are failing on the base branch head. */
+  baseCiFailing: boolean;
   reviews: readonly ReviewFact[];
 }
 
@@ -72,4 +78,11 @@ export interface ReconcilePolicy {
    * Copilot code review (where the wait would never end). Off by default.
    */
   skipCopilotReview?: boolean;
+  /**
+   * Required checks whose *pending* is a hold on a human act, not a running build;
+   * their failures still count. Defaults to `DEFAULT_HOLD_CHECKS` (src/ci.ts).
+   */
+  holdChecks?: readonly string[];
+  /** Required checks the CI gate never counts. Defaults to `DEFAULT_IGNORED_CHECKS`. */
+  ignoredChecks?: readonly string[];
 }

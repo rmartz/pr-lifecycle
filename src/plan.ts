@@ -14,6 +14,7 @@ export const LIFECYCLE_LABELS = [
   'changes requested',
   'escalation needed',
   'fix required',
+  'ci failing',
   'review requested',
 ] as const;
 export type LifecycleLabel = (typeof LIFECYCLE_LABELS)[number];
@@ -29,22 +30,27 @@ export interface ReconcilePlan {
   autoMerge: AutoMergeAction;
 }
 
-function lifecycleLabel(state: LifecycleState): LifecycleLabel | undefined {
+/** The lifecycle labels a state shows: the state label, plus a reason label for CI. */
+function lifecycleLabels(state: LifecycleState): readonly LifecycleLabel[] {
   switch (state) {
     case 'approved':
-      return 'approved';
+      return ['approved'];
     case 'changes-requested':
-      return 'changes requested';
+      return ['changes requested'];
     case 'escalation-needed':
-      return 'escalation needed';
+      return ['escalation needed'];
     case 'fix-required':
-      return 'fix required';
+      return ['fix required'];
+    case 'ci-failing':
+      return ['fix required', 'ci failing'];
     case 'review-requested':
-      return 'review requested';
+      return ['review requested'];
+    case 'awaiting-ci':
     case 'awaiting-copilot':
+    case 'blocked-base-red':
     case 'closed':
     case 'draft':
-      return undefined;
+      return [];
   }
 }
 
@@ -57,11 +63,7 @@ export function planReconcile(facts: PullRequestFacts, policy: ReconcilePolicy):
   const shouldArm = arming && state === 'approved';
 
   const owned: string[] = [...LIFECYCLE_LABELS];
-  const desired = new Set<string>();
-  const label = lifecycleLabel(state);
-  if (label !== undefined) {
-    desired.add(label);
-  }
+  const desired = new Set<string>(lifecycleLabels(state));
   if (arming) {
     owned.push(AUTO_MERGE_LABEL);
     if (shouldArm) {

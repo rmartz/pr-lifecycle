@@ -38,6 +38,8 @@ reconcile options:
   --arm-auto-merge          Arm/disarm native auto-merge from the state
   --trusted-authors <a,b>   Only these logins (with write access) may cast verdicts
   --skip-copilot-review     Don't wait for a Copilot review
+  --hold-checks <a,b>       Required checks whose pending is a hold (default: pr-policy)
+  --ignore-checks <a,b>     Required checks CI never counts (default: merge-safety)
   --dry-run                 Compute the plan without writing anything
   --json                    Print one JSON object (schemaVersion 1) on stdout
 

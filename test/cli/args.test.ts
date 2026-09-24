@@ -42,6 +42,26 @@ describe('parseArgs — reconcile', () => {
     expect(parseArgs([...BASE, flag])).toMatchObject(expected);
   });
 
+  it('parses hold and ignored check lists', () => {
+    expect(
+      parseArgs([...BASE, '--hold-checks', 'pr-policy, uat', '--ignore-checks', 'merge-safety']),
+    ).toMatchObject({
+      policy: { holdChecks: ['pr-policy', 'uat'], ignoredChecks: ['merge-safety'] },
+    });
+  });
+
+  it('allows an empty ignored list, meaning every required check counts', () => {
+    expect(parseArgs([...BASE, '--ignore-checks', ''])).toMatchObject({
+      policy: { ignoredChecks: [] },
+    });
+  });
+
+  it('leaves the check lists unset (defaults apply) when not given', () => {
+    const parsed = parseArgs(BASE);
+
+    expect(parsed.command === 'reconcile' && 'holdChecks' in parsed.policy).toBe(false);
+  });
+
   it('parses and trims trusted authors', () => {
     expect(parseArgs([...BASE, '--trusted-authors', 'rmartz, other ,'])).toMatchObject({
       policy: { trustedAuthors: ['rmartz', 'other'] },
