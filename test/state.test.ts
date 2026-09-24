@@ -135,6 +135,15 @@ describe('computeState', () => {
     );
   });
 
+  it("carries Copilot's review of a clean ancestor over to the head", () => {
+    const facts = makeFacts({
+      reviews: [makeCopilotReview({ commitSha: OLD_SHA })],
+      cleanAncestors: [OLD_SHA],
+    });
+
+    expect(computeState(facts, {})).toBe('review-requested');
+  });
+
   it('stays awaiting-copilot when Copilot only reviewed an older commit', () => {
     const facts = makeFacts({ reviews: [makeCopilotReview({ commitSha: OLD_SHA })] });
 

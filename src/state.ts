@@ -1,5 +1,5 @@
 import type { PullRequestFacts, ReconcilePolicy } from './facts.js';
-import { currentVerdict } from './verdict.js';
+import { countingCommits, currentVerdict } from './verdict.js';
 
 /**
  * Lifecycle state, computed from facts in a fixed priority order. See
@@ -60,9 +60,13 @@ export function computeState(facts: PullRequestFacts, policy: ReconcilePolicy): 
   if (policy.skipCopilotReview === true) {
     return 'review-requested';
   }
+  // Copilot's review carries over a clean base update like a verdict does: it
+  // won't re-review (review_on_push is off), so without this every auto-update
+  // would strand the PR in awaiting-copilot.
+  const reviewedCommits = countingCommits(facts);
   const copilotReviewedHead = facts.reviews.some(
     (review) =>
-      review.author.login === COPILOT_REVIEWER_LOGIN && review.commitSha === facts.headSha,
+      review.author.login === COPILOT_REVIEWER_LOGIN && reviewedCommits.has(review.commitSha),
   );
   return copilotReviewedHead ? 'review-requested' : 'awaiting-copilot';
 }

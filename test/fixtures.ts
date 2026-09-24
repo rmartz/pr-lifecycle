@@ -33,6 +33,7 @@ export function makeFacts(overrides: Partial<PullRequestFacts> = {}): PullReques
     mergeable: true,
     ciStatus: 'passing',
     baseCiFailing: false,
+    cleanAncestors: [],
     reviews: [],
     ...overrides,
   };

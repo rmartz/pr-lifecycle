@@ -32,10 +32,12 @@ export interface ReconcileJson {
     prType: string | null;
     updateType: string | null;
   };
+  /** Approval carry-over across clean base updates; `null` when it didn't run. */
+  carryOver: { cleanAncestors: string[]; stoppedBecause: string } | null;
 }
 
 export function toReconcileJson(target: ReconcileTarget, result: ReconcileResult): ReconcileJson {
-  const { plan, botEligibility } = result;
+  const { plan, botEligibility, lineage } = result;
   return {
     schemaVersion: SCHEMA_VERSION,
     repo: `${target.owner}/${target.repo}`,
@@ -51,6 +53,10 @@ export function toReconcileJson(target: ReconcileTarget, result: ReconcileResult
       prType: botEligibility.prType ?? null,
       updateType: botEligibility.updateType ?? null,
     },
+    carryOver:
+      lineage === undefined
+        ? null
+        : { cleanAncestors: lineage.cleanAncestors, stoppedBecause: lineage.stoppedBecause },
   };
 }
 

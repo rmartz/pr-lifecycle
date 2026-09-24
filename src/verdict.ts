@@ -103,18 +103,30 @@ function compareSubmission(a: ReviewFact, b: ReviewFact): number {
 }
 
 /** The latest verdict that counts for the PR's current head, if any. */
+/**
+ * The commits whose reviews count for the head: the head itself, plus every
+ * commit whose only changes since are verified clean base merges. A clean base
+ * merge leaves the PR's diff unchanged, so a review of the earlier commit still
+ * describes the change being merged. Shared by verdicts and the Copilot gate.
+ */
+export function countingCommits(facts: PullRequestFacts): ReadonlySet<string> {
+  return new Set([facts.headSha, ...facts.cleanAncestors]);
+}
+
 export function currentVerdict(
   facts: PullRequestFacts,
   policy: ReconcilePolicy,
 ): Verdict | undefined {
+  const countingShas = countingCommits(facts);
   let latest: { review: ReviewFact; verdict: Verdict } | undefined;
   for (const review of facts.reviews) {
     const parsed = parseVerdict(review);
     const counts =
       parsed !== undefined &&
       isTrustedAuthor(review.author, policy) &&
-      review.commitSha === facts.headSha &&
-      (parsed.markerHead === undefined || parsed.markerHead === facts.headSha);
+      countingShas.has(review.commitSha) &&
+      // The marker, when present, must name the same commit the review is bound to.
+      (parsed.markerHead === undefined || parsed.markerHead === review.commitSha);
     if (counts && (latest === undefined || compareSubmission(review, latest.review) > 0)) {
       latest = { review, verdict: parsed.verdict };
     }

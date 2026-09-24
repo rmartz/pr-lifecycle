@@ -4,6 +4,8 @@ import type { GitHubClient } from './github/client.js';
 import type { HttpClientOptions } from './github/http-client.js';
 import { createHttpClient } from './github/http-client.js';
 import { reconcilePullRequest } from './github/reconcile.js';
+import type { GitRunner } from './lineage/git.js';
+import { createGitRunner } from './lineage/git.js';
 
 /**
  * Command-line entry for `ai-pr-lifecycle`. Kept free of `process` so it is fully
@@ -24,6 +26,8 @@ export interface CliDeps {
   env: Readonly<Record<string, string | undefined>>;
   /** Builds the GitHub client; tests inject a fake. */
   createClient?: (options: HttpClientOptions) => GitHubClient;
+  /** Runs git for approval carry-over; tests inject one. Defaults to the real binary. */
+  git?: GitRunner;
 }
 
 export const USAGE = `Usage: ai-pr-lifecycle <command> [options]
@@ -79,6 +83,7 @@ export async function runCli(argv: readonly string[], io: CliIo, deps: CliDeps):
   try {
     const result = await reconcilePullRequest(client, args.pr, args.policy, {
       dryRun: args.dryRun,
+      lineage: { git: deps.git ?? createGitRunner(), token },
     });
     if (args.json) {
       io.stdout(JSON.stringify(toReconcileJson(target, result)));

@@ -1,7 +1,9 @@
 import type {
   CollaboratorPermission,
   CheckRunData,
+  CommitComparison,
   CommitData,
+  CommitObject,
   CommitStatusData,
   GitHubClient,
   LabelDefinition,
@@ -32,6 +34,7 @@ export function makePullRequestData(overrides: Partial<PullRequestData> = {}): P
     authorLogin: 'contributor',
     headRef: 'feature/thing',
     baseRef: 'main',
+    cloneUrl: 'https://github.com/rmartz/demo.git',
     isCrossRepository: false,
     mergeable: true,
     ...overrides,
@@ -60,6 +63,10 @@ export class FakeGitHubClient implements GitHubClient {
   branchHeads = new Map<string, string>();
   checkRuns = new Map<string, CheckRunData[]>();
   commitStatuses = new Map<string, CommitStatusData[]>();
+  /** Commit structure by sha; an absent sha is a plain (one-parent) commit. */
+  commitObjects = new Map<string, CommitObject>();
+  /** Comparisons keyed by `base...head`. */
+  comparisons = new Map<string, CommitComparison>();
   /** Collaborators by login; an absent login is a non-collaborator (404). */
   permissions = new Map<string, CollaboratorPermission>();
   repoLabels = new Map<string, LabelDefinition>();
@@ -84,6 +91,8 @@ export class FakeGitHubClient implements GitHubClient {
       'getBranchHeadSha',
       'listCheckRuns',
       'listCommitStatuses',
+      'getCommit',
+      'compareCommits',
       'getCollaboratorPermission',
       'listRepoLabels',
     ]);
@@ -117,6 +126,20 @@ export class FakeGitHubClient implements GitHubClient {
   listCheckRuns(sha: string): Promise<CheckRunData[]> {
     this.record('listCheckRuns', sha);
     return Promise.resolve([...(this.checkRuns.get(sha) ?? [])]);
+  }
+
+  getCommit(sha: string): Promise<CommitObject> {
+    this.record('getCommit', sha);
+    return Promise.resolve(
+      this.commitObjects.get(sha) ?? { treeSha: 'f'.repeat(40), parents: ['0'.repeat(40)] },
+    );
+  }
+
+  compareCommits(base: string, head: string): Promise<CommitComparison> {
+    this.record('compareCommits', base, head);
+    return Promise.resolve(
+      this.comparisons.get(`...`) ?? { status: 'diverged', mergeBaseSha: '0'.repeat(40) },
+    );
   }
 
   listCommitStatuses(sha: string): Promise<CommitStatusData[]> {
