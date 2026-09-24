@@ -24,9 +24,6 @@ relevant to your task before editing code — see
 - [Bot-PR eligibility](bot-eligibility.md) — which bot PRs count as approved
   without review, how the Dependabot update type is read, and why fork PRs are
   never eligible.
-- [UAT gate design](uat-gate.md) — the opt-in `uat` check-run: the UAT
-  requirement read from the head-bound verdict, the human-only overrides and
-  their actor check (decided, not yet built).
 - [The `ai-pr-lifecycle` CLI](cli.md) — the `reconcile` command's flags,
   environment, exit codes, and the versioned `--json` contract the action builds
   on.
