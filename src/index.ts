@@ -39,10 +39,13 @@ export type {
 } from './facts.js';
 export { GitHubApiError, isApiStatus } from './github/client.js';
 export type {
+  CheckRunData,
+  CheckRunWrite,
   CollaboratorPermission,
   CommitData,
   GitHubClient,
   LabelDefinition,
+  LabelEventData,
   PullRequestData,
   ReleaseActions,
   ReviewData,
@@ -64,6 +67,7 @@ export { OWNED_LABEL_DEFINITIONS } from './github/label-roster.js';
 export { gatherLineage, MAX_CHAIN_STEPS } from './github/lineage-facts.js';
 export type { Lineage, LineageInput } from './github/lineage-facts.js';
 export { reconcilePullRequest } from './github/reconcile.js';
+export { isUatCheckCurrent, uatCheckRun } from './github/uat-check.js';
 export type { ReconcileOptions, ReconcileResult } from './github/reconcile.js';
 export {
   buildTokenAdvisoryBody,
@@ -86,5 +90,19 @@ export {
 export type { AutoMergeAction, LifecycleLabel, ReconcilePlan, UpdateAction } from './plan.js';
 export { COPILOT_REVIEWER_LOGIN, computeState, LIFECYCLE_STATES } from './state.js';
 export type { LifecycleState } from './state.js';
-export { currentVerdict, isTrustedAuthor, parseVerdict, VERDICTS } from './verdict.js';
-export type { ParsedVerdict, Verdict } from './verdict.js';
+export {
+  computeUatGate,
+  overrideForLabel,
+  UAT_CHECK_NAME,
+  UAT_OVERRIDE_LABELS,
+} from './uat.js';
+export type { UatGate, UatGateReason, UatOverrideFact, UatOverrideLabel } from './uat.js';
+export {
+  currentVerdict,
+  isTrustedAuthor,
+  latestCountingVerdict,
+  parseVerdict,
+  UAT_REQUIREMENTS,
+  VERDICTS,
+} from './verdict.js';
+export type { ParsedVerdict, UatRequirement, Verdict } from './verdict.js';
