@@ -57,6 +57,12 @@ export interface PullRequestFacts {
    * `undefined` means GitHub hasn't computed it yet (never treated as a conflict).
    */
   mergeable: boolean | undefined;
+  /**
+   * Whether GitHub would merge the PR right now, with nothing left to wait on
+   * (merge state `clean`, `has_hooks`, or `unstable`). Auto-merge can't be armed
+   * then, so an approved PR is merged directly instead, as `gh pr merge --auto` does.
+   */
+  immediatelyMergeable: boolean;
   /** The CI gate over the head's required checks (see src/ci.ts). */
   ciStatus: CiStatus;
   /** Whether the same required checks are failing on the base branch head. */

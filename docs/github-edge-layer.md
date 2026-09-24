@@ -20,7 +20,7 @@ Source: `src/github/`.
 
 `GitHubClient` (`client.ts`) is a narrow, domain-shaped interface: get the PR,
 list reviews, list commits, get a collaborator's permission, list/create repo labels,
-add/remove PR labels, and enable/disable auto-merge. All decisions live in
+add/remove PR labels, list/post PR comments, enable/disable auto-merge, and merge. All decisions live in
 `gather.ts` and `execute.ts`, which are tested against an in-memory fake
 (`test/github/fake-client.ts`). The real implementation, `createHttpClient`
 (`http-client.ts`), only maps requests and responses: REST for reads and labels,
@@ -50,7 +50,7 @@ HTTP status.
 ## Execute
 
 Writes happen in a **fail-safe order**: disarm auto-merge → remove labels → add
-labels → arm auto-merge. If a run dies partway, auto-merge is never left armed
+labels → arm (or merge). If a run dies partway, auto-merge is never left armed
 on a PR that isn't approved, and arming happens only after the labels that
 explain it are written.
 
@@ -64,10 +64,27 @@ explain it are written.
   correctly colored labels (ai-tools#281). An existing label is never modified.
 - An empty plan makes **no** API calls.
 
-## Known limitation: arming an already-mergeable PR
+## Arming and merging
 
-`enablePullRequestAutoMerge` fails with _"Pull request is in clean status"_ when
-the PR is already mergeable, e.g. it is approved _after_ every required check
-passed. Auto-merge can't be armed then; `gh pr merge --auto` works around this by
-merging immediately. How the reconciler should handle this (merge directly, or
-leave it for the next trigger) is part of the arming work in #7.
+- **Merge or arm.** The plan says `merge` for an approved PR GitHub would merge
+  right now and `arm` otherwise (see [Plan](reconciler-design.md#plan)), matching
+  `gh pr merge --auto`. Both are squash.
+- **Bound to the planned head.** Both mutations pass `expectedHeadOid` = the head
+  the plan was computed for. If a commit lands mid-run, GitHub rejects the merge
+  or arm instead of merging an unreviewed commit, and the error is not retried.
+- **Clean-status fallback.** If arming fails with _"…clean status"_ (the PR became
+  mergeable between the read and the arm), the executor merges instead, bound to
+  the same head. Any other arming error propagates.
+- **A real-actor token.** A merge made with `GITHUB_TOKEN` triggers no `on: push`
+  workflows (releases, CI on `main`). So arming and merging go through
+  `ReleaseActions` (`Pick<GitHubClient, 'enableAutoMerge' | 'mergePullRequest'>`),
+  a client built from a separate release token that is never used for anything
+  else, reads included. Disarming uses the main client, since any token may do it.
+  `reconcilePullRequest` takes it as `options.release`, defaulting to the main
+  client, which is right when that token is itself a real actor.
+- **No release token.** `release: 'unavailable'` applies `withoutArming` to the
+  plan: labels converge, the arm or merge is skipped (reported as
+  `skippedAutoMerge`), and a disarm still happens. It never falls back to the
+  main token. A stub that refuses both calls stands in, so a regression fails
+  loudly instead. The CLI's handling (a warning and an advisory comment) is in
+  [the CLI](cli.md#release-token).

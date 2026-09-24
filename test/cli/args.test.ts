@@ -30,6 +30,7 @@ describe('parseArgs — reconcile', () => {
       policy: { armAutoMerge: false, skipCopilotReview: false },
       dryRun: false,
       json: false,
+      tokenAdvisory: true,
     });
   });
 
@@ -38,6 +39,7 @@ describe('parseArgs — reconcile', () => {
     ['--skip-copilot-review', { policy: { armAutoMerge: false, skipCopilotReview: true } }],
     ['--dry-run', { dryRun: true }],
     ['--json', { json: true }],
+    ['--no-token-advisory', { tokenAdvisory: false }],
   ])('sets %s', (flag, expected) => {
     expect(parseArgs([...BASE, flag])).toMatchObject(expected);
   });

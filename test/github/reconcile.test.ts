@@ -127,3 +127,96 @@ describe('reconcilePullRequest', () => {
     expect([client.pull.labels, client.pull.autoMergeEnabled]).toEqual([[], false]);
   });
 });
+
+describe('reconcilePullRequest — merge or arm', () => {
+  it.each(['clean', 'has_hooks', 'unstable'])(
+    'merges an approved PR whose merge state is %s, bound to its head',
+    async (mergeState) => {
+      const client = makeApprovedClient();
+      client.pull.mergeState = mergeState;
+
+      await reconcilePullRequest(client, 7, ARMING);
+
+      expect(client.writes.filter((call) => call.method === 'mergePullRequest')).toEqual([
+        { method: 'mergePullRequest', args: ['PR_node', HEAD_SHA] },
+      ]);
+    },
+  );
+
+  it.each(['blocked', 'behind', 'unknown', undefined])(
+    'arms, not merges, an approved PR whose merge state is %s',
+    async (mergeState) => {
+      const client = makeApprovedClient();
+      client.pull.mergeState = mergeState;
+
+      const { plan } = await reconcilePullRequest(client, 7, ARMING);
+
+      expect(plan.autoMerge).toBe('arm');
+    },
+  );
+
+  it('arms and merges through the release actions when given', async () => {
+    const client = makeApprovedClient();
+    const release = new FakeGitHubClient();
+
+    await reconcilePullRequest(client, 7, ARMING, { release });
+
+    expect([
+      client.writes.some((call) => call.method === 'enableAutoMerge'),
+      release.calls.map((call) => call.method),
+    ]).toEqual([false, ['enableAutoMerge']]);
+  });
+});
+
+describe('reconcilePullRequest — release unavailable', () => {
+  it('keeps the labels but neither arms nor claims the auto-merge label', async () => {
+    const client = makeApprovedClient();
+
+    const { plan } = await reconcilePullRequest(client, 7, ARMING, { release: 'unavailable' });
+
+    expect([plan.autoMerge, client.pull.labels, client.pull.autoMergeEnabled]).toEqual([
+      'none',
+      ['approved'],
+      false,
+    ]);
+  });
+
+  it.each([
+    ['blocked', 'arm'],
+    ['clean', 'merge'],
+  ] as const)('reports a skipped %s → %s', async (mergeState, skipped) => {
+    const client = makeApprovedClient();
+    client.pull.mergeState = mergeState;
+
+    const result = await reconcilePullRequest(client, 7, ARMING, { release: 'unavailable' });
+
+    expect([result.skippedAutoMerge, client.pull.merged]).toEqual([skipped, false]);
+  });
+
+  it('still disarms a PR that lost its approval', async () => {
+    const client = new FakeGitHubClient(
+      makePullRequestData({ labels: ['auto-merge enabled'], autoMergeEnabled: true }),
+    );
+
+    const result = await reconcilePullRequest(client, 7, ARMING, { release: 'unavailable' });
+
+    expect([result.plan.autoMerge, result.skippedAutoMerge, client.pull.autoMergeEnabled]).toEqual([
+      'disarm',
+      undefined,
+      false,
+    ]);
+  });
+
+  it('reports nothing skipped when arming is off', async () => {
+    const client = makeApprovedClient();
+
+    const { skippedAutoMerge } = await reconcilePullRequest(
+      client,
+      7,
+      {},
+      { release: 'unavailable' },
+    );
+
+    expect(skippedAutoMerge).toBeUndefined();
+  });
+});

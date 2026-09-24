@@ -1,5 +1,3 @@
-import type { ActorType, ReviewState } from '../facts.js';
-import { REVIEW_STATES } from '../facts.js';
 import type {
   CheckRunData,
   CollaboratorPermission,
@@ -10,9 +8,10 @@ import type {
   GitHubClient,
   LabelDefinition,
   PullRequestData,
-  ReviewData,
 } from './client.js';
 import { GitHubApiError } from './client.js';
+import type { RestCheckRun, RestCommit, RestPull, RestReview, RestRule } from './rest-payloads.js';
+import { toReviewData } from './rest-payloads.js';
 
 /**
  * The real GitHubClient: REST for reads and labels, GraphQL for the auto-merge
@@ -32,78 +31,16 @@ export interface HttpClientOptions {
 
 const PAGE_SIZE = 100;
 
-// Minimal shapes of the REST payloads we read. Fields are optional/unknown
-// where GitHub can omit or null them.
-interface RestPull {
-  node_id: string;
-  state: 'closed' | 'open';
-  merged: boolean;
-  draft?: boolean;
-  title: string;
-  user: { login: string } | null;
-  /** `head.repo` is null when the fork was deleted. */
-  head: { sha: string; ref: string; repo: { id: number } | null };
-  base: { ref: string; repo: { id: number; clone_url: string } };
-  labels: { name: string }[];
-  auto_merge: unknown;
-  /** `null` while GitHub computes mergeability in the background. */
-  mergeable: boolean | null;
-}
-
-interface RestCheckRun {
-  name: string;
-  status: string;
-  conclusion: string | null;
-  completed_at: string | null;
-}
-
-interface RestRule {
-  type: string;
-  parameters?: { required_status_checks?: { context: string }[] };
-}
-
-interface RestCommit {
-  author: { login: string } | null;
-  commit: { message: string };
-}
-
-interface RestReview {
-  id: number;
-  user: { login: string; type: string } | null;
-  commit_id: string;
-  state: string;
-  body: string | null;
-  submitted_at?: string | null;
-}
-
 interface GraphQlResponse {
   errors?: { message: string }[];
 }
 
-/** An unrecognized review state must never count as a verdict. */
-function toReviewState(state: string): ReviewState {
-  return REVIEW_STATES.find((known) => known === state) ?? 'DISMISSED';
-}
+const ENABLE_AUTO_MERGE = `mutation($id: ID!, $head: GitObjectID!) {
+  enablePullRequestAutoMerge(input: { pullRequestId: $id, mergeMethod: SQUASH, expectedHeadOid: $head }) { clientMutationId }
+}`;
 
-/** Anything that isn't plainly a User (e.g. an Organization) is untrusted. */
-function toActorType(type: string): ActorType {
-  return type === 'User' ? 'User' : 'Bot';
-}
-
-function toReviewData(review: RestReview): ReviewData {
-  return {
-    id: review.id,
-    login: review.user?.login,
-    type: review.user === null ? 'User' : toActorType(review.user.type),
-    commitSha: review.commit_id,
-    state: toReviewState(review.state),
-    body: review.body ?? '',
-    submittedAt: review.submitted_at ?? undefined,
-  };
-}
-
-const ENABLE_AUTO_MERGE = `mutation($id: ID!) {
-  enablePullRequestAutoMerge(input: { pullRequestId: $id, mergeMethod: SQUASH }) { clientMutationId }
+const MERGE_PULL_REQUEST = `mutation($id: ID!, $head: GitObjectID!) {
+  mergePullRequest(input: { pullRequestId: $id, mergeMethod: SQUASH, expectedHeadOid: $head }) { clientMutationId }
 }`;
 
 const DISABLE_AUTO_MERGE = `mutation($id: ID!) {
@@ -179,6 +116,7 @@ export function createHttpClient(options: HttpClientOptions): GitHubClient {
         // repo is treated as a fork, so it can never look like a trusted branch.
         isCrossRepository: pull.head.repo?.id !== pull.base.repo.id,
         mergeable: pull.mergeable ?? undefined,
+        mergeState: pull.mergeable_state,
       };
     },
     async getRequiredStatusChecks(branch) {
@@ -277,8 +215,18 @@ export function createHttpClient(options: HttpClientOptions): GitHubClient {
     async removeLabel(pr, name) {
       await request('DELETE', `${repoPath}/issues/${pr}/labels/${encodeURIComponent(name)}`);
     },
-    async enableAutoMerge(pullRequestNodeId) {
-      await graphql(ENABLE_AUTO_MERGE, { id: pullRequestNodeId });
+    async listIssueComments(pr) {
+      const comments = await paginate<{ body: string | null }>(`${repoPath}/issues/${pr}/comments`);
+      return comments.map((comment) => comment.body ?? '');
+    },
+    async createIssueComment(pr, body) {
+      await request('POST', `${repoPath}/issues/${pr}/comments`, { body });
+    },
+    async enableAutoMerge(pullRequestNodeId, expectedHeadOid) {
+      await graphql(ENABLE_AUTO_MERGE, { id: pullRequestNodeId, head: expectedHeadOid });
+    },
+    async mergePullRequest(pullRequestNodeId, expectedHeadOid) {
+      await graphql(MERGE_PULL_REQUEST, { id: pullRequestNodeId, head: expectedHeadOid });
     },
     async disableAutoMerge(pullRequestNodeId) {
       await graphql(DISABLE_AUTO_MERGE, { id: pullRequestNodeId });

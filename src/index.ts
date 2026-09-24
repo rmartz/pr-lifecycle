@@ -37,6 +37,7 @@ export type {
   GitHubClient,
   LabelDefinition,
   PullRequestData,
+  ReleaseActions,
   ReviewData,
 } from './github/client.js';
 export { executePlan } from './github/execute.js';
@@ -50,12 +51,18 @@ export { gatherLineage, MAX_CHAIN_STEPS } from './github/lineage-facts.js';
 export type { Lineage, LineageInput } from './github/lineage-facts.js';
 export { reconcilePullRequest } from './github/reconcile.js';
 export type { ReconcileOptions, ReconcileResult } from './github/reconcile.js';
+export {
+  buildTokenAdvisoryBody,
+  postTokenAdvisory,
+  RELEASE_TOKEN_DOCS_URL,
+  TOKEN_ADVISORY_MARKER,
+} from './github/token-advisory.js';
 export type { GatherOptions } from './github/gather.js';
 export { createGitRunner, parseGitVersion } from './lineage/git.js';
 export type { GitResult, GitRunner } from './lineage/git.js';
 export { createMergeVerifier } from './lineage/verify.js';
 export type { MergeStep, MergeVerifier, RepoSource } from './lineage/verify.js';
-export { AUTO_MERGE_LABEL, LIFECYCLE_LABELS, planReconcile } from './plan.js';
+export { AUTO_MERGE_LABEL, LIFECYCLE_LABELS, planReconcile, withoutArming } from './plan.js';
 export type { AutoMergeAction, LifecycleLabel, ReconcilePlan } from './plan.js';
 export { COPILOT_REVIEWER_LOGIN, computeState, LIFECYCLE_STATES } from './state.js';
 export type { LifecycleState } from './state.js';

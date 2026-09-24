@@ -34,10 +34,12 @@ export interface ReconcileJson {
   };
   /** Approval carry-over across clean base updates; `null` when it didn't run. */
   carryOver: { cleanAncestors: string[]; stoppedBecause: string } | null;
+  /** An arm or merge the plan wanted but skipped; `null` when nothing was skipped. */
+  autoMergeSkipped: { action: 'arm' | 'merge'; reason: 'token-missing' } | null;
 }
 
 export function toReconcileJson(target: ReconcileTarget, result: ReconcileResult): ReconcileJson {
-  const { plan, botEligibility, lineage } = result;
+  const { plan, botEligibility, lineage, skippedAutoMerge } = result;
   return {
     schemaVersion: SCHEMA_VERSION,
     repo: `${target.owner}/${target.repo}`,
@@ -57,6 +59,9 @@ export function toReconcileJson(target: ReconcileTarget, result: ReconcileResult
       lineage === undefined
         ? null
         : { cleanAncestors: lineage.cleanAncestors, stoppedBecause: lineage.stoppedBecause },
+    // The CLI makes release actions unavailable only for a missing token.
+    autoMergeSkipped:
+      skippedAutoMerge === undefined ? null : { action: skippedAutoMerge, reason: 'token-missing' },
   };
 }
 
@@ -67,6 +72,9 @@ export function formatSummary(target: ReconcileTarget, result: ReconcileResult):
     ...plan.addLabels.map((label) => `+${label}`),
     ...plan.removeLabels.map((label) => `-${label}`),
     ...(plan.autoMerge === 'none' ? [] : [`auto-merge ${plan.autoMerge}`]),
+    ...(result.skippedAutoMerge === undefined
+      ? []
+      : [`auto-merge ${result.skippedAutoMerge} skipped (no release token)`]),
   ];
   const prefix = target.dryRun ? '[dry-run] ' : '';
   const body = changes.length === 0 ? 'no changes' : changes.join(', ');

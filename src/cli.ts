@@ -4,6 +4,7 @@ import type { GitHubClient } from './github/client.js';
 import type { HttpClientOptions } from './github/http-client.js';
 import { createHttpClient } from './github/http-client.js';
 import { reconcilePullRequest } from './github/reconcile.js';
+import { postTokenAdvisory } from './github/token-advisory.js';
 import type { GitRunner } from './lineage/git.js';
 import { createGitRunner } from './lineage/git.js';
 
@@ -46,9 +47,13 @@ reconcile options:
   --ignore-checks <a,b>     Required checks CI never counts (default: merge-safety)
   --dry-run                 Compute the plan without writing anything
   --json                    Print one JSON object (schemaVersion 1) on stdout
+  --no-token-advisory       Don't comment on the PR when arming lacks a release token
 
 Environment:
   GITHUB_TOKEN              Token for reads and writes (required)
+  PR_LIFECYCLE_TOKEN
+                            Real-actor token for arming and merging; without it,
+                            --arm-auto-merge keeps labels but skips arm/merge
   GITHUB_API_URL            API base URL (GitHub Enterprise Server)`;
 
 export async function runCli(argv: readonly string[], io: CliIo, deps: CliDeps): Promise<number> {
@@ -72,19 +77,34 @@ export async function runCli(argv: readonly string[], io: CliIo, deps: CliDeps):
   }
   const createClient = deps.createClient ?? createHttpClient;
   const apiUrl = deps.env['GITHUB_API_URL'];
-  const client = createClient({
-    token,
-    owner: args.owner,
-    repo: args.repo,
-    ...(apiUrl === undefined || apiUrl === '' ? {} : { apiUrl }),
-  });
+  const clientFor = (clientToken: string): GitHubClient =>
+    createClient({
+      token: clientToken,
+      owner: args.owner,
+      repo: args.repo,
+      ...(apiUrl === undefined || apiUrl === '' ? {} : { apiUrl }),
+    });
+  const client = clientFor(token);
+  const releaseToken = deps.env['PR_LIFECYCLE_TOKEN'];
+  const hasReleaseToken = releaseToken !== undefined && releaseToken !== '';
   const target = { owner: args.owner, repo: args.repo, pr: args.pr, dryRun: args.dryRun };
 
   try {
     const result = await reconcilePullRequest(client, args.pr, args.policy, {
       dryRun: args.dryRun,
       lineage: { git: deps.git ?? createGitRunner(), token },
+      // Only arming and merging use the release token (never reads). Without one
+      // they are skipped, not done with GITHUB_TOKEN; see docs/cli.md.
+      release: hasReleaseToken ? clientFor(releaseToken) : 'unavailable',
     });
+    if (result.skippedAutoMerge !== undefined) {
+      io.stderr(
+        `warning: ${args.owner}/${args.repo}#${args.pr} is approved, but auto-merge ${result.skippedAutoMerge} was skipped: PR_LIFECYCLE_TOKEN is not set`,
+      );
+      if (args.tokenAdvisory && !args.dryRun) {
+        await adviseMissingToken(client, args.pr, result.skippedAutoMerge, io);
+      }
+    }
     if (args.json) {
       io.stdout(JSON.stringify(toReconcileJson(target, result)));
     } else {
@@ -95,5 +115,20 @@ export async function runCli(argv: readonly string[], io: CliIo, deps: CliDeps):
     const message = error instanceof Error ? error.message : String(error);
     io.stderr(`reconcile failed for ${args.owner}/${args.repo}#${args.pr}: ${message}`);
     return 1;
+  }
+}
+
+/** Best effort: the reconcile already succeeded, so a failed comment only warns. */
+async function adviseMissingToken(
+  client: GitHubClient,
+  pr: number,
+  skipped: 'arm' | 'merge',
+  io: CliIo,
+): Promise<void> {
+  try {
+    await postTokenAdvisory(client, pr, skipped);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    io.stderr(`warning: could not post the missing-token advisory: ${message}`);
   }
 }

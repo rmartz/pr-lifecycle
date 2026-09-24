@@ -21,7 +21,11 @@ export type LifecycleLabel = (typeof LIFECYCLE_LABELS)[number];
 
 export const AUTO_MERGE_LABEL = 'auto-merge enabled';
 
-export type AutoMergeAction = 'arm' | 'disarm' | 'none';
+/**
+ * `merge` is arming's twin for a PR GitHub would already merge: auto-merge can't
+ * be armed then, so it is merged directly (see `immediatelyMergeable`).
+ */
+export type AutoMergeAction = 'arm' | 'disarm' | 'merge' | 'none';
 
 export interface ReconcilePlan {
   state: LifecycleState;
@@ -62,24 +66,46 @@ export function planReconcile(facts: PullRequestFacts, policy: ReconcilePolicy):
   const arming = policy.armAutoMerge === true;
   const shouldArm = arming && state === 'approved';
 
+  let autoMerge: AutoMergeAction = 'none';
+  if (arming && shouldArm !== facts.autoMergeEnabled) {
+    if (!shouldArm) {
+      autoMerge = 'disarm';
+    } else {
+      autoMerge = facts.immediatelyMergeable ? 'merge' : 'arm';
+    }
+  }
+
   const owned: string[] = [...LIFECYCLE_LABELS];
   const desired = new Set<string>(lifecycleLabels(state));
   if (arming) {
     owned.push(AUTO_MERGE_LABEL);
-    if (shouldArm) {
+    // A direct merge arms nothing, so it doesn't claim the label.
+    if (shouldArm && autoMerge !== 'merge') {
       desired.add(AUTO_MERGE_LABEL);
     }
   }
 
   const present = new Set(facts.labels);
-  let autoMerge: AutoMergeAction = 'none';
-  if (arming && shouldArm !== facts.autoMergeEnabled) {
-    autoMerge = shouldArm ? 'arm' : 'disarm';
-  }
   return {
     state,
     addLabels: [...desired].filter((name) => !present.has(name)),
     removeLabels: owned.filter((name) => present.has(name) && !desired.has(name)),
     autoMerge,
+  };
+}
+
+/**
+ * The plan with arming and merging taken out, for when no real-actor token is
+ * available to perform them (docs/cli.md §Release token). Disarming stays: it is
+ * safety, and any token may do it. Pure, like the planner.
+ */
+export function withoutArming(plan: ReconcilePlan): ReconcilePlan {
+  if (plan.autoMerge !== 'arm' && plan.autoMerge !== 'merge') {
+    return plan;
+  }
+  return {
+    ...plan,
+    addLabels: plan.addLabels.filter((name) => name !== AUTO_MERGE_LABEL),
+    autoMerge: 'none',
   };
 }

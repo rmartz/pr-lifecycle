@@ -14,6 +14,8 @@ export interface ReconcileArgs {
   policy: ReconcilePolicy;
   dryRun: boolean;
   json: boolean;
+  /** Comment on the PR when arming is skipped for want of a release token. */
+  tokenAdvisory: boolean;
 }
 
 export type ParsedArgs =
@@ -42,6 +44,7 @@ function parseReconcile(args: readonly string[]): ParsedArgs {
   let skipCopilotReview = false;
   let dryRun = false;
   let json = false;
+  let tokenAdvisory = true;
 
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index] ?? '';
@@ -57,6 +60,9 @@ function parseReconcile(args: readonly string[]): ParsedArgs {
         break;
       case '--json':
         json = true;
+        break;
+      case '--no-token-advisory':
+        tokenAdvisory = false;
         break;
       case '--repo':
       case '--pr':
@@ -109,6 +115,7 @@ function parseReconcile(args: readonly string[]): ParsedArgs {
     },
     dryRun,
     json,
+    tokenAdvisory,
   };
 }
 
