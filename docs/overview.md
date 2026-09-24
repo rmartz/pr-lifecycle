@@ -23,8 +23,7 @@ they resolve.
 > and the [`ai-pr-lifecycle reconcile` CLI](cli.md) are implemented. The composite
 > action that runs it in consumer repos is built in
 > [`rmartz/pr-lifecycle-action`](https://github.com/rmartz/pr-lifecycle-action).
-> Remaining work (the [UAT gate](uat-gate.md), dogfooding) is
-> tracked in the **Reconciler v1** milestone.
+> Remaining work (dogfooding) is tracked in the **Reconciler v1** milestone.
 
 ## Lifecycle
 
@@ -53,15 +52,21 @@ verdict on the old head.
    `GITHUB_TOKEN` doesn't trigger downstream `on: push` releases, so arming and
    merging use a separate real-actor [release token](cli.md#release-token), and
    are skipped (never done with `GITHUB_TOKEN`) when it isn't configured.
-4. **Merge gating belongs to the consumer's ruleset.** This package arms
-   auto-merge and never inspects, names, or waits on a specific check, and never
-   renames a PR. The one gate it owns is **UAT**: if UAT gates merges, this package
-   exposes it as a check the ruleset can require (see [UAT gate design](uat-gate.md)).
+4. **Merge gating belongs to the consumer's ruleset.** This package moves a PR
+   through review, fix, and approval and arms auto-merge on `approved`; it owns
+   no merge gate of its own and never renames a PR. The hard gates a PR must pass
+   before merging, **UAT and CI sign-off** included, are
+   [pr-policy](https://github.com/rmartz/pr-policy)'s required check, so an
+   approved, armed PR simply waits on it. (The [CI gate](reconciler-design.md#ci-gate)
+   reads required checks only to route a PR, never to hold its merge.)
 
 ## Relationship to other packages
 
-- **`pr-policy` (ai-tools#302)** — fully independent read-only classifier suite;
-  the two write disjoint label sets and meet only in the consumer's ruleset.
+- **[`pr-policy`](https://github.com/rmartz/pr-policy) (ai-tools#302)** — enforces
+  the hard merge gates (CI sign-off, title rules, and UAT sign-off via
+  rmartz/pr-policy#13) as one required `pr-policy` check. Fully independent: the
+  two write disjoint label sets and meet only in the consumer's ruleset, where
+  the CI gate treats a pending `pr-policy` as a hold, not running CI.
 - **[`@rmartz/merge-safety`](https://github.com/rmartz/merge-safety)** —
   unchanged; its check-run is one of the consumer's required gates.
 - **[`@rmartz/bot-automerge`](https://github.com/rmartz/bot-automerge)** — once
@@ -69,6 +74,12 @@ verdict on the old head.
   shrinks to an eligibility predicate that produces an automatic approval.
 
 ## Decisions
+
+- **UAT is pr-policy's gate, not this package's.** It holds by default and
+  passes on a statically trivial PR, on `no UAT needed` (from the review agent or
+  a person), or on `UAT passed` (from a person). Because a missing label is a
+  hold, an approved PR can be armed at any time without a race; the UAT labels
+  are neither read nor written here (#25, closed in favor of rmartz/pr-policy#13).
 
 - **Trust = write permission.** A verdict counts only from a human (`User`, not a
   `Bot`) with write, maintain, or admin permission on the repo, optionally narrowed
