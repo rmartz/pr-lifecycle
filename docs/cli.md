@@ -106,7 +106,7 @@ never omitted:
 [Bot-PR eligibility](bot-eligibility.md). `carryOver` reports
 [approval carry-over](reconciler-design.md#approval-carry-over): the verified clean
 ancestors whose reviews count, and why the walk stopped (e.g. `… is not the clean
-automatic merge`). It is `null` when carry-over didn't run (a closed PR).
+automatic merge`). It is `null` when carry-over didn't run (a closed PR); a walk that failed reports `verification failed: …` and carries nothing.
 
 ## Versioning
 
