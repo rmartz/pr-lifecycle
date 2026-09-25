@@ -4,7 +4,6 @@ export {
   DEPENDABOT_UPDATE_TYPES,
   parseDependabotUpdateType,
   RELEASE_PLEASE_BRANCH_PREFIX,
-  RELEASE_PLEASE_PENDING_LABEL,
 } from './bot-eligibility.js';
 export type {
   BotEligibility,
@@ -64,6 +63,8 @@ export { OWNED_LABEL_DEFINITIONS } from './github/label-roster.js';
 export { gatherLineage, MAX_CHAIN_STEPS } from './github/lineage-facts.js';
 export type { Lineage, LineageInput } from './github/lineage-facts.js';
 export { reconcilePullRequest } from './github/reconcile.js';
+export { classifyReleaseDiff, isVersionOnlyPatch } from './release-diff.js';
+export type { ChangedFile, ReleaseDiffVerdict } from './release-diff.js';
 export type { ReconcileOptions, ReconcileResult } from './github/reconcile.js';
 export {
   buildTokenAdvisoryBody,

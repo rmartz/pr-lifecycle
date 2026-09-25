@@ -56,6 +56,7 @@ const REST_PULL = {
   base: { ref: 'main', repo: { id: 11, clone_url: 'https://github.com/rmartz/demo.git' } },
   labels: [{ name: 'approved' }],
   auto_merge: { merge_method: 'squash' },
+  changed_files: 3,
 };
 
 function makeRestReview(id: number, overrides: Record<string, unknown> = {}) {
@@ -118,6 +119,7 @@ describe('createHttpClient requests', () => {
       baseRef: 'main',
       cloneUrl: 'https://github.com/rmartz/demo.git',
       isCrossRepository: false,
+      changedFileCount: 3,
     });
   });
 
@@ -447,6 +449,23 @@ describe('createHttpClient requests', () => {
       'POST',
       'https://api.github.com/repos/rmartz/demo/issues/7/comments',
       { body: 'hello' },
+    ]);
+  });
+
+  it('lists changed files with their patches, paginating', async () => {
+    const file = { filename: 'CHANGELOG.md', status: 'modified', patch: '+x' };
+    const fullPage = Array.from({ length: 100 }, () => file);
+    const { client, requests } = makeTransport([
+      { json: fullPage },
+      { json: [{ filename: 'logo.png', status: 'added' }] },
+    ]);
+
+    const files = await client.listPullRequestFiles(7);
+
+    expect([files.length, files[100], requests[1]?.url]).toEqual([
+      101,
+      { filename: 'logo.png', status: 'added', patch: undefined },
+      'https://api.github.com/repos/rmartz/demo/pulls/7/files?per_page=100&page=2',
     ]);
   });
 

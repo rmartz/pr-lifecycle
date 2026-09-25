@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { BotPrCommit, BotPrFacts } from '../src/bot-eligibility.js';
 import { classifyBotPr, parseDependabotUpdateType } from '../src/bot-eligibility.js';
+import { makeChangedFile, makeReleaseFiles } from './fixtures.js';
 
 function makeDependabotMessage(...updateTypes: string[]): string {
   const entries = updateTypes
@@ -26,8 +27,8 @@ function makeBotPrFacts(overrides: Partial<BotPrFacts> = {}): BotPrFacts {
     authorLogin: 'dependabot[bot]',
     headRef: 'dependabot/npm_and_yarn/prettier-3.9.8',
     isCrossRepository: false,
-    labels: [],
     commits: [makeCommit()],
+    changedFiles: undefined,
     ...overrides,
   };
 }
@@ -160,37 +161,49 @@ describe('classifyBotPr — Dependabot', () => {
 });
 
 describe('classifyBotPr — release-please', () => {
-  const human = { authorLogin: 'someone', commits: [] };
+  const release = {
+    authorLogin: 'rmartz',
+    commits: [],
+    headRef: 'release-please--branches--main',
+    changedFiles: makeReleaseFiles(),
+  };
 
-  it('makes a release-please branch eligible', () => {
-    const facts = makeBotPrFacts({ ...human, headRef: 'release-please--branches--main' });
-
-    expect(classifyBotPr(facts)).toMatchObject({ eligible: true, prType: 'release-please' });
-  });
-
-  it('makes a PR with the autorelease: pending label eligible', () => {
-    const facts = makeBotPrFacts({ ...human, headRef: 'x', labels: ['autorelease: pending'] });
-
-    expect(classifyBotPr(facts).eligible).toBe(true);
-  });
-
-  it('rejects a fork PR whose branch name imitates release-please', () => {
-    const facts = makeBotPrFacts({
-      ...human,
-      headRef: 'release-please--branches--main',
-      isCrossRepository: true,
+  it('makes a release-please branch with a pure release diff eligible', () => {
+    expect(classifyBotPr(makeBotPrFacts(release))).toMatchObject({
+      eligible: true,
+      prType: 'release-please',
     });
+  });
+
+  // The label needs only triage permission to apply, so it must never approve a PR.
+  it('ignores the autorelease: pending label on any other branch', () => {
+    const facts = makeBotPrFacts({ ...release, headRef: 'feature/thing' });
+
+    expect(classifyBotPr(facts)).toMatchObject({ eligible: false, prType: undefined });
+  });
+
+  it('holds a release-please branch that changes a source file', () => {
+    const facts = makeBotPrFacts({
+      ...release,
+      changedFiles: [...makeReleaseFiles(), makeChangedFile({ filename: 'src/index.ts' })],
+    });
+
+    expect(classifyBotPr(facts)).toMatchObject({
+      eligible: false,
+      prType: 'release-please',
+      reason:
+        'release-please branch, but not a pure release (src/index.ts is not a release file) — held for review',
+    });
+  });
+
+  it('holds a release-please branch whose file list is incomplete', () => {
+    const facts = makeBotPrFacts({ ...release, changedFiles: undefined });
 
     expect(classifyBotPr(facts).eligible).toBe(false);
   });
 
-  it('rejects a fork PR carrying the pending label', () => {
-    const facts = makeBotPrFacts({
-      ...human,
-      headRef: 'x',
-      labels: ['autorelease: pending'],
-      isCrossRepository: true,
-    });
+  it('rejects a fork PR whose branch name imitates release-please', () => {
+    const facts = makeBotPrFacts({ ...release, isCrossRepository: true });
 
     expect(classifyBotPr(facts).eligible).toBe(false);
   });

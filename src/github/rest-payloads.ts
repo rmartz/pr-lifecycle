@@ -27,6 +27,14 @@ export interface RestPull {
   mergeable: boolean | null;
   /** Lowercase merge state, e.g. `clean`, `blocked`, `behind`, `unknown`. */
   mergeable_state?: string;
+  changed_files: number;
+}
+
+export interface RestPullFile {
+  filename: string;
+  status: string;
+  /** Omitted for binary files and very large diffs. */
+  patch?: string;
 }
 
 export interface RestCheckRun {

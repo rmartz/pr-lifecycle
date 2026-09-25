@@ -11,6 +11,7 @@ import type {
   ReviewData,
 } from '../../src/github/client.js';
 import { GitHubApiError } from '../../src/github/client.js';
+import type { ChangedFile } from '../../src/release-diff.js';
 import { HEAD_SHA } from '../fixtures.js';
 
 /**
@@ -39,6 +40,7 @@ export function makePullRequestData(overrides: Partial<PullRequestData> = {}): P
     isCrossRepository: false,
     mergeable: true,
     mergeState: 'blocked',
+    changedFileCount: 0,
     ...overrides,
   };
 }
@@ -60,6 +62,8 @@ export class FakeGitHubClient implements GitHubClient {
   pull: PullRequestData;
   reviews: ReviewData[];
   commits: CommitData[] = [];
+  /** The PR's changed files (compared with `pull.changedFileCount` for completeness). */
+  files: ChangedFile[] = [];
   /** Required contexts per branch (none by default: the CI gate is inactive). */
   requiredChecks = new Map<string, string[]>();
   branchHeads = new Map<string, string>();
@@ -91,6 +95,7 @@ export class FakeGitHubClient implements GitHubClient {
       'getPullRequest',
       'listReviews',
       'listCommits',
+      'listPullRequestFiles',
       'getRequiredStatusChecks',
       'getBranchHeadSha',
       'listCheckRuns',
@@ -153,6 +158,11 @@ export class FakeGitHubClient implements GitHubClient {
   listCommitStatuses(sha: string): Promise<CommitStatusData[]> {
     this.record('listCommitStatuses', sha);
     return Promise.resolve([...(this.commitStatuses.get(sha) ?? [])]);
+  }
+
+  listPullRequestFiles(pr: number): Promise<ChangedFile[]> {
+    this.record('listPullRequestFiles', pr);
+    return Promise.resolve([...this.files]);
   }
 
   listCommits(pr: number): Promise<CommitData[]> {
