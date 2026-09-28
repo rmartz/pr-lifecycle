@@ -14,7 +14,7 @@ import { gatherBotEligibility } from './bot-facts.js';
 import { gatherCiFacts } from './ci-facts.js';
 import type { GitHubClient, PullRequestData, ReviewData } from './client.js';
 import { isApiStatus } from './client.js';
-import { DEPENDABOT_REBASING_NOTICE, isRebasePending } from './dependabot-rebase.js';
+import { isDependabotRebasing, isRebasePending } from './dependabot-rebase.js';
 import type { Lineage } from './lineage-facts.js';
 import { gatherLineage } from './lineage-facts.js';
 
@@ -149,7 +149,7 @@ async function gatherRebasePending(
   if (updater !== 'dependabot') {
     return false;
   }
-  if (pull.body.includes(DEPENDABOT_REBASING_NOTICE)) {
+  if (isDependabotRebasing(pull.body)) {
     return true;
   }
   const couldUpdate =
@@ -205,6 +205,7 @@ export async function gatherFacts(
       cleanAncestors: lineage?.cleanAncestors ?? [],
       updater,
       rebasePending,
+      dependabotRebasing: updater === 'dependabot' && isDependabotRebasing(pull.body),
       reviews: reviews.map((review) => toReviewFact(review, permissions)),
       pendingBotReviewers: pull.requestedBotReviewers,
     },
