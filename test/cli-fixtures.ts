@@ -1,7 +1,6 @@
 import type { CliDeps } from '../src/cli.js';
 import type { HttpClientOptions } from '../src/github/http-client.js';
-import { COPILOT_REVIEWER_LOGIN } from '../src/state.js';
-import { makeVerdictBody } from './fixtures.js';
+import { COPILOT_REVIEWER_LOGIN, makeVerdictBody } from './fixtures.js';
 import { FakeGitHubClient, makePullRequestData, makeReviewData } from './github/fake-client.js';
 
 /** Shared setup for the CLI tests (cli.test.ts, cli-release-token.test.ts). */

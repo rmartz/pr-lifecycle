@@ -41,6 +41,9 @@ export function makePullRequestData(overrides: Partial<PullRequestData> = {}): P
     mergeable: true,
     mergeState: 'blocked',
     changedFileCount: 0,
+    // Long enough ago that the settle wait never applies unless a test says so.
+    createdAt: '2026-09-01T00:00:00Z',
+    requestedBotReviewers: [],
     ...overrides,
   };
 }
@@ -78,6 +81,8 @@ export class FakeGitHubClient implements GitHubClient {
   repoLabels = new Map<string, LabelDefinition>();
   /** Conversation comment bodies on the PR, oldest first. */
   comments: string[] = [];
+  /** When the PR was last marked ready for review, if ever. */
+  readyForReviewAt: string | undefined = undefined;
   readonly calls: FakeCall[] = [];
   private readonly failures = new Map<keyof GitHubClient, Error>();
 
@@ -105,6 +110,7 @@ export class FakeGitHubClient implements GitHubClient {
       'getCollaboratorPermission',
       'listRepoLabels',
       'listIssueComments',
+      'getLastReadyForReviewAt',
     ]);
     return this.calls.filter((call) => !reads.has(call.method));
   }
@@ -120,7 +126,11 @@ export class FakeGitHubClient implements GitHubClient {
 
   getPullRequest(pr: number): Promise<PullRequestData> {
     this.record('getPullRequest', pr);
-    return Promise.resolve({ ...this.pull, labels: [...this.pull.labels] });
+    return Promise.resolve({
+      ...this.pull,
+      labels: [...this.pull.labels],
+      requestedBotReviewers: [...this.pull.requestedBotReviewers],
+    });
   }
 
   getRequiredStatusChecks(branch: string): Promise<string[]> {
@@ -208,6 +218,11 @@ export class FakeGitHubClient implements GitHubClient {
     }
     this.pull.labels = this.pull.labels.filter((label) => label !== name);
     return Promise.resolve();
+  }
+
+  getLastReadyForReviewAt(pr: number): Promise<string | undefined> {
+    this.record('getLastReadyForReviewAt', pr);
+    return Promise.resolve(this.readyForReviewAt);
   }
 
   listIssueComments(pr: number): Promise<string[]> {

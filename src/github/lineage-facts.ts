@@ -1,7 +1,6 @@
 import type { GitRunner } from '../lineage/git.js';
 import type { RepoSource } from '../lineage/verify.js';
 import { createMergeVerifier } from '../lineage/verify.js';
-import { COPILOT_REVIEWER_LOGIN } from '../state.js';
 import type { GitHubClient, ReviewData } from './client.js';
 
 /**
@@ -38,7 +37,6 @@ function reviewedAncestors(input: LineageInput): Set<string> {
       .filter((review) => review.commitSha !== input.headSha)
       .filter(
         (review) =>
-          review.login === COPILOT_REVIEWER_LOGIN ||
           review.state === 'APPROVED' ||
           review.state === 'CHANGES_REQUESTED' ||
           review.body.includes('skill-meta'),

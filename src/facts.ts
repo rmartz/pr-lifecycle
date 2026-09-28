@@ -90,6 +90,11 @@ export interface PullRequestFacts {
    */
   rebasePending: boolean;
   reviews: readonly ReviewFact[];
+  /**
+   * Logins of the bots (e.g. Copilot) whose review is requested and not yet
+   * submitted. Users and teams are left out: the lifecycle never waits on people.
+   */
+  pendingBotReviewers: readonly string[];
 }
 
 export interface ReconcilePolicy {
@@ -108,8 +113,10 @@ export interface ReconcilePolicy {
    */
   autoUpdate?: boolean;
   /**
-   * Don't wait for a Copilot review before `review-requested`, for repos without
-   * Copilot code review (where the wait would never end). Off by default.
+   * Don't wait for requested bot reviewers (e.g. Copilot) before
+   * `review-requested`. Rarely needed: a bot that won't review is never requested.
+   * Off by default. Deprecated: the wait now ends on its own; kept so existing
+   * callers keep working.
    */
   skipCopilotReview?: boolean;
   /**

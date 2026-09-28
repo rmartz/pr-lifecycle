@@ -28,6 +28,14 @@ export interface RestPull {
   /** Lowercase merge state, e.g. `clean`, `blocked`, `behind`, `unknown`. */
   mergeable_state?: string;
   changed_files: number;
+  created_at: string;
+  /** Pending review requests to individual accounts; Copilot appears here as a `Bot`. */
+  requested_reviewers?: { login: string; type: string }[];
+}
+
+export interface RestIssueEvent {
+  event: string;
+  created_at: string;
 }
 
 export interface RestPullFile {

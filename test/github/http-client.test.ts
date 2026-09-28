@@ -57,6 +57,11 @@ const REST_PULL = {
   labels: [{ name: 'approved' }],
   auto_merge: { merge_method: 'squash' },
   changed_files: 3,
+  created_at: '2026-09-23T14:23:01Z',
+  requested_reviewers: [
+    { login: 'Copilot', type: 'Bot' },
+    { login: 'teammate', type: 'User' },
+  ],
 };
 
 function makeRestReview(id: number, overrides: Record<string, unknown> = {}) {
@@ -120,7 +125,15 @@ describe('createHttpClient requests', () => {
       cloneUrl: 'https://github.com/rmartz/demo.git',
       isCrossRepository: false,
       changedFileCount: 3,
+      createdAt: '2026-09-23T14:23:01Z',
+      requestedBotReviewers: ['Copilot'],
     });
+  });
+
+  it('reads an absent requested_reviewers as no bot requests', async () => {
+    const { client } = makeTransport([{ json: { ...REST_PULL, requested_reviewers: undefined } }]);
+
+    expect((await client.getPullRequest(7)).requestedBotReviewers).toEqual([]);
   });
 
   it('maps a null body to an empty string', async () => {
@@ -467,6 +480,27 @@ describe('createHttpClient requests', () => {
       { filename: 'logo.png', status: 'added', patch: undefined },
       'https://api.github.com/repos/rmartz/demo/pulls/7/files?per_page=100&page=2',
     ]);
+  });
+
+  it('finds the latest ready_for_review event among the issue events', async () => {
+    const { client } = makeTransport([
+      {
+        json: [
+          { event: 'ready_for_review', created_at: '2026-09-23T10:00:00Z' },
+          { event: 'convert_to_draft', created_at: '2026-09-23T11:00:00Z' },
+          { event: 'ready_for_review', created_at: '2026-09-23T12:00:00Z' },
+          { event: 'labeled', created_at: '2026-09-23T13:00:00Z' },
+        ],
+      },
+    ]);
+
+    expect(await client.getLastReadyForReviewAt(7)).toBe('2026-09-23T12:00:00Z');
+  });
+
+  it('reports no ready time for a PR never marked ready', async () => {
+    const { client } = makeTransport([{ json: [{ event: 'labeled', created_at: 'x' }] }]);
+
+    expect(await client.getLastReadyForReviewAt(7)).toBeUndefined();
   });
 
   it('lists conversation comment bodies, mapping a null body to empty', async () => {

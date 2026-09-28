@@ -1,5 +1,5 @@
 import type { PullRequestFacts, ReconcilePolicy } from './facts.js';
-import { countingCommits, currentVerdict } from './verdict.js';
+import { currentVerdict } from './verdict.js';
 
 /**
  * Lifecycle state, computed from facts in a fixed priority order. See
@@ -8,8 +8,8 @@ import { countingCommits, currentVerdict } from './verdict.js';
 
 export const LIFECYCLE_STATES = [
   'approved',
+  'awaiting-bot-review',
   'awaiting-ci',
-  'awaiting-copilot',
   'blocked-base-red',
   'changes-requested',
   'ci-failing',
@@ -20,8 +20,6 @@ export const LIFECYCLE_STATES = [
   'review-requested',
 ] as const;
 export type LifecycleState = (typeof LIFECYCLE_STATES)[number];
-
-export const COPILOT_REVIEWER_LOGIN = 'copilot-pull-request-reviewer[bot]';
 
 const WIP_PATTERN = /\[wip\]/i;
 
@@ -57,16 +55,12 @@ export function computeState(facts: PullRequestFacts, policy: ReconcilePolicy): 
   if (facts.ciStatus === 'pending') {
     return 'awaiting-ci';
   }
-  if (policy.skipCopilotReview === true) {
-    return 'review-requested';
+  // Let requested bot reviewers (Copilot) finish first, so their comments are in
+  // before the review is requested. A bot that won't review (out of quota, not
+  // enabled, or a Dependabot PR) is never requested, so there is nothing to wait
+  // for; a submitted review clears its request. People are never waited on.
+  if (facts.pendingBotReviewers.length > 0 && policy.skipCopilotReview !== true) {
+    return 'awaiting-bot-review';
   }
-  // Copilot's review carries over a clean base update like a verdict does: it
-  // won't re-review (review_on_push is off), so without this every auto-update
-  // would strand the PR in awaiting-copilot.
-  const reviewedCommits = countingCommits(facts);
-  const copilotReviewedHead = facts.reviews.some(
-    (review) =>
-      review.author.login === COPILOT_REVIEWER_LOGIN && reviewedCommits.has(review.commitSha),
-  );
-  return copilotReviewedHead ? 'review-requested' : 'awaiting-copilot';
+  return 'review-requested';
 }

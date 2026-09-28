@@ -63,6 +63,8 @@ export { OWNED_LABEL_DEFINITIONS } from './github/label-roster.js';
 export { gatherLineage, MAX_CHAIN_STEPS } from './github/lineage-facts.js';
 export type { Lineage, LineageInput } from './github/lineage-facts.js';
 export { reconcilePullRequest } from './github/reconcile.js';
+export { DEFAULT_SETTLE_MS } from './github/settle.js';
+export type { SettleOptions } from './github/settle.js';
 export { classifyReleaseDiff, isVersionOnlyPatch } from './release-diff.js';
 export type { ChangedFile, ReleaseDiffVerdict } from './release-diff.js';
 export type { ReconcileOptions, ReconcileResult } from './github/reconcile.js';
@@ -85,7 +87,7 @@ export {
   withoutReleaseActions,
 } from './plan.js';
 export type { AutoMergeAction, LifecycleLabel, ReconcilePlan, UpdateAction } from './plan.js';
-export { COPILOT_REVIEWER_LOGIN, computeState, LIFECYCLE_STATES } from './state.js';
+export { computeState, LIFECYCLE_STATES } from './state.js';
 export type { LifecycleState } from './state.js';
 export { currentVerdict, isTrustedAuthor, parseVerdict, VERDICTS } from './verdict.js';
 export type { ParsedVerdict, Verdict } from './verdict.js';

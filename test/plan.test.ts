@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
 import { AUTO_MERGE_LABEL, planReconcile, withoutReleaseActions } from '../src/plan.js';
-import { makeCopilotReview, makeFacts, makeReview, makeVerdictBody, OLD_SHA } from './fixtures.js';
+import {
+  COPILOT_REQUEST_LOGIN,
+  makeCopilotReview,
+  makeFacts,
+  makeReview,
+  makeVerdictBody,
+  OLD_SHA,
+} from './fixtures.js';
 
 const approvedReviews = [makeReview({ body: makeVerdictBody('approved') })];
 
@@ -22,8 +29,10 @@ describe('planReconcile labels', () => {
     expect(planReconcile(facts, {}).addLabels).toEqual([label]);
   });
 
-  it('adds no lifecycle label while awaiting Copilot', () => {
-    expect(planReconcile(makeFacts(), {}).addLabels).toEqual([]);
+  it('adds no lifecycle label while awaiting a bot review', () => {
+    const facts = makeFacts({ pendingBotReviewers: [COPILOT_REQUEST_LOGIN] });
+
+    expect(planReconcile(facts, {}).addLabels).toEqual([]);
   });
 
   it('removes stale lifecycle labels', () => {

@@ -3,7 +3,6 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { reconcilePullRequest } from '../../src/github/reconcile.js';
 import { createGitRunner } from '../../src/lineage/git.js';
 import { UPDATE_REQUIRED_LABEL } from '../../src/plan.js';
-import { COPILOT_REVIEWER_LOGIN } from '../../src/state.js';
 import { makeVerdictBody } from '../fixtures.js';
 import { GitFixture } from '../lineage/fixture.js';
 import { FakeGitHubClient, makePullRequestData, makeReviewData } from './fake-client.js';
@@ -24,7 +23,7 @@ afterEach(() => {
   repo.dispose();
 });
 
-/** A PR approved (and Copilot-reviewed) on A; returns a client for the given head. */
+/** A PR approved on A; returns a client for the given head. */
 function approvedPr(update: (fixture: GitFixture) => void): FakeGitHubClient {
   repo.checkout('pr', true);
   const approved = repo.commit('pr change', { 'feat.txt': 'feat\n' });
@@ -35,10 +34,7 @@ function approvedPr(update: (fixture: GitFixture) => void): FakeGitHubClient {
 
   const client = new FakeGitHubClient(
     makePullRequestData({ headSha: repo.head(), cloneUrl: repo.url }),
-    [
-      makeReviewData({ id: 1, login: COPILOT_REVIEWER_LOGIN, type: 'Bot', commitSha: approved }),
-      makeReviewData({ id: 2, commitSha: approved, body: makeVerdictBody('approved', approved) }),
-    ],
+    [makeReviewData({ id: 2, commitSha: approved, body: makeVerdictBody('approved', approved) })],
   );
   client.permissions.set('maintainer', { permission: 'write', roleName: 'write' });
   client.branchHeads.set('main', repo.git('rev-parse', 'main'));
@@ -66,7 +62,7 @@ describe('reconcilePullRequest with approval carry-over', () => {
 
     const { plan } = await reconcilePullRequest(client, 7, { armAutoMerge: true }, LINEAGE);
 
-    expect(plan.state).toBe('awaiting-copilot');
+    expect(plan.state).toBe('review-requested');
   });
 
   it('reports what carry-over verified', async () => {
@@ -82,7 +78,7 @@ describe('reconcilePullRequest with approval carry-over', () => {
 
     const { plan, lineage } = await reconcilePullRequest(client, 7, {});
 
-    expect([plan.state, lineage]).toEqual(['awaiting-copilot', undefined]);
+    expect([plan.state, lineage]).toEqual(['review-requested', undefined]);
   });
 
   it('skips carry-over for a closed PR', async () => {

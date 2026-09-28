@@ -44,7 +44,7 @@ reconcile options:
   --auto-update             Update approved PRs merge-safety flags 'update required'
                             (Dependabot PRs are asked to rebase, never updated)
   --trusted-authors <a,b>   Only these logins (with write access) may cast verdicts
-  --skip-copilot-review     Don't wait for a Copilot review
+  --skip-copilot-review     Don't wait for requested bot reviewers (deprecated)
   --hold-checks <a,b>       Required checks whose pending is a hold (default: pr-policy)
   --ignore-checks <a,b>     Required checks CI never counts (default: merge-safety)
   --dry-run                 Compute the plan without writing anything

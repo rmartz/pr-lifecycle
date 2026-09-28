@@ -117,24 +117,32 @@ describe('runCli — reconcile', () => {
 
   it('lists removed labels and a disarm in the summary', async () => {
     const client = new FakeGitHubClient(
-      makePullRequestData({ labels: ['approved', 'auto-merge enabled'], autoMergeEnabled: true }),
+      makePullRequestData({
+        labels: ['approved', 'auto-merge enabled'],
+        autoMergeEnabled: true,
+        requestedBotReviewers: ['Copilot'],
+      }),
     );
     const { out, io } = makeIo();
 
     await runCli([...RECONCILE, '--arm-auto-merge'], io, makeDeps(client).deps);
 
     expect(out).toEqual([
-      'rmartz/demo#7 → awaiting-copilot: -approved, -auto-merge enabled, auto-merge disarm (bot: not a recognized bot PR)',
+      'rmartz/demo#7 → awaiting-bot-review: -approved, -auto-merge enabled, auto-merge disarm (bot: not a recognized bot PR)',
     ]);
   });
 
   it('marks a dry-run summary', async () => {
     const { out, io } = makeIo();
 
-    await runCli([...RECONCILE, '--dry-run'], io, makeDeps(new FakeGitHubClient()).deps);
+    const client = new FakeGitHubClient(
+      makePullRequestData({ requestedBotReviewers: ['Copilot'] }),
+    );
+
+    await runCli([...RECONCILE, '--dry-run'], io, makeDeps(client).deps);
 
     expect(out).toEqual([
-      '[dry-run] rmartz/demo#7 → awaiting-copilot: no changes (bot: not a recognized bot PR)',
+      '[dry-run] rmartz/demo#7 → awaiting-bot-review: no changes (bot: not a recognized bot PR)',
     ]);
   });
 
