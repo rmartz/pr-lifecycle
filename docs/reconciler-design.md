@@ -207,6 +207,20 @@ is a **verified clean base merge** (`src/github/lineage-facts.ts`,
 2. **Its tree is byte-identical to the automatic merge**, recomputed with
    `git merge-tree --write-tree --merge-base=<M> <first> <second>`, which must also
    report no conflicts.
+3. **The two sides didn't both edit the same prose file.** The files the PR side
+   changed (`<M>` → first parent) and the base side changed (`<M>` → second
+   parent) are listed with `git diff-tree`; a path in both that matches the prose
+   patterns stops the chain. By default that is every `*.md` except `index.md`;
+   the CLI's `--prose-paths` changes it, and an empty list turns the rule off.
+
+**Why prose is special.** merge-safety already forces an update whenever `main`
+changed a file the PR also changed, so the overlapping merge is always made and
+verified here. For code, a clean merge that breaks something is caught by CI
+(see below). For prose, nothing automatic checks that two concurrent edits to a
+page still read correctly together, so that merge costs a new review instead.
+The walk's `stoppedBecause` names the files, so the reviewer knows what to
+re-read. Index pages are exempt because they take routine concurrent appends,
+which a clean merge gets right.
 
 **Content, not provenance.** GitHub's `web-flow` committer also signs web-editor
 conflict resolutions and in-browser edits, so "GitHub made this commit" doesn't
@@ -225,7 +239,8 @@ history reproduced byte for byte, and each tampered variant was rejected.
   argv, the URL must be `https://` or `file://`, and `--end-of-options` precedes
   it, so no API value can be read as a git option.
 
-**Fails closed.** Any API or git error, git older than 2.40, a missing binary, or
+**Fails closed.** Any API or git error (including a failure to list either
+side's changed files), git older than 2.40, a missing binary, or
 a chain longer than 20 steps means no carry-over, which costs an extra review and
 never produces a false approval. The walk runs only when some review sits on an
 earlier commit, and stops as soon as every such commit is reached.

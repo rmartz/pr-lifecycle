@@ -42,7 +42,7 @@ export interface GatherOptions {
    * token that can fetch the repository. Omitted, carry-over is off (fail closed:
    * earlier-commit verdicts simply don't count).
    */
-  lineage?: { git: GitRunner; token?: string };
+  lineage?: { git: GitRunner; token?: string; prosePatterns?: readonly string[] };
 }
 
 function isRepoPermission(value: string): value is RepoPermission {
@@ -127,6 +127,9 @@ async function gatherLineageFor(
         ...(options.lineage.token === undefined ? {} : { token: options.lineage.token }),
       },
       reviews,
+      ...(options.lineage.prosePatterns === undefined
+        ? {}
+        : { prosePatterns: options.lineage.prosePatterns }),
     });
   } catch (error) {
     // Fail closed, but keep the reason: `undefined` would read as "didn't run".

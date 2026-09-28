@@ -1,7 +1,7 @@
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 
 import type { CommitComparison, CommitObject } from '../../src/github/client.js';
 
@@ -36,6 +36,7 @@ export class GitFixture {
   /** Write files and commit them; returns the new commit's sha. */
   commit(message: string, files: Record<string, string>): string {
     for (const [name, content] of Object.entries(files)) {
+      mkdirSync(dirname(join(this.dir, name)), { recursive: true });
       writeFileSync(join(this.dir, name), content);
     }
     this.git('add', '--all');
