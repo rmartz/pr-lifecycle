@@ -2,13 +2,13 @@ name: pr-lifecycle
 
 # Dogfoods this repo's own reconciler through the published, SHA-pinned
 # rmartz/pr-lifecycle-action, the same path consumers use (#10). On every
-# relevant event it recomputes each PR's lifecycle state and converges its
-# labels.
+# relevant event it recomputes each PR's lifecycle state, converges its labels,
+# and arms GitHub-native auto-merge when the PR reaches `approved` (including
+# an eligible Dependabot or release-please PR; see docs/bot-eligibility.md).
 #
-# LABELS ONLY: `arm-auto-merge` is off, so this never touches auto-merge and
-# needs no real-actor token. bot-automerge has been removed (the first half of
-# the cutover in docs/bot-eligibility.md), so until arming is enabled here,
-# eligible bot PRs are labelled `approved` but nothing arms them.
+# SAFETY: auto-merge lands the moment the default-branch ruleset's required
+# checks pass (CI, Repo hygiene, Validate PR title, merge-safety). This is only
+# safe while those checks are REQUIRED on main.
 
 on:
   pull_request_target:
@@ -38,7 +38,7 @@ on:
         required: true
 
 permissions:
-  pull-requests: write # labels, review requests
+  pull-requests: write # labels, review requests, advisory comment, disarming
   contents: read # branch rules, base head, commits for approval carry-over
   checks: read # the CI gate
   statuses: read # the CI gate
@@ -63,6 +63,13 @@ jobs:
         github.event.workflow_run.head_sha || github.event.check_suite.head_sha }}
       cancel-in-progress: true
     steps:
-      # No inputs: the action resolves the PR from the event (including a
-      # dispatch's `pr`), and arming stays at its `false` default.
+      # The action resolves the PR from the event, including a dispatch's `pr`.
       - uses: rmartz/pr-lifecycle-action@c54d41c6b0e4c5801d7c02a904060eccdeebab30 # v2.0.0
+        with:
+          arm-auto-merge: true
+          # Real-actor PAT, used only to arm and merge: a merge armed with
+          # GITHUB_TOKEN fires no `on: push` workflows, so release.yml would
+          # never run. The fleet stores it as both an Actions and a Dependabot
+          # secret, since a Dependabot-triggered run sees only the latter. When
+          # it's unset, arming is skipped (never done with GITHUB_TOKEN).
+          token: ${{ secrets.BOT_AUTOMERGE_TOKEN }}
