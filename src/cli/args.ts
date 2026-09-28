@@ -24,12 +24,7 @@ export type ParsedArgs =
   ReconcileArgs | { command: 'help' } | { command: 'error'; message: string };
 
 type ValueOption =
-  | '--hold-checks'
-  | '--ignore-checks'
-  | '--pr'
-  | '--prose-paths'
-  | '--repo'
-  | '--trusted-authors';
+  '--hold-checks' | '--ignore-checks' | '--pr' | '--prose-paths' | '--repo' | '--trusted-authors';
 
 const REPO_PATTERN = /^([A-Za-z0-9-]+)\/([A-Za-z0-9._-]+)$/;
 const PR_PATTERN = /^[1-9][0-9]*$/;
