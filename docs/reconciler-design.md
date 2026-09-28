@@ -35,6 +35,7 @@ Source: `src/` (`facts.ts`, `verdict.ts`, `state.ts`, `plan.ts`).
 | `updater`              | `dependabot` for a PR opened by `dependabot[bot]` (it rebases its own branch), else `github` (`update-branch`)       |
 | `rebasePending`        | Dependabot PRs only: a rebase is running (PR body) or was already requested for this head (a marker comment)         |
 | `reviews`              | PR reviews: author login, type (`User`/`Bot`), repo permission, `commit_id`, state, body, submitted time             |
+| `pendingBotReviewers`  | PR `requested_reviewers` entries of type `Bot` (Copilot appears as `Copilot`); users and teams are left out          |
 
 The author's **repo permission** is a fact gathered at the edge (the collaborator
 permission API), so trust evaluation stays pure.
@@ -78,20 +79,20 @@ The **latest** counting verdict (by submitted time, then review id) decides.
 
 ## State, in priority order
 
-| #   | Condition                                                                      | State               | Lifecycle label              |
-| --- | ------------------------------------------------------------------------------ | ------------------- | ---------------------------- |
-| 1   | status is `closed` or `merged`                                                 | `closed`            | untouched (no plan)          |
-| 2   | draft, or `[WIP]` title                                                        | `draft`             | none                         |
-| 3   | `mergeable` is `false` (merge conflict)                                        | `fix-required`      | `fix required`               |
-| 4   | `ciStatus` is `failing` and `baseCiFailing`                                    | `blocked-base-red`  | none                         |
-| 5   | `ciStatus` is `failing`                                                        | `ci-failing`        | `fix required`, `ci failing` |
-| 6   | counting verdict `approved`                                                    | `approved`          | `approved`                   |
-| 6   | counting verdict `changes-requested`                                           | `changes-requested` | `changes requested`          |
-| 6   | counting verdict `escalation-needed`                                           | `escalation-needed` | `escalation needed`          |
-| 7   | `botEligible`                                                                  | `approved`          | `approved`                   |
-| 8   | `ciStatus` is `pending`                                                        | `awaiting-ci`       | none                         |
-| 9   | Copilot reviewed the head (or a clean ancestor), or `policy.skipCopilotReview` | `review-requested`  | `review requested`           |
-| 10  | otherwise                                                                      | `awaiting-copilot`  | none                         |
+| #   | Condition                                                               | State                 | Lifecycle label              |
+| --- | ----------------------------------------------------------------------- | --------------------- | ---------------------------- |
+| 1   | status is `closed` or `merged`                                          | `closed`              | untouched (no plan)          |
+| 2   | draft, or `[WIP]` title                                                 | `draft`               | none                         |
+| 3   | `mergeable` is `false` (merge conflict)                                 | `fix-required`        | `fix required`               |
+| 4   | `ciStatus` is `failing` and `baseCiFailing`                             | `blocked-base-red`    | none                         |
+| 5   | `ciStatus` is `failing`                                                 | `ci-failing`          | `fix required`, `ci failing` |
+| 6   | counting verdict `approved`                                             | `approved`            | `approved`                   |
+| 6   | counting verdict `changes-requested`                                    | `changes-requested`   | `changes requested`          |
+| 6   | counting verdict `escalation-needed`                                    | `escalation-needed`   | `escalation needed`          |
+| 7   | `botEligible`                                                           | `approved`            | `approved`                   |
+| 8   | `ciStatus` is `pending`                                                 | `awaiting-ci`         | none                         |
+| 9   | a bot review is requested and not yet submitted (`pendingBotReviewers`) | `awaiting-bot-review` | none                         |
+| 10  | otherwise                                                               | `review-requested`    | `review requested`           |
 
 **A merge conflict outranks every verdict.** It needs a code change, and the
 resolution is a new commit that no approval could survive anyway, so an approved
@@ -154,18 +155,43 @@ states handle, so it's ignored. Once it reports Pending instead, as planned, it
 can become a hold check.
 
 A trusted human verdict outranks bot eligibility, so a person can hold a
-Dependabot PR with a `changes requested` verdict. Copilot is recognized by the
-login `copilot-pull-request-reviewer[bot]`. Any Copilot review on the head counts,
-including the "quota reached" notice, because Copilot has then finished with that
-commit.
+Dependabot PR with a `changes requested` verdict.
 
-In a repo without Copilot code review, no Copilot review ever arrives, so a PR
-would sit in `awaiting-copilot` forever. `policy.skipCopilotReview` (off by
-default) skips that wait: a ready PR with no counting verdict goes straight to
-`review-requested`. It changes only rule 9; drafts, verdicts and bot eligibility
-are unaffected. A timeout alternative ("treat Copilot as done after N minutes")
-was rejected: no event fires when nothing happens, so it would need a scheduled
-trigger.
+### Waiting for bot reviewers
+
+Rule 9 lets automated reviewers (Copilot) comment before `review requested` sends
+the PR to review. It waits on a **pending request**, not on a review having
+arrived, because a request is the only reliable sign that a review is coming:
+
+- Copilot's ruleset auto-review records a request (`Copilot`, type `Bot`) within
+  seconds of a PR opening, and submitting the review clears it.
+- When Copilot won't review, **no request is made at all**: out of monthly quota
+  (it shows a UI-only notice and nothing reaches the API), in a repo without
+  Copilot code review, or on a Dependabot PR (Copilot never reviews those).
+- Copilot doesn't re-review after a push (`review_on_push` is off), so a review of
+  an earlier commit must not be required either.
+
+Waiting for a review instead stranded all three cases in the wait forever (#36).
+Only **bots** are waited on: a request to a person or team never holds the PR,
+because it would block the review agent behind someone who may never respond.
+Anyone with triage permission can request a reviewer, so a request can only hold a
+PR back from `review-requested`; it never changes any other state (a tested
+property).
+
+`policy.skipCopilotReview` skips the wait. It is deprecated, since the wait now
+ends on its own, and kept so existing callers keep working.
+
+**The settle wait.** The request lands a few seconds after the PR opens (0–5s
+across 267 fleet PRs), so a run reading the PR sooner would see no request and
+move on. On the transition into `review-requested` (the label isn't on yet), the
+edge layer waits until the PR has been reviewable, since it was opened or last
+marked ready, for 30s (`ReconcileOptions.settle`), then gathers again and plans
+from the fresh facts (`src/github/settle.ts`). It waits **inside the run** rather
+than staying put for a later event: when no bot is coming, no later event is
+guaranteed to fire (a PR marked ready after its CI finished gets none), so
+"wait for the next event" would strand exactly the PRs this rule exists to free.
+A request that still arrives later fires `review_requested`, and the next run
+moves the PR back to `awaiting-bot-review`.
 
 ## Approval carry-over
 
@@ -173,9 +199,7 @@ Head binding makes any push drop the approval, so without carry-over every base
 update would cost a full review cycle. A review bound to commit `A` also counts
 for the head `H` when every commit on the first-parent chain from `H` back to `A`
 is a **verified clean base merge** (`src/github/lineage-facts.ts`,
-`src/lineage/verify.ts`). This applies to verdicts **and** to Copilot's review:
-Copilot won't re-review after a push (`review_on_push` is off), so without it
-every update would strand the PR in `awaiting-copilot`. Each step must satisfy:
+`src/lineage/verify.ts`). Each step must satisfy:
 
 1. It is a merge commit with **exactly two parents**, and the second parent is
    **on the base branch** (reachable from the base head, via the compare API).
@@ -263,3 +287,5 @@ The CLI always does; library callers that omit it simply get no carry-over.
   disarm included, does.
 - **Carry-over grants nothing new.** A review on a clean ancestor counts exactly
   as if the same reviewer had posted it on the head.
+- **A review request only holds.** A pending bot request can move a PR from
+  `review-requested` to `awaiting-bot-review` and changes no other state.

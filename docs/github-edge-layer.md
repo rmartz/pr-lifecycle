@@ -20,8 +20,8 @@ Source: `src/github/`.
 
 `GitHubClient` (`client.ts`) is a narrow, domain-shaped interface: get the PR,
 list reviews, list commits, get a collaborator's permission, list/create repo labels,
-add/remove PR labels, list/post PR comments, enable/disable auto-merge, merge, and
-update the branch. All decisions live in
+add/remove PR labels, list/post PR comments, find the last ready-for-review time,
+enable/disable auto-merge, merge, and update the branch. All decisions live in
 `gather.ts` and `execute.ts`, which are tested against an in-memory fake
 (`test/github/fake-client.ts`). The real implementation, `createHttpClient`
 (`http-client.ts`), only maps requests and responses: REST for reads and labels,
@@ -51,6 +51,14 @@ HTTP status.
 - **Branch updater.** A PR authored by `dependabot[bot]` is updated by Dependabot;
   its comments are read (for `rebasePending`) only when an update could be
   planned: auto-update on, the PR open and labelled `update required`.
+- **Pending bot reviewers** come from the PR's own `requested_reviewers`
+  (entries of type `Bot`), so they cost no extra request.
+- **Settle wait.** On the transition into `review-requested`, a PR opened or
+  marked ready less than 30s ago is gathered again after the rest of that window,
+  so a bot review request that lands a few seconds late is still seen. The last
+  ready time comes from the issue events, read only on that transition
+  (`settle.ts`; see
+  [Waiting for bot reviewers](reconciler-design.md#waiting-for-bot-reviewers)).
 
 ## Execute
 

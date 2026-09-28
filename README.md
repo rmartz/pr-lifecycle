@@ -2,7 +2,7 @@
 
 An **event-driven pull-request lifecycle reconciler** for GitHub Actions. On every
 relevant GitHub event it recomputes a PR's lifecycle state from the PR's current
-facts — draft status, Copilot review of the head, the latest verdict from a
+facts — draft status, pending bot review requests, the latest verdict from a
 trusted author and the head SHA it reviewed — converges the PR's labels to match,
 and **arms GitHub-native auto-merge when the PR reaches `approved`**. The
 consumer's branch ruleset (required checks) then decides when the merge lands.
