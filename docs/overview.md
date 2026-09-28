@@ -70,9 +70,12 @@ verdict on the old head.
   the CI gate treats a pending `pr-policy` as a hold, not running CI.
 - **[`@rmartz/merge-safety`](https://github.com/rmartz/merge-safety)** —
   unchanged; its check-run is one of the consumer's required gates.
-- **[`@rmartz/bot-automerge`](https://github.com/rmartz/bot-automerge)** — once
-  this package owns the approved → armed transition for all PRs, bot-automerge
-  shrinks to an eligibility predicate that produces an automatic approval.
+- **[`@rmartz/bot-automerge`](https://github.com/rmartz/bot-automerge)** —
+  replaced, not complemented. Its eligibility rules are ported here as
+  [bot-PR eligibility](bot-eligibility.md), so an eligible bot PR reaches
+  `approved` and is armed like any other. A consumer runs one arming path
+  at a time and switches in a single
+  [cutover](bot-eligibility.md#cutting-over-from-bot-automerge).
 
 ## Decisions
 
