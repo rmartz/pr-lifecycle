@@ -59,6 +59,20 @@ describe('parseArgs — reconcile', () => {
     });
   });
 
+  it('parses prose patterns', () => {
+    expect(parseArgs([...BASE, '--prose-paths', '*.md, *.rst, !index.md'])).toMatchObject({
+      prosePatterns: ['*.md', '*.rst', '!index.md'],
+    });
+  });
+
+  it('allows empty prose patterns, turning the prose-overlap check off', () => {
+    expect(parseArgs([...BASE, '--prose-paths', ''])).toMatchObject({ prosePatterns: [] });
+  });
+
+  it('leaves the prose patterns unset (default applies) when not given', () => {
+    expect('prosePatterns' in parseArgs(BASE)).toBe(false);
+  });
+
   it('leaves the check lists unset (defaults apply) when not given', () => {
     const parsed = parseArgs(BASE);
 

@@ -1,5 +1,5 @@
 import type { LabelDefinition } from './client.js';
-import { AUTO_MERGE_LABEL } from '../plan.js';
+import { AUTO_MERGE_LABEL, DEPENDABOT_REBASING_LABEL } from '../plan.js';
 import type { LifecycleLabel } from '../plan.js';
 
 /**
@@ -9,7 +9,7 @@ import type { LifecycleLabel } from '../plan.js';
  * changed.
  */
 export const OWNED_LABEL_DEFINITIONS: Record<
-  LifecycleLabel | typeof AUTO_MERGE_LABEL,
+  LifecycleLabel | typeof AUTO_MERGE_LABEL | typeof DEPENDABOT_REBASING_LABEL,
   LabelDefinition
 > = {
   approved: {
@@ -37,6 +37,11 @@ export const OWNED_LABEL_DEFINITIONS: Record<
     name: 'ci failing',
     color: 'B60205',
     description: "The PR's required CI (excluding gate checks) is failing on its head.",
+  },
+  'dependabot rebasing': {
+    name: DEPENDABOT_REBASING_LABEL,
+    color: '0366D6',
+    description: 'Dependabot is rebasing or recreating this PR; its branch is about to change.',
   },
   'fix required': {
     name: 'fix required',

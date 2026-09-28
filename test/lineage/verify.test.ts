@@ -67,6 +67,24 @@ describe('createMergeVerifier', () => {
     await verifier?.dispose();
   });
 
+  it('lists the paths changed between two fetched commits', async () => {
+    const { repo, step } = cleanMergeStep();
+    const verifier = await createMergeVerifier(createGitRunner(), { url: repo.url });
+
+    await verifier?.verify(step);
+    expect(await verifier?.changedPaths(step.mergeBase, step.second)).toEqual(['c.txt']);
+    await verifier?.dispose();
+  });
+
+  it('refuses to diff a value that is not an object id', async () => {
+    const { repo, step } = cleanMergeStep();
+    const verifier = await createMergeVerifier(createGitRunner(), { url: repo.url });
+
+    await verifier?.verify(step);
+    expect(await verifier?.changedPaths('--output=/tmp/x', step.second)).toBeUndefined();
+    await verifier?.dispose();
+  });
+
   it('is unavailable when git reports an unrecognized version', async () => {
     const weird: GitRunner = { run: () => Promise.resolve({ code: 0, stdout: '???', stderr: '' }) };
 
