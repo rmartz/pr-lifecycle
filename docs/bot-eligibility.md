@@ -1,7 +1,7 @@
 ---
 type: Library
 title: Bot-PR eligibility
-description: Which bot PRs count as approved without a review — Dependabot patch/minor bumps, and release-please PRs whose branch and diff are a pure release — how the Dependabot update type is read, why a label never identifies a release, and why fork PRs are never eligible.
+description: Which bot PRs count as approved without a review — Dependabot patch/minor bumps, and release-please PRs whose branch and diff are a pure release — how the Dependabot update type is read, why a label never identifies a release, why fork PRs are never eligible, and how a consumer cuts over from bot-automerge.
 resource: src/bot-eligibility.ts
 tags: [bot, dependabot, release-please, security, eligibility]
 ---
@@ -86,6 +86,34 @@ imported. Importing would pull a GitHub Packages runtime dependency, and its
 release cadence, into this package for about 100 lines of logic. The rules also
 deliberately differ: bot-automerge detects release-please by branch name or label
 alone, with no diff check. Here the label is ignored and the diff must be a pure
-release (rule 3), and fork PRs are never eligible (rule 1). Once this package owns
-arming for every PR (#10), bot-automerge's own classifier is retired, per
-ai-tools#306.
+release (rule 3), and fork PRs are never eligible (rule 1). This package replaces
+bot-automerge rather than running beside it, per ai-tools#306.
+
+## Cutting over from bot-automerge
+
+The two can coexist only while `arm-auto-merge` is off (the default). With arming
+off, this package writes labels and never touches auto-merge, so bot-automerge
+remains the only thing that arms a PR. A consumer can adopt labelling first on
+that basis.
+
+With arming on, both would arm, and they fight. This package disarms any PR whose
+state isn't `approved` (see the
+[core design](reconciler-design.md#plan)), and bot-automerge
+re-arms it on its next `pull_request_target` event. They disagree on:
+
+- a release-please PR bot-automerge accepts by label alone, but whose diff isn't
+  a pure release;
+- a fork PR;
+- a Dependabot PR a trusted reviewer has held with `changes requested`, which
+  outranks eligibility here but which bot-automerge never reads.
+
+So bot-automerge is **removed before arming is enabled**, in two PRs:
+
+1. Delete the bot-automerge caller workflow. Removing a workflow loosens CI, so
+   this PR stands alone and needs `CI change approved` sign-off. Until step 2,
+   eligible bot PRs are labelled `approved` but nothing arms them. They wait,
+   which is safe.
+2. Enable `arm-auto-merge`.
+
+The reverse order leaves a window where both arm and fight. This repository's
+own cutover is #10.
