@@ -44,7 +44,6 @@ pins npmjs as the base registry so Dependabot resolves public packages correctly
 | `repo-hygiene.yml`      | PR + push to `main`         | conflict markers, action/package pins, docs links, AGENTS/CLAUDE pairing, OKF frontmatter + index, file caps |
 | `pr-title-lint.yml`     | PR opened/edited/synced     | Conventional-Commit PR title, no `[WIP]`                                                                     |
 | `merge-safety.yml`      | `pull_request_target`, push | the `merge-safety` check-run (base currency, conflicts)                                                      |
-| `bot-automerge.yml`     | `pull_request_target`       | arms auto-merge on Dependabot patch/minor PRs                                                                |
 | `pr-lifecycle.yml`      | PR, review, CI completion   | dogfoods the published reconciler: lifecycle labels only, no arming (#10)                                    |
 | `commit-convention.yml` | push to `main`              | post-merge tripwire: every subject on `main` is conventional                                                 |
 | `release.yml`           | push to `main`              | semantic-release publish + tag + GitHub Release                                                              |

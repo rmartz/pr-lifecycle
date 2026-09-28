@@ -6,9 +6,9 @@ name: pr-lifecycle
 # labels.
 #
 # LABELS ONLY: `arm-auto-merge` is off, so this never touches auto-merge and
-# needs no real-actor token. bot-automerge.yml stays the only thing that arms
-# PRs until the cutover in docs/bot-eligibility.md: remove bot-automerge first,
-# then enable arming here.
+# needs no real-actor token. bot-automerge has been removed (the first half of
+# the cutover in docs/bot-eligibility.md), so until arming is enabled here,
+# eligible bot PRs are labelled `approved` but nothing arms them.
 
 on:
   pull_request_target:
