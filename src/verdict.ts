@@ -102,17 +102,17 @@ function compareSubmission(a: ReviewFact, b: ReviewFact): number {
   return Date.parse(a.submittedAt) - Date.parse(b.submittedAt) || a.id - b.id;
 }
 
-/** The latest verdict that counts for the PR's current head, if any. */
 /**
  * The commits whose reviews count for the head: the head itself, plus every
  * commit whose only changes since are verified clean base merges. A clean base
  * merge leaves the PR's diff unchanged, so a review of the earlier commit still
- * describes the change being merged. Shared by verdicts and the Copilot gate.
+ * describes the change being merged.
  */
-export function countingCommits(facts: PullRequestFacts): ReadonlySet<string> {
+function countingCommits(facts: PullRequestFacts): ReadonlySet<string> {
   return new Set([facts.headSha, ...facts.cleanAncestors]);
 }
 
+/** The latest verdict that counts for the PR's current head, if any. */
 export function currentVerdict(
   facts: PullRequestFacts,
   policy: ReconcilePolicy,

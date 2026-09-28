@@ -7,8 +7,12 @@ import { executePlan } from './execute.js';
 import type { GatherOptions } from './gather.js';
 import { gatherFacts } from './gather.js';
 import type { Lineage } from './lineage-facts.js';
+import type { SettleOptions } from './settle.js';
+import { resolveSettle, settleDelay } from './settle.js';
 
 export interface ReconcileOptions extends GatherOptions {
+  /** The settle wait for a PR that just became reviewable (settle.ts). */
+  settle?: SettleOptions;
   /** Compute and return the plan without writing anything. */
   dryRun?: boolean;
   /**
@@ -29,6 +33,8 @@ export interface ReconcileResult {
   skippedAutoMerge: 'arm' | 'merge' | undefined;
   /** The branch update the plan wanted but skipped because `release` was unavailable. */
   skippedUpdate: Exclude<UpdateAction, 'none'> | undefined;
+  /** How long the run waited for bot review requests before gathering again (ms). */
+  settledMs: number;
 }
 
 /**
@@ -44,8 +50,8 @@ const REFUSE_RELEASE: ReleaseActions = {
 };
 
 /**
- * One full reconcile pass for a PR: gather its facts, plan, and (unless dry-run)
- * execute. Returns the plan, the bot-eligibility verdict, and the carry-over
+ * One full reconcile pass for a PR: gather its facts (waiting to settle first if it
+ * just became reviewable), plan, and (unless dry-run) execute. Returns the plan, the bot-eligibility verdict, and the carry-over
  * result so callers can report what changed and why.
  */
 export async function reconcilePullRequest(
@@ -54,7 +60,15 @@ export async function reconcilePullRequest(
   policy: ReconcilePolicy,
   options: ReconcileOptions = {},
 ): Promise<ReconcileResult> {
-  const { facts, nodeId, botEligibility, lineage } = await gatherFacts(client, pr, policy, options);
+  const settle = resolveSettle(options.settle);
+  let gathered = await gatherFacts(client, pr, policy, options);
+  const settledMs = await settleDelay(client, pr, gathered, policy, settle.settleMs, settle.now());
+  if (settledMs > 0) {
+    // Gather again rather than trusting stale facts: anything may have changed.
+    await settle.sleep(settledMs);
+    gathered = await gatherFacts(client, pr, policy, options);
+  }
+  const { facts, nodeId, botEligibility, lineage } = gathered;
   const planned = planReconcile(facts, policy);
   const unavailable = options.release === 'unavailable';
   const plan = unavailable ? withoutReleaseActions(planned) : planned;
@@ -67,5 +81,5 @@ export async function reconcilePullRequest(
   const skippedAutoMerge =
     unavailable && (wanted === 'arm' || wanted === 'merge') ? wanted : undefined;
   const skippedUpdate = unavailable && planned.update !== 'none' ? planned.update : undefined;
-  return { plan, botEligibility, lineage, skippedAutoMerge, skippedUpdate };
+  return { plan, botEligibility, lineage, skippedAutoMerge, skippedUpdate, settledMs };
 }

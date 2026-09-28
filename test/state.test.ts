@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { computeState } from '../src/state.js';
 import {
+  COPILOT_REQUEST_LOGIN,
   HEAD_SHA,
   makeAuthor,
   makeCopilotReview,
@@ -125,33 +126,49 @@ describe('computeState', () => {
     expect(computeState(makeFacts({ title }), {})).toBe('draft');
   });
 
-  it('is awaiting-copilot with no reviews', () => {
-    expect(computeState(makeFacts(), {})).toBe('awaiting-copilot');
+  it('is review-requested with no reviews and no bot review requested', () => {
+    expect(computeState(makeFacts(), {})).toBe('review-requested');
   });
 
-  it('is review-requested once Copilot has reviewed the head', () => {
+  it('is awaiting-bot-review while a bot review is requested', () => {
+    const facts = makeFacts({ pendingBotReviewers: [COPILOT_REQUEST_LOGIN] });
+
+    expect(computeState(facts, {})).toBe('awaiting-bot-review');
+  });
+
+  it('is review-requested once Copilot has reviewed (its request cleared)', () => {
     expect(computeState(makeFacts({ reviews: [makeCopilotReview()] }), {})).toBe(
       'review-requested',
     );
   });
 
-  it("carries Copilot's review of a clean ancestor over to the head", () => {
-    const facts = makeFacts({
-      reviews: [makeCopilotReview({ commitSha: OLD_SHA })],
-      cleanAncestors: [OLD_SHA],
-    });
+  // Copilot doesn't re-review after a push (review_on_push is off), so its review
+  // of an older commit must not strand the PR.
+  it('is review-requested after a push Copilot will not re-review', () => {
+    const facts = makeFacts({ reviews: [makeCopilotReview({ commitSha: OLD_SHA })] });
 
     expect(computeState(facts, {})).toBe('review-requested');
   });
 
-  it('stays awaiting-copilot when Copilot only reviewed an older commit', () => {
-    const facts = makeFacts({ reviews: [makeCopilotReview({ commitSha: OLD_SHA })] });
+  it('still honors a counting verdict while a bot review is requested', () => {
+    const facts = makeFacts({
+      pendingBotReviewers: [COPILOT_REQUEST_LOGIN],
+      reviews: [makeReview({ body: makeVerdictBody('approved') })],
+    });
 
-    expect(computeState(facts, {})).toBe('awaiting-copilot');
+    expect(computeState(facts, {})).toBe('approved');
   });
 
-  it('skips the Copilot wait when skipCopilotReview is set', () => {
-    expect(computeState(makeFacts(), { skipCopilotReview: true })).toBe('review-requested');
+  it('keeps awaiting-ci ahead of a pending bot review', () => {
+    const facts = makeFacts({ ciStatus: 'pending', pendingBotReviewers: [COPILOT_REQUEST_LOGIN] });
+
+    expect(computeState(facts, {})).toBe('awaiting-ci');
+  });
+
+  it('skips the bot-review wait when skipCopilotReview is set', () => {
+    const facts = makeFacts({ pendingBotReviewers: [COPILOT_REQUEST_LOGIN] });
+
+    expect(computeState(facts, { skipCopilotReview: true })).toBe('review-requested');
   });
 
   it('still honors a counting verdict when skipCopilotReview is set', () => {

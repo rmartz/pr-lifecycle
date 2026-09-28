@@ -1,10 +1,14 @@
 import type { PullRequestFacts, ReviewAuthor, ReviewFact } from '../src/facts.js';
 import type { ReconcilePlan } from '../src/plan.js';
 import type { ChangedFile } from '../src/release-diff.js';
-import { COPILOT_REVIEWER_LOGIN } from '../src/state.js';
 
 export const HEAD_SHA = 'a'.repeat(40);
 export const OLD_SHA = 'b'.repeat(40);
+
+/** Copilot's reviewer login on submitted reviews. */
+export const COPILOT_REVIEWER_LOGIN = 'copilot-pull-request-reviewer[bot]';
+/** Copilot's login as a requested reviewer (the REST `requested_reviewers` entry). */
+export const COPILOT_REQUEST_LOGIN = 'Copilot';
 
 export function makeAuthor(overrides: Partial<ReviewAuthor> = {}): ReviewAuthor {
   return { login: 'maintainer', type: 'User', permission: 'write', ...overrides };
@@ -39,6 +43,7 @@ export function makeFacts(overrides: Partial<PullRequestFacts> = {}): PullReques
     updater: 'github',
     rebasePending: false,
     reviews: [],
+    pendingBotReviewers: [],
     ...overrides,
   };
 }

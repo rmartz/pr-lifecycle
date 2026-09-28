@@ -29,8 +29,9 @@ they resolve.
 
 The state set and its labels, which reuse the existing `VERDICT_LABELS` roster,
 are specified in [Reconciler core design](reconciler-design.md#state-in-priority-order).
-In short: a draft or `[WIP]` PR has no lifecycle label; a PR waiting for Copilot
-has none either; after Copilot reviews the head it gets `review requested`; a
+In short: a draft or `[WIP]` PR has no lifecycle label; a PR waiting on a
+requested bot review (Copilot) has none either; once no bot review is pending it
+gets `review requested`; a
 trusted verdict on the head sets `approved`, `changes requested`, or
 `escalation needed`; an eligible bot PR is `approved`. A push invalidates every
 verdict on the old head.
@@ -39,7 +40,7 @@ verdict on the old head.
 
 1. **Recompute state from facts; never step through transitions.** On every
    relevant event, derive the full state from the PR's current facts (draft flag,
-   Copilot review for the head, latest trusted verdict and the head SHA it
+   pending bot review requests, latest trusted verdict and the head SHA it
    reviewed, gate labels) and reconcile labels to match. This makes the reconciler
    idempotent, replay-safe, and immune to out-of-order or dropped events — and
    gives approval freshness for free (a verdict bound to an older SHA doesn't count).
@@ -90,8 +91,10 @@ verdict on the old head.
 - **Arming is opt-in.** One package; auto-merge arming sits behind an
   `arm-auto-merge` input that defaults to off, so consumers can adopt labelling
   before their ruleset gates are ready.
-- **Waiting for Copilot is derived.** It has no visible label, so the label
-  roster stays at the four existing verdict labels.
+- **Waiting for bot reviewers is derived.** It has no visible label, so the label
+  roster stays at the four existing verdict labels. It waits on a pending review
+  request, never on a review arriving (see
+  [Waiting for bot reviewers](reconciler-design.md#waiting-for-bot-reviewers)).
 - **Distributed as a composite action in a sibling repo,
   [`rmartz/pr-lifecycle-action`](https://github.com/rmartz/pr-lifecycle-action).**
   This repo publishes the `@rmartz/pr-lifecycle` CLI. The action pins an exact

@@ -60,8 +60,8 @@ function lifecycleLabels(state: LifecycleState): readonly LifecycleLabel[] {
       return ['fix required', 'ci failing'];
     case 'review-requested':
       return ['review requested'];
+    case 'awaiting-bot-review':
     case 'awaiting-ci':
-    case 'awaiting-copilot':
     case 'blocked-base-red':
     case 'closed':
     case 'draft':

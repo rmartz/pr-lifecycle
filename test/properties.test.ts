@@ -10,8 +10,15 @@ import {
   UPDATE_REQUIRED_LABEL,
   withoutReleaseActions,
 } from '../src/plan.js';
-import { COPILOT_REVIEWER_LOGIN, computeState } from '../src/state.js';
-import { applyPlan, HEAD_SHA, makeVerdictBody, OLD_SHA } from './fixtures.js';
+import { computeState } from '../src/state.js';
+import {
+  applyPlan,
+  COPILOT_REQUEST_LOGIN,
+  COPILOT_REVIEWER_LOGIN,
+  HEAD_SHA,
+  makeVerdictBody,
+  OLD_SHA,
+} from './fixtures.js';
 
 // Property-based guarantees from docs/reconciler-design.md §Guaranteed properties.
 
@@ -77,6 +84,7 @@ const factsArb: fc.Arbitrary<PullRequestFacts> = fc.record({
   updater: fc.constantFrom(...BRANCH_UPDATERS),
   rebasePending: fc.boolean(),
   reviews: reviewsArb(),
+  pendingBotReviewers: fc.subarray([COPILOT_REQUEST_LOGIN, 'coderabbitai[bot]']),
 });
 
 /**
@@ -242,6 +250,24 @@ describe('reconciler properties', () => {
           expect(computeState(carried, policy)).toBe(computeState(onHead, policy));
         },
       ),
+      SECURITY_RUNS,
+    );
+  });
+
+  // Anyone with triage can request a reviewer, so a request must only ever hold a
+  // PR back from review-requested: never approve it, and never change any other state.
+  it('lets a pending bot request only hold review-requested back', () => {
+    fc.assert(
+      fc.property(factsArb, policyArb, (facts, policy) => {
+        const unrequested = computeState({ ...facts, pendingBotReviewers: [] }, policy);
+        const requested = computeState(
+          { ...facts, pendingBotReviewers: [COPILOT_REQUEST_LOGIN] },
+          policy,
+        );
+        const held = unrequested === 'review-requested' && requested === 'awaiting-bot-review';
+
+        expect(held || requested === unrequested).toBe(true);
+      }),
       SECURITY_RUNS,
     );
   });

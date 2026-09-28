@@ -1,8 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { reconcilePullRequest } from '../../src/github/reconcile.js';
-import { COPILOT_REVIEWER_LOGIN } from '../../src/state.js';
-import { HEAD_SHA, makeVerdictBody, OLD_SHA } from '../fixtures.js';
+import { COPILOT_REVIEWER_LOGIN, HEAD_SHA, makeVerdictBody, OLD_SHA } from '../fixtures.js';
 import { FakeGitHubClient, makePullRequestData, makeReviewData } from './fake-client.js';
 
 const ARMING = { armAutoMerge: true };
@@ -74,7 +73,10 @@ describe('reconcilePullRequest', () => {
 
     await reconcilePullRequest(client, 7, ARMING);
 
-    expect([client.pull.labels, client.pull.autoMergeEnabled]).toEqual([[], false]);
+    expect([client.pull.labels, client.pull.autoMergeEnabled]).toEqual([
+      ['review requested'],
+      false,
+    ]);
   });
 
   it('writes nothing in dry-run mode', async () => {
@@ -125,7 +127,10 @@ describe('reconcilePullRequest', () => {
 
     await reconcilePullRequest(client, 7, ARMING);
 
-    expect([client.pull.labels, client.pull.autoMergeEnabled]).toEqual([[], false]);
+    expect([client.pull.labels, client.pull.autoMergeEnabled]).toEqual([
+      ['review requested'],
+      false,
+    ]);
   });
 
   // Triage permission can apply a label but can't push or merge, so the label
@@ -138,7 +143,7 @@ describe('reconcilePullRequest', () => {
     await reconcilePullRequest(client, 7, ARMING);
 
     expect([client.pull.labels, client.pull.autoMergeEnabled]).toEqual([
-      ['autorelease: pending'],
+      ['autorelease: pending', 'review requested'],
       false,
     ]);
   });

@@ -12,8 +12,7 @@ import { gatherFacts } from '../../src/github/gather.js';
 import { reconcilePullRequest } from '../../src/github/reconcile.js';
 import type { ReconcilePlan } from '../../src/plan.js';
 import { UPDATE_REQUIRED_LABEL } from '../../src/plan.js';
-import { COPILOT_REVIEWER_LOGIN } from '../../src/state.js';
-import { HEAD_SHA, makeVerdictBody } from '../fixtures.js';
+import { COPILOT_REVIEWER_LOGIN, HEAD_SHA, makeVerdictBody } from '../fixtures.js';
 import { FakeGitHubClient, makePullRequestData, makeReviewData } from './fake-client.js';
 
 /** An approved PR (Copilot-reviewed, maintainer-approved) flagged `update required`. */

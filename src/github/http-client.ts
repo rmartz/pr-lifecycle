@@ -10,7 +10,13 @@ import type {
 import { createCheckMethods } from './http-checks.js';
 import type { HttpClientOptions } from './http-transport.js';
 import { createTransport } from './http-transport.js';
-import type { RestCommit, RestPull, RestPullFile, RestReview } from './rest-payloads.js';
+import type {
+  RestCommit,
+  RestIssueEvent,
+  RestPull,
+  RestPullFile,
+  RestReview,
+} from './rest-payloads.js';
 import { toReviewData } from './rest-payloads.js';
 
 /**
@@ -62,6 +68,10 @@ export function createHttpClient(options: HttpClientOptions): GitHubClient {
         mergeable: pull.mergeable ?? undefined,
         mergeState: pull.mergeable_state,
         changedFileCount: pull.changed_files,
+        createdAt: pull.created_at,
+        requestedBotReviewers: (pull.requested_reviewers ?? [])
+          .filter((reviewer) => reviewer.type === 'Bot')
+          .map((reviewer) => reviewer.login),
       };
     },
     async getBranchHeadSha(branch) {
@@ -127,6 +137,10 @@ export function createHttpClient(options: HttpClientOptions): GitHubClient {
     },
     async removeLabel(pr, name) {
       await request('DELETE', `${repoPath}/issues/${pr}/labels/${encodeURIComponent(name)}`);
+    },
+    async getLastReadyForReviewAt(pr) {
+      const events = await paginate<RestIssueEvent>(`${repoPath}/issues/${pr}/events`);
+      return events.filter((event) => event.event === 'ready_for_review').at(-1)?.created_at;
     },
     async listIssueComments(pr) {
       const comments = await paginate<{ body: string | null }>(`${repoPath}/issues/${pr}/comments`);

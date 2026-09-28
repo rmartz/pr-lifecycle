@@ -36,6 +36,10 @@ export interface PullRequestData {
   mergeState: string | undefined;
   /** How many files the PR changes (`changed_files`), to tell a full file list from a truncated one. */
   changedFileCount: number;
+  /** ISO-8601 time the PR was opened. */
+  createdAt: string;
+  /** Logins of requested reviewers that are bots (users and teams left out). */
+  requestedBotReviewers: string[];
 }
 
 /** A check-run on a commit (the latest run per name). */
@@ -118,6 +122,8 @@ export interface GitHubClient {
   addLabels(pr: number, names: readonly string[]): Promise<void>;
   /** Throws a GitHubApiError with status 404 when the label is not on the PR. */
   removeLabel(pr: number, name: string): Promise<void>;
+  /** When the PR was last marked ready for review (ISO-8601), if ever. */
+  getLastReadyForReviewAt(pr: number): Promise<string | undefined>;
   /** Bodies of the PR's conversation comments, oldest first. */
   listIssueComments(pr: number): Promise<string[]>;
   createIssueComment(pr: number, body: string): Promise<void>;

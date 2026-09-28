@@ -32,6 +32,8 @@ export interface GatheredPullRequest {
   botEligibility: BotEligibility;
   /** How far approval carry-over verified, for reporting (absent when off). */
   lineage: Lineage | undefined;
+  /** When the PR was opened (ISO-8601), for the settle wait (settle.ts). */
+  createdAt: string;
 }
 
 export interface GatherOptions {
@@ -187,6 +189,7 @@ export async function gatherFacts(
     nodeId: pull.nodeId,
     botEligibility,
     lineage,
+    createdAt: pull.createdAt,
     facts: {
       status: pull.merged ? 'merged' : pull.state,
       isDraft: pull.draft,
@@ -203,6 +206,7 @@ export async function gatherFacts(
       updater,
       rebasePending,
       reviews: reviews.map((review) => toReviewFact(review, permissions)),
+      pendingBotReviewers: pull.requestedBotReviewers,
     },
   };
 }
