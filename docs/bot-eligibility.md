@@ -107,6 +107,13 @@ re-arms it on its next `pull_request_target` event. They disagree on:
 - a Dependabot PR a trusted reviewer has held with `changes requested`, which
   outranks eligibility here but which bot-automerge never reads.
 
-So each repository cuts over in **one PR** that both enables `arm-auto-merge` and
-deletes its bot-automerge caller workflow. Never merge one without the other.
-This repository's own cutover is #10.
+So bot-automerge is **removed before arming is enabled**, in two PRs:
+
+1. Delete the bot-automerge caller workflow. Removing a workflow loosens CI, so
+   this PR stands alone and needs `CI change approved` sign-off. Until step 2,
+   eligible bot PRs are labelled `approved` but nothing arms them. They wait,
+   which is safe.
+2. Enable `arm-auto-merge`.
+
+The reverse order leaves a window where both arm and fight. This repository's
+own cutover is #10.

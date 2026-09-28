@@ -74,8 +74,8 @@ verdict on the old head.
   replaced, not complemented. Its eligibility rules are ported here as
   [bot-PR eligibility](bot-eligibility.md), so an eligible bot PR reaches
   `approved` and is armed like any other. A consumer runs one arming path
-  at a time and switches in a single
-  [cutover](bot-eligibility.md#cutting-over-from-bot-automerge).
+  at a time, removing bot-automerge before enabling arming (see
+  [cutting over](bot-eligibility.md#cutting-over-from-bot-automerge)).
 
 ## Decisions
 
