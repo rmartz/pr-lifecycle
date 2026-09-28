@@ -42,6 +42,7 @@ export function makeFacts(overrides: Partial<PullRequestFacts> = {}): PullReques
     cleanAncestors: [],
     updater: 'github',
     rebasePending: false,
+    dependabotRebasing: false,
     reviews: [],
     pendingBotReviewers: [],
     ...overrides,

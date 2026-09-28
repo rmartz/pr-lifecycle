@@ -5,6 +5,7 @@ import type { PullRequestFacts, ReconcilePolicy, ReviewAuthor, ReviewFact } from
 import { BRANCH_UPDATERS, REPO_PERMISSIONS, REVIEW_STATES } from '../src/facts.js';
 import {
   AUTO_MERGE_LABEL,
+  DEPENDABOT_REBASING_LABEL,
   LIFECYCLE_LABELS,
   planReconcile,
   UPDATE_REQUIRED_LABEL,
@@ -22,7 +23,11 @@ import {
 
 // Property-based guarantees from docs/reconciler-design.md §Guaranteed properties.
 
-const OWNED_LABELS = new Set<string>([...LIFECYCLE_LABELS, AUTO_MERGE_LABEL]);
+const OWNED_LABELS = new Set<string>([
+  ...LIFECYCLE_LABELS,
+  AUTO_MERGE_LABEL,
+  DEPENDABOT_REBASING_LABEL,
+]);
 const LOGINS = ['maintainer', 'rmartz', 'drive-by', COPILOT_REVIEWER_LOGIN] as const;
 
 const shaArb = fc.constantFrom(HEAD_SHA, OLD_SHA);
@@ -83,6 +88,7 @@ const factsArb: fc.Arbitrary<PullRequestFacts> = fc.record({
   cleanAncestors: fc.constantFrom([], [], [OLD_SHA]),
   updater: fc.constantFrom(...BRANCH_UPDATERS),
   rebasePending: fc.boolean(),
+  dependabotRebasing: fc.boolean(),
   reviews: reviewsArb(),
   pendingBotReviewers: fc.subarray([COPILOT_REQUEST_LOGIN, 'coderabbitai[bot]']),
 });
@@ -280,6 +286,20 @@ describe('reconciler properties', () => {
         expect([...plan.addLabels, ...plan.removeLabels].every((l) => OWNED_LABELS.has(l))).toBe(
           true,
         );
+      }),
+    );
+  });
+
+  // Workflows gate on the label, so it must mirror Dependabot's own notice exactly
+  // on an open PR, and never appear on a PR Dependabot doesn't own.
+  it('shows dependabot rebasing exactly while Dependabot says it is rebasing', () => {
+    fc.assert(
+      fc.property(factsArb, policyArb, (facts, policy) => {
+        fc.pre(facts.status === 'open');
+        const labels = applyPlan(facts, planReconcile(facts, policy)).labels;
+        const expected = facts.updater === 'dependabot' && facts.dependabotRebasing;
+
+        expect(labels.includes(DEPENDABOT_REBASING_LABEL)).toBe(expected);
       }),
     );
   });

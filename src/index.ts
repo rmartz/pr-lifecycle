@@ -50,6 +50,8 @@ export {
   buildRebaseRequestBody,
   DEPENDABOT_REBASE_COMMAND,
   DEPENDABOT_REBASING_NOTICE,
+  DEPENDABOT_RECREATING_NOTICE,
+  isDependabotRebasing,
   isRebasePending,
   rebaseRequestMarker,
 } from './github/dependabot-rebase.js';
@@ -81,6 +83,7 @@ export { createMergeVerifier } from './lineage/verify.js';
 export type { MergeStep, MergeVerifier, RepoSource } from './lineage/verify.js';
 export {
   AUTO_MERGE_LABEL,
+  DEPENDABOT_REBASING_LABEL,
   LIFECYCLE_LABELS,
   planReconcile,
   UPDATE_REQUIRED_LABEL,

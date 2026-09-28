@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
 import { labelDefinition, OWNED_LABEL_DEFINITIONS } from '../../src/github/label-roster.js';
-import { AUTO_MERGE_LABEL, LIFECYCLE_LABELS } from '../../src/plan.js';
+import { AUTO_MERGE_LABEL, DEPENDABOT_REBASING_LABEL, LIFECYCLE_LABELS } from '../../src/plan.js';
 
 describe('label roster', () => {
   it('defines every label the core can write', () => {
     const defined = Object.values(OWNED_LABEL_DEFINITIONS).map((label) => label.name);
 
-    expect(defined.sort()).toEqual([...LIFECYCLE_LABELS, AUTO_MERGE_LABEL].sort());
+    expect(defined.sort()).toEqual([...LIFECYCLE_LABELS, AUTO_MERGE_LABEL, DEPENDABOT_REBASING_LABEL].sort());
   });
 
   it('returns the roster definition for an owned label', () => {
