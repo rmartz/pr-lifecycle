@@ -1,5 +1,7 @@
 import type { GitRunner } from '../lineage/git.js';
-import type { RepoSource } from '../lineage/verify.js';
+import type { ProseMatcher } from '../lineage/prose.js';
+import { DEFAULT_PROSE_PATTERNS, overlappingProse, proseMatcher } from '../lineage/prose.js';
+import type { MergeStep, MergeVerifier, RepoSource } from '../lineage/verify.js';
 import { createMergeVerifier } from '../lineage/verify.js';
 import type { GitHubClient, ReviewData } from './client.js';
 
@@ -7,7 +9,9 @@ import type { GitHubClient, ReviewData } from './client.js';
  * Finds the head's clean ancestors: commits reached by walking back from the head
  * through a chain of **verified clean base merges**, so reviews bound to them
  * still describe the change being merged (docs/reconciler-design.md §Approval
- * carry-over). Fails closed: any doubt or error ends the chain, and the cost is
+ * carry-over). A clean merge in which both sides edited the same prose file also
+ * ends the chain: nothing automatic checks that the merged page still reads
+ * correctly. Fails closed: any doubt or error ends the chain, and the cost is
  * an extra review, never a false approval.
  */
 
@@ -22,6 +26,11 @@ export interface LineageInput {
   baseHeadSha: string;
   source: RepoSource;
   reviews: readonly ReviewData[];
+  /**
+   * Basename patterns for prose files (see src/lineage/prose.ts); default
+   * `DEFAULT_PROSE_PATTERNS`. Empty turns the prose-overlap check off.
+   */
+  prosePatterns?: readonly string[];
 }
 
 export interface Lineage {
@@ -55,6 +64,26 @@ async function onBaseBranch(
   return status === 'identical' || status === 'ahead';
 }
 
+/**
+ * Why a clean merge still can't carry an approval over, or undefined when it can.
+ * A failed diff counts as a reason: fail closed.
+ */
+async function proseOverlapReason(
+  verifier: MergeVerifier,
+  step: MergeStep,
+  isProse: ProseMatcher,
+): Promise<string | undefined> {
+  const ours = await verifier.changedPaths(step.mergeBase, step.first);
+  const theirs = await verifier.changedPaths(step.mergeBase, step.second);
+  if (ours === undefined || theirs === undefined) {
+    return 'could not list the files each side changed';
+  }
+  const overlap = overlappingProse(ours, theirs, isProse);
+  return overlap.length === 0
+    ? undefined
+    : `both sides edited the same prose (${overlap.join(', ')})`;
+}
+
 async function walk(
   client: LineageClient,
   git: GitRunner,
@@ -65,6 +94,8 @@ async function walk(
   if (verifier === undefined) {
     return { cleanAncestors: [], stoppedBecause: 'git unavailable or older than 2.40' };
   }
+  const patterns = input.prosePatterns ?? DEFAULT_PROSE_PATTERNS;
+  const isProse = patterns.length === 0 ? undefined : proseMatcher(patterns);
   const cleanAncestors: string[] = [];
   try {
     let current = input.headSha;
@@ -78,14 +109,14 @@ async function walk(
         return { cleanAncestors, stoppedBecause: `${current} merges a commit not on the base` };
       }
       const { mergeBaseSha } = await client.compareCommits(first, second);
-      const clean = await verifier.verify({
-        mergeBase: mergeBaseSha,
-        first,
-        second,
-        tree: commit.treeSha,
-      });
-      if (!clean) {
+      const mergeStep = { mergeBase: mergeBaseSha, first, second, tree: commit.treeSha };
+      if (!(await verifier.verify(mergeStep))) {
         return { cleanAncestors, stoppedBecause: `${current} is not the clean automatic merge` };
+      }
+      const overlap =
+        isProse === undefined ? undefined : await proseOverlapReason(verifier, mergeStep, isProse);
+      if (overlap !== undefined) {
+        return { cleanAncestors, stoppedBecause: `${current}: ${overlap}` };
       }
       cleanAncestors.push(first);
       current = first;

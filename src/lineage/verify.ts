@@ -60,6 +60,11 @@ function authEnv(source: RepoSource): Record<string, string> {
 export interface MergeVerifier {
   /** True only when the step is a verified clean merge; false on any doubt. */
   verify(step: MergeStep): Promise<boolean>;
+  /**
+   * Paths that differ between two commits a `verify` call already fetched;
+   * undefined on any error, so the caller can fail closed.
+   */
+  changedPaths(from: string, to: string): Promise<string[] | undefined>;
   dispose(): Promise<void>;
 }
 
@@ -127,6 +132,23 @@ export async function createMergeVerifier(
       // Exit 0 = clean; 1 = conflicts; anything else = error. Only a clean merge
       // whose tree is byte-identical to the commit's tree passes.
       return merged.code === 0 && merged.stdout.split('\n')[0]?.trim() === step.tree;
+    },
+    async changedPaths(from, to) {
+      if (!OBJECT_ID.test(from) || !OBJECT_ID.test(to)) {
+        return undefined;
+      }
+      const diff = await git.run([
+        '--git-dir',
+        gitDir,
+        'diff-tree',
+        '-r',
+        '-z',
+        '--name-only',
+        '--no-renames',
+        from,
+        to,
+      ]);
+      return diff.code === 0 ? diff.stdout.split('\0').filter((path) => path !== '') : undefined;
     },
     async dispose() {
       await rm(gitDir, { recursive: true, force: true });

@@ -79,6 +79,8 @@ export {
 export type { GatherOptions } from './github/gather.js';
 export { createGitRunner, parseGitVersion } from './lineage/git.js';
 export type { GitResult, GitRunner } from './lineage/git.js';
+export { DEFAULT_PROSE_PATTERNS, overlappingProse, proseMatcher } from './lineage/prose.js';
+export type { ProseMatcher } from './lineage/prose.js';
 export { createMergeVerifier } from './lineage/verify.js';
 export type { MergeStep, MergeVerifier, RepoSource } from './lineage/verify.js';
 export {

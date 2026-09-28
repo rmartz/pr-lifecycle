@@ -47,6 +47,8 @@ reconcile options:
   --skip-copilot-review     Don't wait for requested bot reviewers (deprecated)
   --hold-checks <a,b>       Required checks whose pending is a hold (default: pr-policy)
   --ignore-checks <a,b>     Required checks CI never counts (default: merge-safety)
+  --prose-paths <a,b>       Basename patterns whose overlapping edits in a base merge
+                            need a new review (default: *.md,!index.md)
   --dry-run                 Compute the plan without writing anything
   --json                    Print one JSON object (schemaVersion 1) on stdout
   --no-token-advisory       Don't comment on the PR when arming lacks a release token
@@ -94,7 +96,11 @@ export async function runCli(argv: readonly string[], io: CliIo, deps: CliDeps):
   try {
     const result = await reconcilePullRequest(client, args.pr, args.policy, {
       dryRun: args.dryRun,
-      lineage: { git: deps.git ?? createGitRunner(), token },
+      lineage: {
+        git: deps.git ?? createGitRunner(),
+        token,
+        ...(args.prosePatterns === undefined ? {} : { prosePatterns: args.prosePatterns }),
+      },
       // Only arming, merging, and updating use the release token (never reads).
       // Without one they are skipped, not done with GITHUB_TOKEN; see docs/cli.md.
       release: hasReleaseToken ? clientFor(releaseToken) : 'unavailable',
