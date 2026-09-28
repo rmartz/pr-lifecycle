@@ -16,12 +16,15 @@ export interface ReconcileArgs {
   json: boolean;
   /** Comment on the PR when arming is skipped for want of a release token. */
   tokenAdvisory: boolean;
+  /** Prose basename patterns for carry-over; absent means the default. */
+  prosePatterns?: string[];
 }
 
 export type ParsedArgs =
   ReconcileArgs | { command: 'help' } | { command: 'error'; message: string };
 
-type ValueOption = '--hold-checks' | '--ignore-checks' | '--pr' | '--repo' | '--trusted-authors';
+type ValueOption =
+  '--hold-checks' | '--ignore-checks' | '--pr' | '--prose-paths' | '--repo' | '--trusted-authors';
 
 const REPO_PATTERN = /^([A-Za-z0-9-]+)\/([A-Za-z0-9._-]+)$/;
 const PR_PATTERN = /^[1-9][0-9]*$/;
@@ -72,7 +75,8 @@ function parseReconcile(args: readonly string[]): ParsedArgs {
       case '--pr':
       case '--trusted-authors':
       case '--hold-checks':
-      case '--ignore-checks': {
+      case '--ignore-checks':
+      case '--prose-paths': {
         const value = args[index + 1];
         if (value === undefined || value.startsWith('--')) {
           return usageError(`${arg} requires a value`);
@@ -104,6 +108,8 @@ function parseReconcile(args: readonly string[]): ParsedArgs {
   // required check), so unlike trusted authors it is allowed.
   const holdChecks = listOption(values['--hold-checks']);
   const ignoredChecks = listOption(values['--ignore-checks']);
+  // Likewise, `--prose-paths ''` turns the prose-overlap check off.
+  const prosePatterns = listOption(values['--prose-paths']);
 
   return {
     command: 'reconcile',
@@ -121,6 +127,7 @@ function parseReconcile(args: readonly string[]): ParsedArgs {
     dryRun,
     json,
     tokenAdvisory,
+    ...(prosePatterns === undefined ? {} : { prosePatterns }),
   };
 }
 

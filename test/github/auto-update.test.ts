@@ -6,6 +6,7 @@ import { GitHubApiError } from '../../src/github/client.js';
 import {
   buildRebaseRequestBody,
   DEPENDABOT_REBASING_NOTICE,
+  DEPENDABOT_RECREATING_NOTICE,
 } from '../../src/github/dependabot-rebase.js';
 import { executePlan } from '../../src/github/execute.js';
 import { gatherFacts } from '../../src/github/gather.js';
@@ -64,6 +65,33 @@ describe('gatherFacts — branch updater', () => {
     const { facts } = await gatherFacts(client, 7, AUTO_UPDATE);
 
     expect(facts.rebasePending).toBe(true);
+  });
+
+  it('reports Dependabot rebasing from the PR body', async () => {
+    const client = makeFlaggedClient({ ...DEPENDABOT, body: DEPENDABOT_RECREATING_NOTICE });
+
+    const { facts } = await gatherFacts(client, 7, {});
+
+    expect(facts.dependabotRebasing).toBe(true);
+  });
+
+  // The request marker means "asked", not "running": it must not raise the label.
+  it('does not report Dependabot rebasing from a rebase request alone', async () => {
+    const client = makeFlaggedClient(DEPENDABOT);
+    client.comments = [buildRebaseRequestBody(HEAD_SHA)];
+
+    const { facts } = await gatherFacts(client, 7, AUTO_UPDATE);
+
+    expect(facts.dependabotRebasing).toBe(false);
+  });
+
+  // Anyone can paste the notice into their own PR's body; only Dependabot's counts.
+  it('does not report Dependabot rebasing for a PR not opened by Dependabot', async () => {
+    const client = makeFlaggedClient({ body: DEPENDABOT_REBASING_NOTICE });
+
+    const { facts } = await gatherFacts(client, 7, AUTO_UPDATE);
+
+    expect(facts.dependabotRebasing).toBe(false);
   });
 
   it('reads no comments when auto-update is off', async () => {

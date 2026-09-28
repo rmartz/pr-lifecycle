@@ -5,8 +5,8 @@ import { computeState } from './state.js';
 /**
  * The reconcile plan: the minimal label and auto-merge changes that converge a PR
  * to its computed lifecycle state. Labels are output only — the core owns the
- * lifecycle labels (plus `auto-merge enabled` in arming mode) and never touches
- * any other label. See docs/reconciler-design.md §Plan.
+ * lifecycle labels and `dependabot rebasing` (plus `auto-merge enabled` in arming
+ * mode) and never touches any other label. See docs/reconciler-design.md §Plan.
  */
 
 export const LIFECYCLE_LABELS = [
@@ -20,6 +20,13 @@ export const LIFECYCLE_LABELS = [
 export type LifecycleLabel = (typeof LIFECYCLE_LABELS)[number];
 
 export const AUTO_MERGE_LABEL = 'auto-merge enabled';
+
+/**
+ * Shown while Dependabot rebases or recreates its PR, so workflows can hold off
+ * until the branch settles. Owned like the lifecycle labels, but independent of
+ * the state.
+ */
+export const DEPENDABOT_REBASING_LABEL = 'dependabot rebasing';
 
 /** merge-safety's label for a PR whose base moved in a way that matters. Read, never written. */
 export const UPDATE_REQUIRED_LABEL = 'update required';
@@ -111,8 +118,11 @@ export function planReconcile(facts: PullRequestFacts, policy: ReconcilePolicy):
     }
   }
 
-  const owned: string[] = [...LIFECYCLE_LABELS];
+  const owned: string[] = [...LIFECYCLE_LABELS, DEPENDABOT_REBASING_LABEL];
   const desired = new Set<string>(lifecycleLabels(state));
+  if (facts.updater === 'dependabot' && facts.dependabotRebasing) {
+    desired.add(DEPENDABOT_REBASING_LABEL);
+  }
   if (arming) {
     owned.push(AUTO_MERGE_LABEL);
     // A direct merge arms nothing, so it doesn't claim the label.

@@ -20,8 +20,8 @@ installs a pinned version and invokes it, so everything on this page is a
 ```
 ai-pr-lifecycle reconcile --repo <owner/repo> --pr <n>
   [--arm-auto-merge] [--auto-update] [--trusted-authors a,b] [--skip-copilot-review]
-  [--hold-checks a,b] [--ignore-checks a,b] [--dry-run] [--json]
-  [--no-token-advisory]
+  [--hold-checks a,b] [--ignore-checks a,b] [--prose-paths a,b] [--dry-run]
+  [--json] [--no-token-advisory]
 ```
 
 | Flag                      | Effect                                                                                                                                                                                                                                                                                          |
@@ -34,6 +34,7 @@ ai-pr-lifecycle reconcile --repo <owner/repo> --pr <n>
 | `--skip-copilot-review`   | Deprecated: don't wait for requested bot reviewers (`policy.skipCopilotReview`); the wait now ends on its own.                                                                                                                                                                                  |
 | `--hold-checks <a,b>`     | Required checks whose _pending_ is a hold, not a running build; their failures still count (`policy.holdChecks`, default `pr-policy`).                                                                                                                                                          |
 | `--ignore-checks <a,b>`   | Required checks the CI gate never counts (`policy.ignoredChecks`, default `merge-safety`). An empty value counts every check.                                                                                                                                                                   |
+| `--prose-paths <a,b>`     | Basename patterns (`*` wildcard, `!` excludes) for prose files: a base merge in which both sides edited the same one doesn't [carry an approval over](reconciler-design.md#approval-carry-over). Default `*.md,!index.md`; an empty value turns the check off.                                  |
 | `--dry-run`               | Gather and plan, but write nothing.                                                                                                                                                                                                                                                             |
 | `--json`                  | Print the result as one JSON object (below) instead of a summary line.                                                                                                                                                                                                                          |
 | `--no-token-advisory`     | Don't post the [advisory comment](#release-token) when arming is skipped for want of a release token.                                                                                                                                                                                           |

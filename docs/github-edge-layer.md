@@ -51,6 +51,9 @@ HTTP status.
 - **Branch updater.** A PR authored by `dependabot[bot]` is updated by Dependabot;
   its comments are read (for `rebasePending`) only when an update could be
   planned: auto-update on, the PR open and labelled `update required`.
+- **Dependabot rebasing** (`dependabotRebasing`) is read from the PR body
+  already fetched, so it costs no extra request; it is `false` for any PR not
+  authored by `dependabot[bot]`, since anyone can paste the notice into a body.
 - **Pending bot reviewers** come from the PR's own `requested_reviewers`
   (entries of type `Bot`), so they cost no extra request.
 - **Settle wait.** On the transition into `review-requested`, a PR opened or
@@ -115,7 +118,7 @@ When the plan says `update` (see [Plan](reconciler-design.md#plan)):
   A Dependabot PR is **only** ever asked; it is never updated directly, because a
   foreign commit on its branch permanently breaks Dependabot's own rebasing.
 - **Once per head.** No request is made while the PR body says _"Dependabot is
-  rebasing this PR"_, or when a marker for the current head already exists.
+  rebasing this PR"_ (or _recreating_), or when a marker for the current head already exists.
   After asking, the reconciler waits: a rebase is a new head (which may be asked
   again if merge-safety still flags it), while an error reply from Dependabot
   leaves the head unchanged, so nothing is re-requested and the PR is left to a

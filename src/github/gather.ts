@@ -14,7 +14,7 @@ import { gatherBotEligibility } from './bot-facts.js';
 import { gatherCiFacts } from './ci-facts.js';
 import type { GitHubClient, PullRequestData, ReviewData } from './client.js';
 import { isApiStatus } from './client.js';
-import { DEPENDABOT_REBASING_NOTICE, isRebasePending } from './dependabot-rebase.js';
+import { isDependabotRebasing, isRebasePending } from './dependabot-rebase.js';
 import type { Lineage } from './lineage-facts.js';
 import { gatherLineage } from './lineage-facts.js';
 
@@ -42,7 +42,7 @@ export interface GatherOptions {
    * token that can fetch the repository. Omitted, carry-over is off (fail closed:
    * earlier-commit verdicts simply don't count).
    */
-  lineage?: { git: GitRunner; token?: string };
+  lineage?: { git: GitRunner; token?: string; prosePatterns?: readonly string[] };
 }
 
 function isRepoPermission(value: string): value is RepoPermission {
@@ -127,6 +127,9 @@ async function gatherLineageFor(
         ...(options.lineage.token === undefined ? {} : { token: options.lineage.token }),
       },
       reviews,
+      ...(options.lineage.prosePatterns === undefined
+        ? {}
+        : { prosePatterns: options.lineage.prosePatterns }),
     });
   } catch (error) {
     // Fail closed, but keep the reason: `undefined` would read as "didn't run".
@@ -149,7 +152,7 @@ async function gatherRebasePending(
   if (updater !== 'dependabot') {
     return false;
   }
-  if (pull.body.includes(DEPENDABOT_REBASING_NOTICE)) {
+  if (isDependabotRebasing(pull.body)) {
     return true;
   }
   const couldUpdate =
@@ -205,6 +208,7 @@ export async function gatherFacts(
       cleanAncestors: lineage?.cleanAncestors ?? [],
       updater,
       rebasePending,
+      dependabotRebasing: updater === 'dependabot' && isDependabotRebasing(pull.body),
       reviews: reviews.map((review) => toReviewFact(review, permissions)),
       pendingBotReviewers: pull.requestedBotReviewers,
     },

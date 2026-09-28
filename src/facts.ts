@@ -89,6 +89,13 @@ export interface PullRequestFacts {
    * error. Always `false` for other PRs.
    */
   rebasePending: boolean;
+  /**
+   * For a Dependabot PR: the PR body says Dependabot is rebasing or recreating the
+   * branch right now. Unlike `rebasePending`, our own request doesn't count — only
+   * Dependabot's notice, which it removes when done. Drives the
+   * `dependabot rebasing` label. Always `false` for other PRs.
+   */
+  dependabotRebasing: boolean;
   reviews: readonly ReviewFact[];
   /**
    * Logins of the bots (e.g. Copilot) whose review is requested and not yet
