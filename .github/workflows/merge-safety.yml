@@ -30,6 +30,7 @@ on:
 
 permissions:
   checks: write # post/flip the merge-safety check-run
+  statuses: write # set the merge-safety commit status the merge gate relies on (rmartz/merge-safety#73)
   pull-requests: write # reconcile update-required / merge-conflict labels
   contents: read
   actions: write # dispatch per-PR evaluate runs on the push fan-out
@@ -37,7 +38,7 @@ permissions:
 
 jobs:
   merge-safety:
-    uses: rmartz/merge-safety/.github/workflows/merge-safety.yml@74a4e7621bbfaf3b12f8bf015533e1ffc3475a2b # v0.3.0
+    uses: rmartz/merge-safety/.github/workflows/merge-safety.yml@fd90fb9c028827532801c91f33734c99b3ed869e # v0.10.0
     with:
       pr: ${{ inputs.pr }}
     secrets: inherit
