@@ -1,27 +1,35 @@
 name: Release
 
-# Automated releases via semantic-release. On every push to main it analyzes the
+# Automated releases via the fleet's shared semantic-release workflow
+# (rmartz/semantic-release-ci). On every push to main it analyzes the
 # Conventional-Commit history since the last `v*` tag and, when a release is
 # warranted, builds and publishes @rmartz/pr-lifecycle to npmjs (public), then
 # creates the git tag + GitHub Release. It commits NOTHING back to the repo (no
-# @semantic-release/git), so the built-in GITHUB_TOKEN suffices — no PAT.
+# @semantic-release/git), so the built-in GITHUB_TOKEN suffices — no PAT. The
+# release toolchain (semantic-release, its plugins and the changelog preset) lives
+# in semantic-release-ci, where a toolchain bump is tested before it reaches this
+# pin; the options stay here in .releaserc.json.
 #
 # npm auth is OIDC trusted publishing: npmjs trusts THIS workflow file
-# (`release.yml`) in rmartz/pr-lifecycle, so there is no NPM_TOKEN secret.
-# Renaming this file breaks publishing until the trusted publisher on npmjs is
-# updated to match. Provenance attestations are generated automatically.
+# (`release.yml`) in rmartz/pr-lifecycle — npm validates the calling workflow's
+# filename — so there is no NPM_TOKEN secret. Renaming this file breaks publishing
+# until the trusted publisher on npmjs is updated to match. Provenance attestations
+# are generated automatically. OIDC publishing needs npm >= 11.5.1: the shared
+# workflow runs on Node 24 (npm 11) and, because this workflow grants
+# `id-token: write`, fails before tagging if npm is older.
 #
-# The GitHub Packages registry config below is for INSTALLING the
-# @rmartz/repo-hygiene devDependency only. Publishing goes to npmjs because
-# package.json's publishConfig pins both `registry` and `@rmartz:registry` there.
+# `packages: read` is for INSTALLING the @rmartz/repo-hygiene devDependency from
+# GitHub Packages: the shared workflow passes the job token as NODE_AUTH_TOKEN to
+# its dependency install, which resolves the ${NODE_AUTH_TOKEN} placeholder in
+# .npmrc. Publishing goes to npmjs because package.json's publishConfig pins both
+# `registry` and `@rmartz:registry` there.
 
 on:
   push:
     branches: [main]
 
-# Serialize releases so two pushes can't publish concurrently.
-concurrency: release
-
+# The shared workflow declares no permissions of its own; it runs with these.
+# Releases are serialized per repository inside it.
 permissions:
   contents: write # create tags + GitHub Releases
   packages: read # install the @rmartz/repo-hygiene devDependency
@@ -31,29 +39,8 @@ permissions:
 
 jobs:
   release:
-    name: Release
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0 # semantic-release needs full history + tags
-          persist-credentials: false
-      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: 24
-          cache: pnpm
-          registry-url: https://npm.pkg.github.com
-          scope: '@rmartz'
-      - run: pnpm install --frozen-lockfile
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - run: pnpm run build
-      - name: Release
-        run: pnpm exec semantic-release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Only so the GitHub Packages entry in the .npmrc files resolves its
-          # ${NODE_AUTH_TOKEN} placeholder; publishing itself uses OIDC.
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    uses: rmartz/semantic-release-ci/.github/workflows/semantic-release.yml@dbcbcd8e0425ae4c0aa294d6595566ac4643a83d # v1.1.0
+    with:
+      # Build dist/ before @semantic-release/npm packs it; the shared workflow
+      # installs this repo's dependencies (pnpm, frozen lockfile) first.
+      build-command: pnpm run build
