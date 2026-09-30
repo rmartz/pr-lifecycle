@@ -13,8 +13,12 @@ registries:
     url: https://npm.pkg.github.com
     token: ${{secrets.DEPENDABOT_PACKAGES_TOKEN}}
 
-# No `cooldown` — deliberately (see the shared repository checklist §Supply
-# chain). Dependabot security updates are the backstop for known vulnerabilities.
+# Cooldown: since 2026-07-14 Dependabot waits 3 days after a release before
+# proposing it, even with no `cooldown` configured. Third-party dependencies keep
+# that default (security updates are never delayed by it). Only first-party
+# releases (`@rmartz/*` packages, `rmartz/*` actions and reusable workflows) are
+# exempt: they're published from our own repos with provenance, so the wait adds
+# no supply-chain protection and only holds fixes back from the fleet.
 updates:
   - package-ecosystem: npm
     directory: /
@@ -22,6 +26,11 @@ updates:
       - github-packages
     schedule:
       interval: weekly
+    cooldown:
+      # Explicit, so declaring the block can't change the third-party default.
+      default-days: 3
+      exclude:
+        - '@rmartz/*'
     commit-message:
       # Production deps ship to consumers → `fix` cuts a patch release.
       # Dev deps never reach the published artifact → release-less `chore`.
@@ -57,6 +66,11 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    cooldown:
+      # Explicit, so declaring the block can't change the third-party default.
+      default-days: 3
+      exclude:
+        - 'rmartz/*'
     commit-message:
       # CI tooling never reaches the published artifact → always `chore`.
       # (prefix-development has no meaning for GHA; without this override a GHA
