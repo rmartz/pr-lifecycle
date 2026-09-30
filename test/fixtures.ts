@@ -95,7 +95,7 @@ export function makeChangedFile(overrides: Partial<ChangedFile> = {}): ChangedFi
   };
 }
 
-/** The files of a real release-please PR (shaped like rmartz/ai-tools#321). */
+/** The files of a real release-please PR. */
 export function makeReleaseFiles(): ChangedFile[] {
   return [
     makeChangedFile({

@@ -27,7 +27,7 @@
     }
   },
   "bin": {
-    "ai-pr-lifecycle": "dist/bin/pr-lifecycle.js"
+    "pr-lifecycle": "dist/bin/pr-lifecycle.js"
   },
   "files": [
     "dist"

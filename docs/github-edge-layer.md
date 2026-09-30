@@ -32,7 +32,7 @@ HTTP status.
 ## Gather
 
 - **Everything is read before anything is written.** A run never reacts to its own
-  writes (ai-tools#306, constraint 3).
+  writes: its output depends only on the facts read at the start.
 - **Permissions.** Each distinct review author is looked up once via the
   collaborator-permission API. The fine-grained `role_name` is preferred, since
   it distinguishes `maintain` and `triage`. A custom role falls back to the legacy
@@ -77,7 +77,7 @@ explain it are written, and the update, which moves the head, comes last.
 - **Missing labels.** Before adding labels, the repo's labels are listed once, and
   any owned label the repo lacks is created from the fleet roster definition
   (`label-roster.ts`), so a consumer that hasn't seeded the roster still gets
-  correctly colored labels (ai-tools#281). An existing label is never modified.
+  correctly colored labels. An existing label is never modified.
 - An empty plan makes **no** API calls.
 
 ## Arming and merging
