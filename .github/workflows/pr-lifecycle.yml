@@ -64,7 +64,7 @@ jobs:
       cancel-in-progress: true
     steps:
       # The action resolves the PR from the event, including a dispatch's `pr`.
-      - uses: rmartz/pr-lifecycle-action@c54d41c6b0e4c5801d7c02a904060eccdeebab30 # v2.0.0
+      - uses: rmartz/pr-lifecycle-action@47c2e115c9882588c701839ead06340e689a3917 # v4.0.0
         with:
           arm-auto-merge: true
           # Real-actor PAT, used only to arm and merge: a merge armed with
