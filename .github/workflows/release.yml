@@ -41,6 +41,8 @@ jobs:
   release:
     uses: rmartz/semantic-release-ci/.github/workflows/semantic-release.yml@dbcbcd8e0425ae4c0aa294d6595566ac4643a83d # v1.1.0
     with:
-      # Build dist/ before @semantic-release/npm packs it; the shared workflow
-      # installs this repo's dependencies (pnpm, frozen lockfile) first.
+      # Build dist/ before the release's `npm publish` (run by
+      # @semantic-release/exec in the prepare step, ahead of the tag) packs it;
+      # the shared workflow installs this repo's dependencies (pnpm, frozen
+      # lockfile) first.
       build-command: pnpm run build
