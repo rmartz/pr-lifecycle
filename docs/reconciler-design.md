@@ -177,7 +177,7 @@ Dependabot PR with a `changes requested` verdict.
 
 ### Waiting for bot reviewers
 
-Rule 9 lets automated reviewers (Copilot) comment before `review requested` sends
+Rule 10 lets automated reviewers (Copilot) comment before `review requested` sends
 the PR to review. It waits on a **pending request**, not on a review having
 arrived, because a request is the only reliable sign that a review is coming:
 

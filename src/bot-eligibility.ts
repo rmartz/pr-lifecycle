@@ -3,7 +3,7 @@ import { classifyReleaseDiff } from './release-diff.js';
 
 /**
  * Bot-PR eligibility: is this a bot PR trusted enough to count as `approved`
- * without a review (state priority 7 in docs/reconciler-design.md)? Ported from
+ * without a review (state priority 8 in docs/reconciler-design.md)? Ported from
  * @rmartz/bot-automerge's classifier, with deliberate tightenings: the head
  * branch must live in the base repository, and a release-please PR is recognized
  * by its branch and a release-only diff, never by a label. See
