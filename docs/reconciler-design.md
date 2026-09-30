@@ -90,17 +90,27 @@ The **latest** counting verdict (by submitted time, then review id) decides.
 | #   | Condition                                                               | State                 | Lifecycle label              |
 | --- | ----------------------------------------------------------------------- | --------------------- | ---------------------------- |
 | 1   | status is `closed` or `merged`                                          | `closed`              | untouched (no plan)          |
-| 2   | draft, or `[WIP]` title                                                 | `draft`               | none                         |
-| 3   | `mergeable` is `false` (merge conflict)                                 | `fix-required`        | `fix required`               |
-| 4   | `ciStatus` is `failing` and `baseCiFailing`                             | `blocked-base-red`    | none                         |
-| 5   | `ciStatus` is `failing`                                                 | `ci-failing`          | `fix required`, `ci failing` |
-| 6   | counting verdict `approved`                                             | `approved`            | `approved`                   |
-| 6   | counting verdict `changes-requested`                                    | `changes-requested`   | `changes requested`          |
-| 6   | counting verdict `escalation-needed`                                    | `escalation-needed`   | `escalation needed`          |
-| 7   | `botEligible`                                                           | `approved`            | `approved`                   |
-| 8   | `ciStatus` is `pending`                                                 | `awaiting-ci`         | none                         |
-| 9   | a bot review is requested and not yet submitted (`pendingBotReviewers`) | `awaiting-bot-review` | none                         |
-| 10  | otherwise                                                               | `review-requested`    | `review requested`           |
+| 2   | the `escalation needed` label is present (sticky, however applied)      | `escalation-needed`   | `escalation needed`          |
+| 3   | draft, or `[WIP]` title                                                 | `draft`               | none                         |
+| 4   | `mergeable` is `false` (merge conflict)                                 | `fix-required`        | `fix required`               |
+| 5   | `ciStatus` is `failing` and `baseCiFailing`                             | `blocked-base-red`    | none                         |
+| 6   | `ciStatus` is `failing`                                                 | `ci-failing`          | `fix required`, `ci failing` |
+| 7   | counting verdict `approved`                                             | `approved`            | `approved`                   |
+| 7   | counting verdict `changes-requested`                                    | `changes-requested`   | `changes requested`          |
+| 7   | counting verdict `escalation-needed`                                    | `escalation-needed`   | `escalation needed`          |
+| 8   | `botEligible`                                                           | `approved`            | `approved`                   |
+| 9   | `ciStatus` is `pending`                                                 | `awaiting-ci`         | none                         |
+| 10  | a bot review is requested and not yet submitted (`pendingBotReviewers`) | `awaiting-bot-review` | none                         |
+| 11  | otherwise                                                               | `review-requested`    | `review requested`           |
+
+**A present `escalation needed` label is sticky and outranks everything but
+`closed`.** The label is itself the escalation, whoever applied it: a `/review`
+`escalation-needed` verdict, a `/merge` hard-reject, or a person holding the PR
+by hand. The reconciler keeps it and never removes it, even after a push
+invalidates the verdict that added it, and no verdict, green CI, or bot
+eligibility can approve or arm the PR while it is present. Only a person or a new
+`/review` verdict (which replaces the verdict labels) clears it, by removing the
+label; the next reconcile then computes the state from the facts as usual.
 
 **A merge conflict outranks every verdict.** It needs a code change, and the
 resolution is a new commit that no approval could survive anyway, so an approved
@@ -263,7 +273,9 @@ The CLI always does; library callers that omit it simply get no carry-over.
 
 ## Plan
 
-- **Labels are output only.** The core owns the six lifecycle labels
+- **Labels are output only**, with one exception: a present `escalation needed`
+  is also read as an input (see [State](#state-in-priority-order)), so the core
+  never removes it. The core owns the six lifecycle labels
   (`approved`, `changes requested`, `escalation needed`, `fix required`,
   `ci failing`, `review requested`), [`dependabot rebasing`](#dependabot-rebasing-label),
   and, in arming mode, `auto-merge enabled`. It adds the desired ones and removes every
