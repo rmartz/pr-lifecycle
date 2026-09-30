@@ -14,10 +14,10 @@ It joins the same family as
 TypeScript package distributed as a version-pinned action that Dependabot keeps
 current in consuming repos.
 
-> **Status: scaffold.** The toolchain, CI gates, and release pipeline are in place;
-> the reconciler is not implemented yet. Design:
-> [rmartz/ai-tools#306](https://github.com/rmartz/ai-tools/issues/306), summarized
-> in [docs/overview.md](docs/overview.md).
+It is run in consumer repos by
+[`rmartz/pr-lifecycle-action`](https://github.com/rmartz/pr-lifecycle-action). The
+design is in [docs/overview.md](docs/overview.md), and the `pr-lifecycle` CLI is
+documented in [docs/cli.md](docs/cli.md).
 
 ## Documentation
 

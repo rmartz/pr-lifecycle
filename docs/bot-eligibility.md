@@ -87,7 +87,7 @@ release cadence, into this package for about 100 lines of logic. The rules also
 deliberately differ: bot-automerge detects release-please by branch name or label
 alone, with no diff check. Here the label is ignored and the diff must be a pure
 release (rule 3), and fork PRs are never eligible (rule 1). This package replaces
-bot-automerge rather than running beside it, per ai-tools#306.
+bot-automerge rather than running beside it.
 
 ## Cutting over from bot-automerge
 

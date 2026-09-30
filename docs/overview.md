@@ -13,14 +13,12 @@ GitHub events fire. It keeps a PR's lifecycle labels in step with the PR's curre
 facts and **arms native auto-merge when a PR reaches `approved`** — so the
 consumer's ruleset required checks, not a separate merge step, gate the merge.
 
-The source of truth for the design is
-[rmartz/ai-tools#306](https://github.com/rmartz/ai-tools/issues/306). This page
-summarizes it; record decisions here as they are made and trim the open questions
-they resolve.
+This page is the source of truth for the design: record decisions here as they
+are made, and trim the open questions they resolve.
 
 > **Status:** the pure reconciler core ([design](reconciler-design.md)), the
 > [GitHub edge layer](github-edge-layer.md), [bot eligibility](bot-eligibility.md),
-> and the [`ai-pr-lifecycle reconcile` CLI](cli.md) are implemented. The composite
+> and the [`pr-lifecycle reconcile` CLI](cli.md) are implemented. The composite
 > action that runs it in consumer repos is built in
 > [`rmartz/pr-lifecycle-action`](https://github.com/rmartz/pr-lifecycle-action).
 > Remaining work (dogfooding) is tracked in the **Reconciler v1** milestone.
@@ -65,7 +63,7 @@ escalated until someone removes the label.
 
 ## Relationship to other packages
 
-- **[`pr-policy`](https://github.com/rmartz/pr-policy) (ai-tools#302)** — enforces
+- **[`pr-policy`](https://github.com/rmartz/pr-policy)** — enforces
   the hard merge gates (CI sign-off, title rules, and UAT sign-off via
   rmartz/pr-policy#13) as one required `pr-policy` check. Fully independent: the
   two write disjoint label sets and meet only in the consumer's ruleset, where
@@ -108,7 +106,7 @@ escalated until someone removes the label.
   automated. A reusable workflow or JavaScript action in this repo would need a
   version pin or a committed `dist/` that semantic-release (which never commits
   back) can't keep current. This matches `repo-hygiene-action` and
-  `bot-automerge-action` (ai-tools#282). The CLI ↔ action interface contract is
+  `bot-automerge-action`. The CLI ↔ action interface contract is
   tracked on #6.
 
 ## Open questions

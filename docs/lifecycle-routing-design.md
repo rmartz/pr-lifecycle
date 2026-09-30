@@ -23,8 +23,8 @@ decisions behind them.
 
 ## Decisions
 
-- **CI is a gate.** This deliberately reverses ai-tools#306 constraint 4
-  ("never inspects any check"). See the core design's
+- **CI is a gate.** This deliberately reverses the original design's rule that
+  the reconciler never inspects any check. See the core design's
   [CI gate](reconciler-design.md#ci-gate).
 - **Approvals carry over a clean base update** under a content-verified rule, so
   an update doesn't cost a review cycle. See

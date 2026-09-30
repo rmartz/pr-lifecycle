@@ -13,7 +13,7 @@ converge the PR to it.
 It performs no I/O. A separate edge layer gathers the facts from GitHub and applies
 the plan. Because the output depends only on current facts, never on the event
 that triggered the run, replaying, reordering or dropping events cannot drive a PR
-into a wrong state (ai-tools#306, constraint 1).
+into a wrong state.
 
 Source: `src/` (`facts.ts`, `verdict.ts`, `state.ts`, `plan.ts`).
 

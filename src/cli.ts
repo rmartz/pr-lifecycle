@@ -9,7 +9,7 @@ import type { GitRunner } from './lineage/git.js';
 import { createGitRunner } from './lineage/git.js';
 
 /**
- * Command-line entry for `ai-pr-lifecycle`. Kept free of `process` so it is fully
+ * Command-line entry for `pr-lifecycle`. Kept free of `process` so it is fully
  * testable: the bin shim (src/bin/pr-lifecycle.ts) supplies argv, the environment,
  * and the output streams, and turns the returned code into the exit status.
  *
@@ -31,7 +31,7 @@ export interface CliDeps {
   git?: GitRunner;
 }
 
-export const USAGE = `Usage: ai-pr-lifecycle <command> [options]
+export const USAGE = `Usage: pr-lifecycle <command> [options]
 
 Commands:
   reconcile   Recompute a PR's lifecycle state and converge its labels
