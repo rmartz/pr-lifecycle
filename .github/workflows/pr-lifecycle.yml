@@ -29,7 +29,7 @@ on:
   check_suite:
     types: [completed]
   workflow_run:
-    workflows: [CI, Repo Hygiene, PR Title Lint]
+    workflows: [CI, Repo Hygiene, PR Title Lint, Release check]
     types: [completed]
   workflow_dispatch:
     inputs:
