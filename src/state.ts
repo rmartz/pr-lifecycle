@@ -23,9 +23,22 @@ export type LifecycleState = (typeof LIFECYCLE_STATES)[number];
 
 const WIP_PATTERN = /\[wip\]/i;
 
+/**
+ * The `escalation needed` lifecycle label. Its presence is itself an escalation:
+ * whoever applied it (a /review or /merge verdict, or a person by hand), the PR
+ * needs a human, so the reconciler keeps it and never removes it.
+ */
+export const ESCALATION_LABEL = 'escalation needed';
+
 export function computeState(facts: PullRequestFacts, policy: ReconcilePolicy): LifecycleState {
   if (facts.status !== 'open') {
     return 'closed';
+  }
+  // A sticky escalation outranks everything else on an open PR: no verdict,
+  // green CI, or bot eligibility may approve (and arm) a PR someone escalated.
+  // Only a person or a new /review verdict clears it, by removing the label.
+  if (facts.labels.includes(ESCALATION_LABEL)) {
+    return 'escalation-needed';
   }
   if (facts.isDraft || WIP_PATTERN.test(facts.title)) {
     return 'draft';

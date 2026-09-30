@@ -34,7 +34,9 @@ requested bot review (Copilot) has none either; once no bot review is pending it
 gets `review requested`; a
 trusted verdict on the head sets `approved`, `changes requested`, or
 `escalation needed`; an eligible bot PR is `approved`. A push invalidates every
-verdict on the old head.
+verdict on the old head. `escalation needed` is sticky: once present, whether a
+verdict or a person applied it, the reconciler keeps it and treats the PR as
+escalated until someone removes the label.
 
 ## Design constraints
 
