@@ -7,8 +7,8 @@ name: pr-lifecycle
 # an eligible Dependabot or release-please PR; see docs/bot-eligibility.md).
 #
 # SAFETY: auto-merge lands the moment the default-branch ruleset's required
-# checks pass (CI, Repo hygiene, Validate PR title, merge-safety). This is only
-# safe while those checks are REQUIRED on main.
+# checks pass (CI, Repo hygiene, Validate PR title, release-check, merge-safety).
+# This is only safe while those checks are REQUIRED on main.
 
 on:
   pull_request_target:
@@ -29,7 +29,7 @@ on:
   check_suite:
     types: [completed]
   workflow_run:
-    workflows: [CI, Repo Hygiene, PR Title Lint]
+    workflows: [CI, Repo Hygiene, PR Title Lint, Release check]
     types: [completed]
   workflow_dispatch:
     inputs:
