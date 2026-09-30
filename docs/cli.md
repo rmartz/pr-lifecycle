@@ -1,14 +1,14 @@
 ---
 type: Script
-title: The ai-pr-lifecycle CLI
-description: The `ai-pr-lifecycle reconcile` command — its flags, environment, exit codes, and the versioned `--json` output contract that rmartz/pr-lifecycle-action builds on.
+title: The pr-lifecycle CLI
+description: The `pr-lifecycle reconcile` command — its flags, environment, exit codes, and the versioned `--json` output contract that rmartz/pr-lifecycle-action builds on.
 resource: src/cli.ts
 tags: [cli, contract, reconcile, json]
 ---
 
-# The `ai-pr-lifecycle` CLI
+# The `pr-lifecycle` CLI
 
-`ai-pr-lifecycle reconcile` runs one full reconcile pass for a PR, as described in
+`pr-lifecycle reconcile` runs one full reconcile pass for a PR, as described in
 the [GitHub edge layer](github-edge-layer.md): gather facts, plan, execute. The
 CLI owns every decision. The composite action in
 [`rmartz/pr-lifecycle-action`](https://github.com/rmartz/pr-lifecycle-action) only
@@ -18,7 +18,7 @@ installs a pinned version and invokes it, so everything on this page is a
 ## Usage
 
 ```
-ai-pr-lifecycle reconcile --repo <owner/repo> --pr <n>
+pr-lifecycle reconcile --repo <owner/repo> --pr <n>
   [--arm-auto-merge] [--auto-update] [--trusted-authors a,b] [--skip-copilot-review]
   [--hold-checks a,b] [--ignore-checks a,b] [--prose-paths a,b] [--dry-run]
   [--json] [--no-token-advisory]

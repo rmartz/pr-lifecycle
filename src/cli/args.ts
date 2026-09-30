@@ -1,7 +1,7 @@
 import type { ReconcilePolicy } from '../facts.js';
 
 /**
- * Argument parsing for `ai-pr-lifecycle`. Pure: argv in, a parsed command or a
+ * Argument parsing for `pr-lifecycle`. Pure: argv in, a parsed command or a
  * usage error out, so every flag is tested without a process. The contract is
  * recorded on #6 and in docs/cli.md.
  */

@@ -27,7 +27,7 @@
     }
   },
   "bin": {
-    "ai-pr-lifecycle": "./dist/bin/pr-lifecycle.js"
+    "pr-lifecycle": "dist/bin/pr-lifecycle.js"
   },
   "files": [
     "dist"
@@ -56,7 +56,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@rmartz/repo-hygiene": "^6.0.0",
+    "@rmartz/repo-hygiene": "^7.0.1",
     "@types/node": "^26.6.2",
     "@vitest/coverage-v8": "^5.0.1",
     "eslint": "^10.11.0",
