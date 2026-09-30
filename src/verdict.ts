@@ -36,8 +36,37 @@ export interface ParsedVerdict {
   markerHead: string | undefined;
 }
 
-function isVerdict(value: unknown): value is Verdict {
-  return VERDICTS.some((verdict) => verdict === value);
+// The hyphenated verdict names are the canonical marker outcomes. The legacy
+// spellings older /review markers carry (`changes requested`, and `blocked` for
+// the verdict that applies `escalation needed`) are still read.
+const LEGACY_MARKER_OUTCOMES: Readonly<Record<string, Verdict>> = {
+  'changes requested': 'changes-requested',
+  blocked: 'escalation-needed',
+};
+
+// A /review pass that deliberately did nothing: not a verdict.
+const SKIPPED_OUTCOME = 'skipped';
+
+/**
+ * The verdict a /review marker's outcome expresses, or undefined for `skipped`.
+ * Any other outcome, including a missing or non-string one, fails closed to
+ * `escalation-needed`: a /review verdict that can't be read must never let an
+ * earlier approval stand, so a human looks at it.
+ */
+function markerVerdict(outcome: unknown): Verdict | undefined {
+  if (outcome === SKIPPED_OUTCOME) {
+    return undefined;
+  }
+  if (typeof outcome !== 'string') {
+    return 'escalation-needed';
+  }
+  const canonical = VERDICTS.find((verdict) => verdict === outcome);
+  if (canonical !== undefined) {
+    return canonical;
+  }
+  return Object.hasOwn(LEGACY_MARKER_OUTCOMES, outcome)
+    ? LEGACY_MARKER_OUTCOMES[outcome]
+    : 'escalation-needed';
 }
 
 function readSkillMeta(body: string): SkillMeta | undefined {
@@ -67,12 +96,14 @@ export function parseVerdict(review: ReviewFact): ParsedVerdict | undefined {
   }
   const meta = readSkillMeta(review.body);
   if (meta?.skill === 'review') {
-    // A /review marker is authoritative, including `skipped` (not a verdict).
-    if (!isVerdict(meta.outcome)) {
+    // A /review marker is authoritative, including `skipped` (not a verdict)
+    // and an unreadable outcome (escalation).
+    const verdict = markerVerdict(meta.outcome);
+    if (verdict === undefined) {
       return undefined;
     }
     return {
-      verdict: meta.outcome,
+      verdict,
       markerHead: typeof meta.pr_head === 'string' ? meta.pr_head : undefined,
     };
   }
