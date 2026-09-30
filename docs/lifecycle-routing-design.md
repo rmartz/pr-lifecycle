@@ -23,9 +23,9 @@ decisions behind them.
 
 ## Decisions
 
-- **CI is a gate.** The reconciler reads the required checks to route a PR, so a
-  failing or pending PR is never labelled ready for review or merge. See the core
-  design's [CI gate](reconciler-design.md#ci-gate).
+- **CI is a gate.** The reconciler reads the required checks to route a PR:
+  failing CI routes it to a fix, and review is requested only once CI is green.
+  See the core design's [CI gate](reconciler-design.md#ci-gate).
 - **Approvals carry over a clean base update** under a content-verified rule, so
   an update doesn't cost a review cycle. See
   [Approval carry-over](reconciler-design.md#approval-carry-over).
