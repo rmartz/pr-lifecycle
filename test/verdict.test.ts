@@ -15,11 +15,23 @@ describe('parseVerdict', () => {
     ['approved', 'approved'],
     ['changes-requested', 'changes-requested'],
     ['escalation-needed', 'escalation-needed'],
+    // The spellings /review's post-review-verdict.py actually writes.
+    ['changes requested', 'changes-requested'],
+    ['blocked', 'escalation-needed'],
   ] as const)('reads the %s outcome from a /review marker', (outcome, expected) => {
     const review = makeReview({ body: makeVerdictBody(outcome) });
 
     expect(parseVerdict(review)?.verdict).toBe(expected);
   });
+
+  it.each(['toString', '__proto__', 'Approved', 'escalation needed'])(
+    'ignores the unknown marker outcome %s',
+    (outcome) => {
+      const review = makeReview({ state: 'APPROVED', body: makeVerdictBody(outcome) });
+
+      expect(parseVerdict(review)).toBeUndefined();
+    },
+  );
 
   it('reads the marker head', () => {
     const review = makeReview({ body: makeVerdictBody('approved', OLD_SHA) });
@@ -254,6 +266,20 @@ describe('currentVerdict', () => {
         body: makeVerdictBody('changes-requested'),
       }),
       makeReview({ id: 1, submittedAt: '2026-09-23T12:00:00Z', body: makeVerdictBody('approved') }),
+    ];
+
+    expect(currentVerdict(makeFacts({ reviews }), {})).toBe('changes-requested');
+  });
+
+  it('lets a later /review `changes requested` marker supersede an earlier approval', () => {
+    const reviews = [
+      makeReview({ id: 1, submittedAt: '2026-09-23T12:00:00Z', body: makeVerdictBody('approved') }),
+      makeReview({
+        id: 2,
+        state: 'COMMENTED',
+        submittedAt: '2026-09-23T13:00:00Z',
+        body: makeVerdictBody('changes requested'),
+      }),
     ];
 
     expect(currentVerdict(makeFacts({ reviews }), {})).toBe('changes-requested');

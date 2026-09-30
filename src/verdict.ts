@@ -36,8 +36,21 @@ export interface ParsedVerdict {
   markerHead: string | undefined;
 }
 
-function isVerdict(value: unknown): value is Verdict {
-  return VERDICTS.some((verdict) => verdict === value);
+// The outcomes /review writes into its marker (post-review-verdict.py), mapped
+// to the verdicts they express. `blocked` is the verdict that applies
+// `escalation needed`. The canonical verdict names are accepted too.
+const MARKER_OUTCOMES: Readonly<Record<string, Verdict>> = {
+  approved: 'approved',
+  'changes requested': 'changes-requested',
+  'changes-requested': 'changes-requested',
+  blocked: 'escalation-needed',
+  'escalation-needed': 'escalation-needed',
+};
+
+function markerVerdict(outcome: unknown): Verdict | undefined {
+  return typeof outcome === 'string' && Object.hasOwn(MARKER_OUTCOMES, outcome)
+    ? MARKER_OUTCOMES[outcome]
+    : undefined;
 }
 
 function readSkillMeta(body: string): SkillMeta | undefined {
@@ -68,11 +81,12 @@ export function parseVerdict(review: ReviewFact): ParsedVerdict | undefined {
   const meta = readSkillMeta(review.body);
   if (meta?.skill === 'review') {
     // A /review marker is authoritative, including `skipped` (not a verdict).
-    if (!isVerdict(meta.outcome)) {
+    const verdict = markerVerdict(meta.outcome);
+    if (verdict === undefined) {
       return undefined;
     }
     return {
-      verdict: meta.outcome,
+      verdict,
       markerHead: typeof meta.pr_head === 'string' ? meta.pr_head : undefined,
     };
   }
