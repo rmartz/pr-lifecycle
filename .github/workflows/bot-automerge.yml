@@ -32,7 +32,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: rmartz/bot-automerge-action@a46eafc1396993ffc04918f452b3d1c0e3c80f4f # v1.1.1
+      - uses: rmartz/bot-automerge-action@95393747671fc136f9759b44d9a979db10cd087b # v2.1.0
         with:
           pr: ${{ github.event.pull_request.number }}
           # Empty when the secret is unset (falls back to GITHUB_TOKEN). Harmless
