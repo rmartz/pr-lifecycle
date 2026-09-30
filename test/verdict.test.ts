@@ -15,10 +15,32 @@ describe('parseVerdict', () => {
     ['approved', 'approved'],
     ['changes-requested', 'changes-requested'],
     ['escalation-needed', 'escalation-needed'],
+    // Legacy space-separated spellings from markers written before the
+    // hyphenated names became canonical.
+    ['changes requested', 'changes-requested'],
+    ['blocked', 'escalation-needed'],
   ] as const)('reads the %s outcome from a /review marker', (outcome, expected) => {
     const review = makeReview({ body: makeVerdictBody(outcome) });
 
     expect(parseVerdict(review)?.verdict).toBe(expected);
+  });
+
+  it.each(['toString', '__proto__', 'Approved', 'escalation needed', ''])(
+    'escalates the unknown marker outcome %j over the native approval',
+    (outcome) => {
+      const review = makeReview({ state: 'APPROVED', body: makeVerdictBody(outcome) });
+
+      expect(parseVerdict(review)?.verdict).toBe('escalation-needed');
+    },
+  );
+
+  it.each([
+    ['missing', `{"skill": "review"}`],
+    ['non-string', `{"skill": "review", "outcome": 1}`],
+  ])('escalates a %s marker outcome', (_label, payload) => {
+    const review = makeReview({ state: 'APPROVED', body: `<!-- skill-meta: ${payload} -->` });
+
+    expect(parseVerdict(review)?.verdict).toBe('escalation-needed');
   });
 
   it('reads the marker head', () => {
@@ -254,6 +276,20 @@ describe('currentVerdict', () => {
         body: makeVerdictBody('changes-requested'),
       }),
       makeReview({ id: 1, submittedAt: '2026-09-23T12:00:00Z', body: makeVerdictBody('approved') }),
+    ];
+
+    expect(currentVerdict(makeFacts({ reviews }), {})).toBe('changes-requested');
+  });
+
+  it('lets a later /review `changes requested` marker supersede an earlier approval', () => {
+    const reviews = [
+      makeReview({ id: 1, submittedAt: '2026-09-23T12:00:00Z', body: makeVerdictBody('approved') }),
+      makeReview({
+        id: 2,
+        state: 'COMMENTED',
+        submittedAt: '2026-09-23T13:00:00Z',
+        body: makeVerdictBody('changes requested'),
+      }),
     ];
 
     expect(currentVerdict(makeFacts({ reviews }), {})).toBe('changes-requested');
