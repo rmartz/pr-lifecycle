@@ -15,7 +15,8 @@ describe('parseVerdict', () => {
     ['approved', 'approved'],
     ['changes-requested', 'changes-requested'],
     ['escalation-needed', 'escalation-needed'],
-    // The spellings /review's post-review-verdict.py actually writes.
+    // Legacy space-separated spellings from markers written before the
+    // hyphenated names became canonical.
     ['changes requested', 'changes-requested'],
     ['blocked', 'escalation-needed'],
   ] as const)('reads the %s outcome from a /review marker', (outcome, expected) => {
@@ -24,14 +25,23 @@ describe('parseVerdict', () => {
     expect(parseVerdict(review)?.verdict).toBe(expected);
   });
 
-  it.each(['toString', '__proto__', 'Approved', 'escalation needed'])(
-    'ignores the unknown marker outcome %s',
+  it.each(['toString', '__proto__', 'Approved', 'escalation needed', ''])(
+    'escalates the unknown marker outcome %j over the native approval',
     (outcome) => {
       const review = makeReview({ state: 'APPROVED', body: makeVerdictBody(outcome) });
 
-      expect(parseVerdict(review)).toBeUndefined();
+      expect(parseVerdict(review)?.verdict).toBe('escalation-needed');
     },
   );
+
+  it.each([
+    ['missing', `{"skill": "review"}`],
+    ['non-string', `{"skill": "review", "outcome": 1}`],
+  ])('escalates a %s marker outcome', (_label, payload) => {
+    const review = makeReview({ state: 'APPROVED', body: `<!-- skill-meta: ${payload} -->` });
+
+    expect(parseVerdict(review)?.verdict).toBe('escalation-needed');
+  });
 
   it('reads the marker head', () => {
     const review = makeReview({ body: makeVerdictBody('approved', OLD_SHA) });

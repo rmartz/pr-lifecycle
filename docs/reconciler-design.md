@@ -48,12 +48,16 @@ submitted) is **never** a verdict, whatever its body says. Dismissing is how a
 maintainer revokes an approval, so a marker must not outlive it. Otherwise, a
 review is a **verdict** when either:
 
-- its body carries a `skill-meta` marker with `"skill": "review"` and a verdict
-  `outcome`. `/review` writes `approved`, `changes requested`, or `blocked`. These
-  map to `approved`, `changes-requested`, and `escalation-needed`, and those
-  canonical names are also accepted. Any other outcome, including `skipped`, is
-  not a verdict. The marker stays authoritative even then: the review does not
-  fall back to its native state. Or:
+- its body carries a `skill-meta` marker with `"skill": "review"`. The marker's
+  `outcome` is the verdict: canonically `approved`, `changes-requested`, or
+  `escalation-needed`. The legacy spellings in older markers are still read:
+  `changes requested` means `changes-requested` and `blocked` means
+  `escalation-needed`. A `skipped` outcome is **not** a verdict: `/review`
+  deliberately did nothing. Any other outcome fails closed to
+  `escalation-needed`, including a missing or non-string one. An unreadable
+  `/review` verdict must never let an earlier approval stand, so a human looks
+  at it. The marker stays authoritative in every case, and the review never
+  falls back to its native state. Or:
 - it has no such marker and its native state is `APPROVED` or `CHANGES_REQUESTED`.
 
 The marker wins over the native state. A self-authored verdict is posted as a

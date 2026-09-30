@@ -37,7 +37,15 @@ const bodyArb = fc.oneof(
   fc.constant('LGTM'),
   fc
     .tuple(
-      fc.constantFrom('approved', 'changes-requested', 'escalation-needed', 'skipped'),
+      fc.constantFrom(
+        'approved',
+        'changes-requested',
+        'escalation-needed',
+        'skipped',
+        'changes requested',
+        'blocked',
+        'unrecognized',
+      ),
       fc.option(shaArb, { nil: undefined }),
     )
     .map(([outcome, head]) => makeVerdictBody(outcome, head)),
