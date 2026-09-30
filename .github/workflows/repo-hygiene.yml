@@ -25,7 +25,7 @@ jobs:
       packages: read # read the public @rmartz/repo-hygiene package from GitHub Packages
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: rmartz/repo-hygiene-action@12245f5aae730c8ae0dfa5851c0320335ad0c96c # v2.0.0
+      - uses: rmartz/repo-hygiene-action@3ee96d4f76be95ddb0c3ab9d7dc6388b855fc8c5 # v3.1.0
         with:
           checks: conflict-markers action-pins package-pins docs-links md-pairing okf okf-index file-caps
           config: .repo-hygiene.yml
