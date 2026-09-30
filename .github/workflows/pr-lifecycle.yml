@@ -1,0 +1,68 @@
+name: pr-lifecycle
+
+# Dogfoods this repo's own reconciler through the published, SHA-pinned
+# rmartz/pr-lifecycle-action, the same path consumers use (#10). On every
+# relevant event it recomputes each PR's lifecycle state and converges its
+# labels.
+#
+# LABELS ONLY: `arm-auto-merge` is off, so this never touches auto-merge and
+# needs no real-actor token. bot-automerge.yml stays the only thing that arms
+# PRs until the cutover in docs/bot-eligibility.md: remove bot-automerge first,
+# then enable arming here.
+
+on:
+  pull_request_target:
+    types:
+      - opened
+      - reopened
+      - ready_for_review
+      - converted_to_draft
+      - synchronize
+      - edited
+      - labeled
+      - unlabeled
+  pull_request_review:
+    types: [submitted, dismissed, edited]
+  # CI completion re-routes a PR through the CI gate. check_suite never fires for
+  # suites GitHub Actions creates, so workflow_run lists this repo's required
+  # Actions workflows.
+  check_suite:
+    types: [completed]
+  workflow_run:
+    workflows: [CI, Repo Hygiene, PR Title Lint, Release check]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: PR number to reconcile
+        required: true
+
+permissions:
+  pull-requests: write # labels, review requests
+  contents: read # branch rules, base head, commits for approval carry-over
+  checks: read # the CI gate
+  statuses: read # the CI gate
+
+jobs:
+  reconcile:
+    name: Reconcile PR lifecycle
+    # A review on a fork PR runs with a read-only token, so it can't write
+    # labels; skip it. The fork PR is reconciled on its next
+    # pull_request_target event, or on demand via workflow_dispatch.
+    if: >-
+      github.event_name != 'pull_request_review' ||
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # One run per PR at a time; a newer event supersedes an in-flight one, since
+    # every run recomputes from current facts. CI-completion events are keyed by
+    # head SHA, as the PR number is only known inside the action.
+    concurrency:
+      group: >-
+        pr-lifecycle-${{ github.event.pull_request.number || inputs.pr ||
+        github.event.workflow_run.head_sha || github.event.check_suite.head_sha }}
+      cancel-in-progress: true
+    steps:
+      # No inputs: the action resolves the PR from the event (including a
+      # dispatch's `pr`), and arming stays at its `false` default.
+      - uses: rmartz/pr-lifecycle-action@c54d41c6b0e4c5801d7c02a904060eccdeebab30 # v2.0.0
