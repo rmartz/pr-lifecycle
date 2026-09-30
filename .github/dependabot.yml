@@ -15,10 +15,14 @@ registries:
 
 # Cooldown: since 2026-07-14 Dependabot waits 3 days after a release before
 # proposing it, even with no `cooldown` configured. Third-party dependencies keep
-# that default (security updates are never delayed by it). Only first-party
-# releases (`@rmartz/*` packages, `rmartz/*` actions and reusable workflows) are
-# exempt: they're published from our own repos with provenance, so the wait adds
-# no supply-chain protection and only holds fixes back from the fleet.
+# that default (security updates are never delayed by it).
+# - github-actions exempts first-party `rmartz/*` actions and reusable workflows:
+#   they're published from our own repos, so the wait only holds fixes back.
+# - npm declares NO `cooldown` block. An explicit npm cooldown is passed to pnpm
+#   as `minimumReleaseAge`, which hard-fails lockfile resolution
+#   (ERR_PNPM_NO_MATURE_MATCHING_VERSION) whenever any transitive dependency is
+#   younger than the window, so grouped updates close as "no longer updatable"
+#   (rmartz/pr-shepherd#374). The implicit default isn't forwarded to pnpm.
 updates:
   - package-ecosystem: npm
     directory: /
@@ -26,11 +30,6 @@ updates:
       - github-packages
     schedule:
       interval: weekly
-    cooldown:
-      # Explicit, so declaring the block can't change the third-party default.
-      default-days: 3
-      exclude:
-        - '@rmartz/*'
     commit-message:
       # Production deps ship to consumers → `fix` cuts a patch release.
       # Dev deps never reach the published artifact → release-less `chore`.
