@@ -43,7 +43,6 @@ pins npmjs as the base registry so Dependabot resolves public packages correctly
 | `ci.yml`                | PR + push to `main`         | Typecheck, Lint, Format, Build, Test (with coverage)                                                                                        |
 | `release-check.yml`     | PR                          | `release-check / release-check`: the release config works with the shared semantic-release-ci toolchain                                     |
 | `repo-hygiene.yml`      | PR + push to `main`         | conflict markers, action/package pins, docs links, AGENTS/CLAUDE pairing, OKF frontmatter + index, file caps                                |
-| `pr-title-lint.yml`     | PR opened/edited/synced     | Conventional-Commit PR title, no `[WIP]`                                                                                                    |
 | `merge-safety.yml`      | `pull_request_target`, push | the `merge-safety` check-run (base currency, conflicts)                                                                                     |
 | `pr-policy.yml`         | `pull_request_target`       | runs `rmartz/pr-policy-action` with `skip-uat: true` (nothing here to user-test): the required `pr-policy` check (title rules, CI sign-off) |
 | `pr-lifecycle.yml`      | PR, review, CI completion   | dogfoods the published reconciler: lifecycle labels, and arms auto-merge on `approved`                                                      |
@@ -52,8 +51,9 @@ pins npmjs as the base registry so Dependabot resolves public packages correctly
 
 Every job has a timeout; a hit is a signal to investigate, not a number to raise.
 The default-branch ruleset requires the CI jobs, `Repo hygiene`,
-`Validate PR title`, `merge-safety`, `release-check / release-check`, and
-`pr-policy`. Changing CI follows the fleet rules: a
+`merge-safety`, `release-check / release-check`, and
+`pr-policy`. PR titles are checked by pr-policy's `title` check, part of the
+`pr-policy` check. Changing CI follows the fleet rules: a
 change that loosens CI (removing a job, `continue-on-error`, lowering a coverage
 threshold, raising a timeout) lands alone in its own `ci:` PR.
 
