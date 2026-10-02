@@ -154,13 +154,25 @@ export type ReleaseActions = Pick<
 >;
 
 export class GitHubApiError extends Error {
+  /** The HTTP status; 0 when the request never got a response (a network failure). */
   readonly status: number;
+  /**
+   * The failure is external and temporary (a rate limit, a GitHub outage, the
+   * network), not something wrong with the PR: retrying later can succeed. Set by
+   * the HTTP transport, which sees the headers and body that tell them apart.
+   */
+  readonly transient: boolean;
 
-  constructor(status: number, message: string) {
+  constructor(status: number, message: string, options: { transient?: boolean } = {}) {
     super(message);
     this.name = 'GitHubApiError';
     this.status = status;
+    this.transient = options.transient ?? false;
   }
+}
+
+export function isTransientError(error: unknown): boolean {
+  return error instanceof GitHubApiError && error.transient;
 }
 
 export function isApiStatus(error: unknown, status: number): boolean {
