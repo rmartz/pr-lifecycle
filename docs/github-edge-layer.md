@@ -27,7 +27,9 @@ enable/disable auto-merge, merge, and update the branch. All decisions live in
 (`http-client.ts`), only maps requests and responses: REST for reads and labels,
 GraphQL for the auto-merge mutations (REST has none). It uses the runtime's
 `fetch`, so it has no dependencies, and failures throw `GitHubApiError` with the
-HTTP status.
+HTTP status (0 for a network failure) and a `transient` flag: set for a rate
+limit, a 5xx, or a network failure, so the CLI can
+[exit 75 instead of 1](cli.md#exit-codes).
 
 ## Gather
 

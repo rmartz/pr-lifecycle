@@ -1,6 +1,7 @@
 import { parseArgs } from './cli/args.js';
 import { formatSummary, toReconcileJson } from './cli/output.js';
 import type { GitHubClient } from './github/client.js';
+import { isTransientError } from './github/client.js';
 import type { HttpClientOptions } from './github/http-client.js';
 import { createHttpClient } from './github/http-client.js';
 import { reconcilePullRequest } from './github/reconcile.js';
@@ -15,8 +16,12 @@ import { createGitRunner } from './lineage/git.js';
  *
  * Exit codes (a contract with rmartz/pr-lifecycle-action; see docs/cli.md):
  * 0 reconciled (including "nothing to do" and a skipped closed PR), 1 a GitHub or
- * other runtime failure, 2 a usage or configuration error.
+ * other runtime failure, 2 a usage or configuration error, 75 a transient external
+ * failure (rate limit, GitHub outage, network) that says nothing about the PR.
  */
+
+/** sysexits.h EX_TEMPFAIL: the run was interrupted from outside; a later run can succeed. */
+export const EXIT_TRANSIENT = 75;
 
 export interface CliIo {
   stdout: (line: string) => void;
@@ -126,6 +131,12 @@ export async function runCli(argv: readonly string[], io: CliIo, deps: CliDeps):
     return 0;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
+    if (isTransientError(error)) {
+      io.stderr(
+        `reconcile interrupted for ${args.owner}/${args.repo}#${args.pr} by a transient failure: ${message}`,
+      );
+      return EXIT_TRANSIENT;
+    }
     io.stderr(`reconcile failed for ${args.owner}/${args.repo}#${args.pr}: ${message}`);
     return 1;
   }
