@@ -12,7 +12,7 @@ export type {
   BotPrType,
   DependabotUpdateType,
 } from './bot-eligibility.js';
-export { runCli, USAGE } from './cli.js';
+export { EXIT_TRANSIENT, runCli, USAGE } from './cli.js';
 export type { CliDeps, CliIo } from './cli.js';
 export { parseArgs } from './cli/args.js';
 export type { ParsedArgs, ReconcileArgs } from './cli/args.js';
@@ -36,7 +36,7 @@ export type {
   ReviewFact,
   ReviewState,
 } from './facts.js';
-export { GitHubApiError, isApiStatus } from './github/client.js';
+export { GitHubApiError, isApiStatus, isTransientError } from './github/client.js';
 export type {
   CollaboratorPermission,
   CommitData,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { runCli, USAGE } from '../src/cli.js';
+import { EXIT_TRANSIENT, runCli, USAGE } from '../src/cli.js';
 import { GitHubApiError } from '../src/github/client.js';
 import { makeApprovedClient, makeDeps, makeIo, RECONCILE } from './cli-fixtures.js';
 import { FakeGitHubClient, makePullRequestData } from './github/fake-client.js';
@@ -148,12 +148,34 @@ describe('runCli — reconcile', () => {
 
   it('exits 1 on a GitHub failure and reports it on stderr only', async () => {
     const client = new FakeGitHubClient();
-    client.failNext('getPullRequest', new GitHubApiError(502, 'bad gateway'));
+    client.failNext('getPullRequest', new GitHubApiError(403, 'resource not accessible'));
     const { out, err, io } = makeIo();
 
     const code = await runCli([...RECONCILE, '--json'], io, makeDeps(client).deps);
 
-    expect([code, out, err]).toEqual([1, [], ['reconcile failed for rmartz/demo#7: bad gateway']]);
+    expect([code, out, err]).toEqual([
+      1,
+      [],
+      ['reconcile failed for rmartz/demo#7: resource not accessible'],
+    ]);
+  });
+
+  it('exits EXIT_TRANSIENT (75) on a transient failure and reports it on stderr only', async () => {
+    const client = new FakeGitHubClient();
+    client.failNext(
+      'getPullRequest',
+      new GitHubApiError(403, 'secondary rate limit', { transient: true }),
+    );
+    const { out, err, io } = makeIo();
+
+    const code = await runCli([...RECONCILE, '--json'], io, makeDeps(client).deps);
+
+    expect([code, EXIT_TRANSIENT, out, err]).toEqual([
+      75,
+      75,
+      [],
+      ['reconcile interrupted for rmartz/demo#7 by a transient failure: secondary rate limit'],
+    ]);
   });
 });
 

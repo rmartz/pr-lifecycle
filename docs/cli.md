@@ -94,11 +94,23 @@ nothing else does (no reads, no labels).
 
 ## Exit codes
 
-| Code | Meaning                                                                                                                                               |
-| ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `0`  | Reconciled, including "nothing to do" and a closed PR skipped.                                                                                        |
-| `1`  | A GitHub API or other runtime failure. The message is on stderr. Writes are fail-safe ordered, so auto-merge is never left armed on an unapproved PR. |
-| `2`  | A usage or configuration error (bad flags, missing `GITHUB_TOKEN`). Nothing is read or written.                                                       |
+| Code | Meaning                                                                                                                                                             |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `0`  | Reconciled, including "nothing to do" and a closed PR skipped.                                                                                                      |
+| `1`  | A non-transient GitHub API or other runtime failure. The message is on stderr. Writes are fail-safe ordered, so auto-merge is never left armed on an unapproved PR. |
+| `2`  | A usage or configuration error (bad flags, missing `GITHUB_TOKEN`). Nothing is read or written.                                                                     |
+| `75` | A transient external failure (`EXIT_TRANSIENT`, sysexits `EX_TEMPFAIL`): a rate limit, a GitHub 5xx, or a network error. See below.                                 |
+
+`1` should mean the run hit a real problem; a transient failure says nothing
+about the PR, so it gets its own code. A failure is transient when the response
+is a 429, a 5xx, or a 403 that is a rate limit (`x-ratelimit-remaining: 0`, a
+`retry-after` header, or a body that says "rate limit", which covers the
+secondary limit), when a GraphQL reply carries a `RATE_LIMITED` error, or when
+no response arrived at all. The message goes to stderr as `reconcile interrupted
+for … by a transient failure: …`, and `--json` prints nothing. A wrapper should
+report the run as **cancelled**, not failed: the
+next event reconciles from current facts, and the fail-safe write order still
+holds for any writes made before the interruption.
 
 ## Output
 

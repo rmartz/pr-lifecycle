@@ -18,7 +18,24 @@ export interface HttpClientOptions {
 export const PAGE_SIZE = 100;
 
 interface GraphQlResponse {
-  errors?: { message: string }[];
+  errors?: { message: string; type?: string }[];
+}
+
+/**
+ * Whether a failed response is external and temporary rather than a verdict on
+ * the request: a rate limit (429, or a 403 that says so — GitHub reports both the
+ * primary and the secondary limit that way) or a server-side error (5xx).
+ */
+function isTransientResponse(response: Response, detail: string): boolean {
+  if (response.status === 429 || response.status >= 500) {
+    return true;
+  }
+  return (
+    response.status === 403 &&
+    (response.headers.get('x-ratelimit-remaining') === '0' ||
+      response.headers.has('retry-after') ||
+      /rate limit/i.test(detail))
+  );
 }
 
 export interface HttpTransport {
@@ -39,22 +56,32 @@ export function createTransport(options: HttpClientOptions): HttpTransport {
   const repoPath = `/repos/${encodeURIComponent(options.owner)}/${encodeURIComponent(options.repo)}`;
 
   async function request(method: string, path: string, body?: unknown): Promise<unknown> {
-    const response = await doFetch(`${apiUrl}${path}`, {
-      method,
-      headers: {
-        Accept: 'application/vnd.github+json',
-        Authorization: `Bearer ${options.token}`,
-        'Content-Type': 'application/json',
-        'User-Agent': 'rmartz-pr-lifecycle',
-        'X-GitHub-Api-Version': '2022-11-28',
-      },
-      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-    });
+    let response: Response;
+    try {
+      response = await doFetch(`${apiUrl}${path}`, {
+        method,
+        headers: {
+          Accept: 'application/vnd.github+json',
+          Authorization: `Bearer ${options.token}`,
+          'Content-Type': 'application/json',
+          'User-Agent': 'rmartz-pr-lifecycle',
+          'X-GitHub-Api-Version': '2022-11-28',
+        },
+        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+      });
+    } catch (error) {
+      // No response at all: DNS, a dropped connection, a timeout.
+      const message = error instanceof Error ? error.message : String(error);
+      throw new GitHubApiError(0, `${method} ${path} → network error: ${message}`, {
+        transient: true,
+      });
+    }
     if (!response.ok) {
       const detail = await response.text();
       throw new GitHubApiError(
         response.status,
         `${method} ${path} → ${response.status}: ${detail}`,
+        { transient: isTransientResponse(response, detail) },
       );
     }
     return response.status === 204 ? undefined : response.json();
@@ -75,7 +102,10 @@ export function createTransport(options: HttpClientOptions): HttpTransport {
     const result = (await request('POST', '/graphql', { query, variables })) as GraphQlResponse;
     if (result.errors !== undefined && result.errors.length > 0) {
       const messages = result.errors.map((error) => error.message).join('; ');
-      throw new GitHubApiError(200, `GraphQL error: ${messages}`);
+      // GraphQL reports its own rate limit as a 200 carrying a RATE_LIMITED error.
+      throw new GitHubApiError(200, `GraphQL error: ${messages}`, {
+        transient: result.errors.some((error) => error.type === 'RATE_LIMITED'),
+      });
     }
   }
 
