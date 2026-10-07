@@ -43,14 +43,14 @@ The policy options are described in the [core design](reconciler-design.md).
 
 ## Environment
 
-| Variable             | Use                                                                                            |
-| -------------------- | ---------------------------------------------------------------------------------------------- |
-| `GITHUB_TOKEN`       | Token for all reads and writes (required; missing → exit 2).                                   |
-| `PR_LIFECYCLE_TOKEN` | Real-actor token used **only** to arm, merge, and update. See [Release token](#release-token). |
-| `GITHUB_API_URL`     | API base URL for GitHub Enterprise Server (defaults to github.com).                            |
+| Variable             | Use                                                                                                    |
+| -------------------- | ------------------------------------------------------------------------------------------------------ |
+| `GITHUB_TOKEN`       | Token for all reads and writes (required; missing → exit 2).                                           |
+| `PR_LIFECYCLE_TOKEN` | Real-actor token used **only** to disarm, arm, merge, and update. See [Release token](#release-token). |
+| `GITHUB_API_URL`     | API base URL for GitHub Enterprise Server (defaults to github.com).                                    |
 
-**Token permissions.** `pull-requests: write` (PR, reviews, labels, comments,
-disarming), `contents: read` (branch rules, the base branch head, commits),
+**Token permissions.** `pull-requests: write` (PR, reviews, labels, comments),
+`contents: read` (branch rules, the base branch head, commits),
 `checks: read` and `statuses: read` (the CI gate). The collaborator-permission
 lookup also needs at least read access to the repository.
 

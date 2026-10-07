@@ -38,7 +38,7 @@ on:
         required: true
 
 permissions:
-  pull-requests: write # labels, review requests, advisory comment, disarming
+  pull-requests: write # labels, review requests, advisory comment
   contents: read # branch rules, base head, commits for approval carry-over
   checks: read # the CI gate
   statuses: read # the CI gate
