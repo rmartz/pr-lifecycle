@@ -1,4 +1,7 @@
 name: pr-lifecycle
+# Shows which event and action started each run (e.g. pull_request_target /
+# review_request_removed), so the run list says what re-reconciled a PR.
+run-name: pr-lifecycle (${{ github.event_name }}${{ github.event.action && format('/{0}', github.event.action) || '' }})
 
 # Dogfoods this repo's own reconciler through the published, SHA-pinned
 # rmartz/pr-lifecycle-action, the same path consumers use (#10). On every
@@ -21,6 +24,10 @@ on:
       - edited
       - labeled
       - unlabeled
+      # A bot review request that lands (or is removed) after the run's settle
+      # wait moves the PR into (or out of) awaiting-bot-review.
+      - review_requested
+      - review_request_removed
   pull_request_review:
     types: [submitted, dismissed, edited]
   # CI completion re-routes a PR through the CI gate. check_suite never fires for
