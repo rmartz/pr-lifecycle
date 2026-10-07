@@ -1,10 +1,12 @@
 import type { BotEligibility } from '../bot-eligibility.js';
 import { DEPENDABOT_LOGIN } from '../bot-eligibility.js';
 import type {
+  ActorType,
   BranchUpdater,
   PullRequestFacts,
   ReconcilePolicy,
   RepoPermission,
+  ReviewAuthor,
   ReviewFact,
 } from '../facts.js';
 import { REPO_PERMISSIONS } from '../facts.js';
@@ -15,6 +17,7 @@ import { gatherCiFacts } from './ci-facts.js';
 import type { GitHubClient, PullRequestData, ReviewData } from './client.js';
 import { isApiStatus } from './client.js';
 import { isDependabotRebasing, isRebasePending } from './dependabot-rebase.js';
+import { gatherEscalationRemovals } from './escalation-facts.js';
 import type { Lineage } from './lineage-facts.js';
 import { gatherLineage } from './lineage-facts.js';
 
@@ -69,18 +72,25 @@ async function lookupPermission(client: GitHubClient, login: string): Promise<Re
   }
 }
 
+/** A review author or a label remover: someone whose act counts only if trusted. */
+interface ActorData {
+  /** Undefined when the account was deleted (a "ghost"). */
+  login: string | undefined;
+  type: ActorType;
+}
+
 /**
- * Permissions for every author who could possibly be trusted. Bots and deleted
- * ("ghost") accounts can never cast a counting verdict, so they skip the lookup.
+ * Permissions for every actor who could possibly be trusted. Bots and deleted
+ * ("ghost") accounts can never be trusted, so they skip the lookup.
  */
 async function lookupPermissions(
   client: GitHubClient,
-  reviews: readonly ReviewData[],
+  actors: readonly ActorData[],
 ): Promise<Map<string, RepoPermission>> {
   const logins = new Set<string>();
-  for (const review of reviews) {
-    if (review.login !== undefined && review.type === 'User') {
-      logins.add(review.login);
+  for (const actor of actors) {
+    if (actor.login !== undefined && actor.type === 'User') {
+      logins.add(actor.login);
     }
   }
   const entries = await Promise.all(
@@ -89,16 +99,16 @@ async function lookupPermissions(
   return new Map(entries);
 }
 
-function toReviewFact(review: ReviewData, permissions: Map<string, RepoPermission>): ReviewFact {
+function toAuthor(actor: ActorData, permissions: Map<string, RepoPermission>): ReviewAuthor {
   // Only looked-up Users have an entry; bots and ghosts get no permission.
-  const permission = review.login === undefined ? undefined : permissions.get(review.login);
+  const permission = actor.login === undefined ? undefined : permissions.get(actor.login);
+  return { login: actor.login ?? 'ghost', type: actor.type, permission: permission ?? 'none' };
+}
+
+function toReviewFact(review: ReviewData, permissions: Map<string, RepoPermission>): ReviewFact {
   return {
     id: review.id,
-    author: {
-      login: review.login ?? 'ghost',
-      type: review.type,
-      permission: permission ?? 'none',
-    },
+    author: toAuthor(review, permissions),
     commitSha: review.commitSha,
     state: review.state,
     body: review.body,
@@ -179,10 +189,11 @@ export async function gatherFacts(
   options: GatherOptions = {},
 ): Promise<GatheredPullRequest> {
   const [pull, reviews] = await Promise.all([client.getPullRequest(pr), client.listReviews(pr)]);
+  const removals = await gatherEscalationRemovals(client, pr, reviews);
   // Dependabot rebases its own branches; the author login can't be forged.
   const updater: BranchUpdater = pull.authorLogin === DEPENDABOT_LOGIN ? 'dependabot' : 'github';
   const [permissions, botEligibility, ci, lineage, rebasePending] = await Promise.all([
-    lookupPermissions(client, reviews),
+    lookupPermissions(client, [...reviews, ...removals]),
     gatherBotEligibility(client, pr, pull),
     gatherCiFacts(client, pull, policy),
     gatherLineageFor(client, pull, reviews, options),
@@ -210,6 +221,10 @@ export async function gatherFacts(
       rebasePending,
       dependabotRebasing: updater === 'dependabot' && isDependabotRebasing(pull.body),
       reviews: reviews.map((review) => toReviewFact(review, permissions)),
+      escalationRemovals: removals.map((removal) => ({
+        actor: toAuthor(removal, permissions),
+        removedAt: removal.removedAt,
+      })),
       pendingBotReviewers: pull.requestedBotReviewers,
     },
   };

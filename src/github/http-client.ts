@@ -17,7 +17,7 @@ import type {
   RestPullFile,
   RestReview,
 } from './rest-payloads.js';
-import { toReviewData } from './rest-payloads.js';
+import { toActorType, toReviewData } from './rest-payloads.js';
 
 /**
  * The real GitHubClient: REST for reads and labels, GraphQL for the auto-merge
@@ -137,6 +137,20 @@ export function createHttpClient(options: HttpClientOptions): GitHubClient {
     },
     async removeLabel(pr, name) {
       await request('DELETE', `${repoPath}/issues/${pr}/labels/${encodeURIComponent(name)}`);
+    },
+    async listLabelRemovals(pr, label) {
+      const events = await paginate<RestIssueEvent>(`${repoPath}/issues/${pr}/events`);
+      return events
+        .filter((event) => event.event === 'unlabeled' && event.label?.name === label)
+        .map((event) => {
+          const actor = event.actor ?? undefined;
+          return {
+            login: actor?.login,
+            // A deleted account can never be trusted, so it reads as a bot.
+            type: actor === undefined ? 'Bot' : toActorType(actor.type),
+            removedAt: event.created_at,
+          };
+        });
     },
     async getLastReadyForReviewAt(pr) {
       const events = await paginate<RestIssueEvent>(`${repoPath}/issues/${pr}/events`);

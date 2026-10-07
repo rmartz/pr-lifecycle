@@ -7,6 +7,7 @@ import type {
   CommitStatusData,
   GitHubClient,
   LabelDefinition,
+  LabelRemovalData,
   PullRequestData,
   ReviewData,
 } from '../../src/github/client.js';
@@ -83,6 +84,8 @@ export class FakeGitHubClient implements GitHubClient {
   comments: string[] = [];
   /** When the PR was last marked ready for review, if ever. */
   readyForReviewAt: string | undefined = undefined;
+  /** Label removals by label name, oldest first. */
+  labelRemovals = new Map<string, LabelRemovalData[]>();
   readonly calls: FakeCall[] = [];
   private readonly failures = new Map<keyof GitHubClient, Error>();
 
@@ -111,6 +114,7 @@ export class FakeGitHubClient implements GitHubClient {
       'listRepoLabels',
       'listIssueComments',
       'getLastReadyForReviewAt',
+      'listLabelRemovals',
     ]);
     return this.calls.filter((call) => !reads.has(call.method));
   }
@@ -218,6 +222,11 @@ export class FakeGitHubClient implements GitHubClient {
     }
     this.pull.labels = this.pull.labels.filter((label) => label !== name);
     return Promise.resolve();
+  }
+
+  listLabelRemovals(pr: number, label: string): Promise<LabelRemovalData[]> {
+    this.record('listLabelRemovals', pr, label);
+    return Promise.resolve([...(this.labelRemovals.get(label) ?? [])]);
   }
 
   getLastReadyForReviewAt(pr: number): Promise<string | undefined> {
