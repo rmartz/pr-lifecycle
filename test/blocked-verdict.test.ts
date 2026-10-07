@@ -73,10 +73,7 @@ describe('blocked verdict: plan', () => {
 
     const plan = planReconcile(facts, ARMING);
 
-    expect([plan.autoMerge, plan.removeLabels]).toEqual([
-      'disarm',
-      ['approved', AUTO_MERGE_LABEL],
-    ]);
+    expect([plan.autoMerge, plan.removeLabels]).toEqual(['disarm', ['approved', AUTO_MERGE_LABEL]]);
   });
 
   it('removes the blocked label once a later verdict replaces it', () => {
