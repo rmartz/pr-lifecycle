@@ -297,13 +297,14 @@ describe('gatherFacts — lineage error boundary', () => {
 
   it('fails closed with the reason when gatherLineage itself rejects', async () => {
     const review = makeReviewData({ commitSha: OLD_SHA, state: 'COMMENTED' });
-    // The body's first read is gatherLineage's scan for reviewed ancestors; throw
-    // there only, so the later mapping into facts still succeeds.
+    // The body's first read is the scan for escalation verdicts and its second is
+    // gatherLineage's scan for reviewed ancestors; throw on the second only, so the
+    // other reads (and the later mapping into facts) still succeed.
     let reads = 0;
     Object.defineProperty(review, 'body', {
       get() {
         reads += 1;
-        if (reads === 1) {
+        if (reads === 2) {
           throw new Error('malformed review');
         }
         return '';

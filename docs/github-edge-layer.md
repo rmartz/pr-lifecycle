@@ -35,8 +35,8 @@ limit, a 5xx, or a network failure, so the CLI can
 
 - **Everything is read before anything is written.** A run never reacts to its own
   writes: its output depends only on the facts read at the start.
-- **Permissions.** Each distinct review author is looked up once via the
-  collaborator-permission API. The fine-grained `role_name` is preferred, since
+- **Permissions.** Each distinct review author, and each person who removed
+  `escalation needed`, is looked up once via the collaborator-permission API. The fine-grained `role_name` is preferred, since
   it distinguishes `maintain` and `triage`. A custom role falls back to the legacy
   `permission` level, and an unrecognized value maps to `none`. A 404
   (non-collaborator) means `none`; any other error aborts the run.
@@ -56,6 +56,12 @@ limit, a 5xx, or a network failure, so the CLI can
 - **Dependabot rebasing** (`dependabotRebasing`) is read from the PR body
   already fetched, so it costs no extra request; it is `false` for any PR not
   authored by `dependabot[bot]`, since anyone can paste the notice into a body.
+- **Escalation removals** (`escalationRemovals`) are the `unlabeled` issue events
+  for `escalation needed`, each with its actor. They are read only when some
+  review is an escalation verdict, the only case where they can change the answer
+  (`escalation-facts.ts`; see
+  [State](reconciler-design.md#state-in-priority-order)). A removal by a deleted
+  account reads as a `Bot`, so it can't be trusted.
 - **Pending bot reviewers** come from the PR's own `requested_reviewers`
   (entries of type `Bot`), so they cost no extra request.
 - **Settle wait.** On the transition into `review-requested`, a PR opened or

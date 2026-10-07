@@ -318,3 +318,73 @@ describe('currentVerdict', () => {
     expect(currentVerdict(makeFacts({ reviews }), {})).toBe('changes-requested');
   });
 });
+
+// People resolve an escalation by removing `escalation needed`, not by posting a
+// verdict (#79). The escalation fixture is posted at 12:00.
+describe('currentVerdict — escalation resolved by removing its label', () => {
+  const escalation = makeReview({ id: 5, body: makeVerdictBody('escalation-needed') });
+
+  function removalBy(actor = makeAuthor(), removedAt = '2026-09-23T15:00:00Z') {
+    return { actor, removedAt };
+  }
+
+  it('leaves no verdict once a trusted person removes the label afterwards', () => {
+    const facts = makeFacts({ reviews: [escalation], escalationRemovals: [removalBy()] });
+
+    expect(currentVerdict(facts, {})).toBeUndefined();
+  });
+
+  it.each([
+    ['a bot', makeAuthor({ login: 'github-actions[bot]', type: 'Bot', permission: 'none' })],
+    ['a read-only user', makeAuthor({ login: 'drive-by', permission: 'read' })],
+    ['a triage user', makeAuthor({ login: 'triager', permission: 'triage' })],
+  ])('keeps the escalation when %s removes the label', (_label, actor) => {
+    const facts = makeFacts({ reviews: [escalation], escalationRemovals: [removalBy(actor)] });
+
+    expect(currentVerdict(facts, {})).toBe('escalation-needed');
+  });
+
+  it('keeps the escalation when the remover is outside trusted-authors', () => {
+    const byRmartz = { ...escalation, author: makeAuthor({ login: 'rmartz' }) };
+    const facts = makeFacts({ reviews: [byRmartz], escalationRemovals: [removalBy()] });
+
+    expect(currentVerdict(facts, { trustedAuthors: ['rmartz'] })).toBe('escalation-needed');
+  });
+
+  it('keeps an escalation posted after the removal', () => {
+    const removedEarlier = removalBy(makeAuthor(), '2026-09-23T11:00:00Z');
+    const facts = makeFacts({ reviews: [escalation], escalationRemovals: [removedEarlier] });
+
+    expect(currentVerdict(facts, {})).toBe('escalation-needed');
+  });
+
+  // post-review-verdict.py may clear a stale label while posting a fresh escalation.
+  it('keeps an escalation removed in the same instant it was posted', () => {
+    const sameInstant = removalBy(makeAuthor(), escalation.submittedAt);
+    const facts = makeFacts({ reviews: [escalation], escalationRemovals: [sameInstant] });
+
+    expect(currentVerdict(facts, {})).toBe('escalation-needed');
+  });
+
+  it('does not revive the approval the resolved escalation superseded', () => {
+    const approval = makeReview({
+      id: 2,
+      submittedAt: '2026-09-23T09:00:00Z',
+      body: makeVerdictBody('approved'),
+    });
+    const facts = makeFacts({ reviews: [approval, escalation], escalationRemovals: [removalBy()] });
+
+    expect(currentVerdict(facts, {})).toBeUndefined();
+  });
+
+  it('lets a verdict posted after the removal count', () => {
+    const approval = makeReview({
+      id: 9,
+      submittedAt: '2026-09-23T16:00:00Z',
+      body: makeVerdictBody('approved'),
+    });
+    const facts = makeFacts({ reviews: [escalation, approval], escalationRemovals: [removalBy()] });
+
+    expect(currentVerdict(facts, {})).toBe('approved');
+  });
+});

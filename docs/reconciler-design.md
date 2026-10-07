@@ -112,6 +112,27 @@ eligibility can approve or arm the PR while it is present. Only a person or a ne
 `/review` verdict (which replaces the verdict labels) clears it, by removing the
 label; the next reconcile then computes the state from the facts as usual.
 
+**Removing the label resolves an escalation verdict.** People resolve an
+escalation by removing `escalation needed` once the problem is addressed; they
+don't post verdicts. So an `escalation-needed` verdict stops counting once a
+**trusted** actor removes the label after it was posted. That is the same rule as
+for a verdict author: a `User` with `write`, `maintain` or `admin`, narrowed by
+`trusted-authors`. Otherwise the verdict would re-apply the label on the next
+reconcile.
+
+- The PR then has no counting verdict, so it goes back to `review requested`, or
+  to `approved` if it is an eligible bot PR. The approvals the escalation
+  superseded stay superseded: a removal never approves a human-authored PR by
+  itself.
+- A removal by a bot or a non-writer doesn't count, so the label comes back.
+- So does a removal in the same instant as the post, because
+  `post-review-verdict.py` may clear a stale label while posting a fresh
+  escalation.
+- An escalation posted after the removal counts as usual.
+
+The removals are read from the PR's issue events, and only when some review is an
+escalation verdict.
+
 **A merge conflict outranks every verdict.** It needs a code change, and the
 resolution is a new commit that no approval could survive anyway, so an approved
 PR that develops a conflict loses `approved` and is disarmed. `fix required`
@@ -273,9 +294,9 @@ The CLI always does; library callers that omit it simply get no carry-over.
 
 ## Plan
 
-- **Labels are output only**, with one exception: a present `escalation needed`
-  is also read as an input (see [State](#state-in-priority-order)), so the core
-  never removes it. The core owns the six lifecycle labels
+- **Labels are output only**, with one exception: `escalation needed` is also an
+  input. The core never removes a present one, and a trusted person
+  removing it resolves an escalation verdict (see [State](#state-in-priority-order)). The core owns the six lifecycle labels
   (`approved`, `changes requested`, `escalation needed`, `fix required`,
   `ci failing`, `review requested`), [`dependabot rebasing`](#dependabot-rebasing-label),
   and, in arming mode, `auto-merge enabled`. It adds the desired ones and removes every
