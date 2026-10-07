@@ -66,8 +66,10 @@ A merge made with `GITHUB_TOKEN`, including one GitHub performs because
 consumer's release pipeline never runs. A branch update pushed with
 `GITHUB_TOKEN` likewise runs no CI, so the new head could never go green. Arming,
 merging, and updating (including the `@dependabot rebase` request, since
-Dependabot takes commands from people) therefore use `PR_LIFECYCLE_TOKEN`, and
-nothing else does (no reads, no labels).
+Dependabot takes commands from people) therefore use `PR_LIFECYCLE_TOKEN`.
+**Disarming** does too: GitHub refuses `disablePullRequestAutoMerge` from a
+workflow token that has only `contents: read`, so the actor that armed the PR
+disarms it. Nothing else uses the token (no reads, no labels).
 
 - **Which PRs.** Every PR the lifecycle arms or merges, not only release PRs:
   every merge to `main` should fire its `on: push` workflows. This departs from
@@ -82,8 +84,9 @@ nothing else does (no reads, no labels).
   ([GitHub docs](https://docs.github.com/en/code-security/dependabot/troubleshooting-dependabot/troubleshooting-dependabot-on-github-actions)),
   and bot PRs are armed on exactly those runs.
 - **When it's missing.** With `--arm-auto-merge` and no token (or an empty one),
-  the run still succeeds (exit 0): labels converge and a disarm still happens,
-  but the arm or merge is **skipped**, never done with `GITHUB_TOKEN`. The skip
+  the run still succeeds (exit 0): labels converge and a disarm is still
+  attempted with `GITHUB_TOKEN`, but the arm or merge is **skipped**, never done
+  with `GITHUB_TOKEN`. The skip
   goes to stderr as a warning and to `autoMergeSkipped` in the JSON. A wanted
   update is skipped the same way (a warning and `updateSkipped`). Outside
   `--dry-run`, an advisory comment explaining the fix is posted on the PR once

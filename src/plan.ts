@@ -144,7 +144,8 @@ export function planReconcile(facts: PullRequestFacts, policy: ReconcilePolicy):
 /**
  * The plan with arming, merging, and updating taken out, for when no real-actor
  * token is available to perform them (docs/cli.md §Release token). Disarming
- * stays: it is safety, and any token may do it. Pure, like the planner.
+ * stays: it is safety, so it is attempted with the workflow token instead. Pure,
+ * like the planner.
  */
 export function withoutReleaseActions(plan: ReconcilePlan): ReconcilePlan {
   const arming = plan.autoMerge === 'arm' || plan.autoMerge === 'merge';

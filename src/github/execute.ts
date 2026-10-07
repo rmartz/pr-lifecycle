@@ -8,8 +8,9 @@ import { labelDefinition } from './label-roster.js';
  * Executes a reconcile plan against GitHub. Writes happen in a fail-safe order —
  * disarm, remove labels, add labels, arm, update — so a run that dies midway never
  * leaves auto-merge armed on a PR that is not approved, and an update (which moves
- * the head) comes last. Arming, merging, and updating go through `release` (a
- * real-actor token) and are bound to the planned head. See
+ * the head) comes last. Disarming, arming, merging, and updating go through
+ * `release` (a real-actor token); arming and merging are bound to the planned
+ * head. See
  * docs/github-edge-layer.md.
  */
 
@@ -64,7 +65,7 @@ export async function executePlan(
   release: ReleaseActions = client,
 ): Promise<void> {
   if (plan.autoMerge === 'disarm') {
-    await client.disableAutoMerge(target.nodeId);
+    await release.disableAutoMerge(target.nodeId);
   }
   for (const name of plan.removeLabels) {
     try {
