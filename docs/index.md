@@ -11,7 +11,9 @@ relevant to your task before editing code — see
 
 - [What pr-lifecycle is](overview.md) — the event-driven lifecycle reconciler, its
   design constraints and settled decisions, how it relates to sibling packages,
-  and the remaining open questions.
+  and the remaining open questions. To adopt it in a repo, start from the
+  action's
+  [consumer guide](https://github.com/rmartz/pr-lifecycle-action/blob/main/docs/consuming.md).
 - [Reconciler core design](reconciler-design.md) — the pure facts → state → plan
   core: the fact model, verdict trust and head binding, state priority, the label
   and auto-merge plan, and the properties the tests guarantee.

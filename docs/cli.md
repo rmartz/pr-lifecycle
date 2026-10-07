@@ -61,6 +61,10 @@ is skipped (an extra review, never an error).
 
 ## Release token
 
+This section is the CLI reference. For setting the token up in a consumer repo,
+see the action's
+[consumer guide](https://github.com/rmartz/pr-lifecycle-action/blob/main/docs/consuming.md#the-real-actor-token).
+
 A merge made with `GITHUB_TOKEN`, including one GitHub performs because
 `GITHUB_TOKEN` armed auto-merge, triggers **no** `on: push` workflows, so a
 consumer's release pipeline never runs. A branch update pushed with
