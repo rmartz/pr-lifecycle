@@ -187,6 +187,22 @@ describe('reconcilePullRequest — merge or arm', () => {
       release.calls.map((call) => call.method),
     ]).toEqual([false, ['enableAutoMerge']]);
   });
+
+  // The workflow token (contents: read) is refused by disablePullRequestAutoMerge
+  // in a real consumer, so the actor that armed the PR must also disarm it (#77).
+  it('disarms through the release actions when given', async () => {
+    const client = new FakeGitHubClient(
+      makePullRequestData({ labels: ['auto-merge enabled'], autoMergeEnabled: true }),
+    );
+    const release = new FakeGitHubClient();
+
+    await reconcilePullRequest(client, 7, ARMING, { release });
+
+    expect([
+      client.writes.some((call) => call.method === 'disableAutoMerge'),
+      release.calls.map((call) => call.method),
+    ]).toEqual([false, ['disableAutoMerge']]);
+  });
 });
 
 describe('reconcilePullRequest — release unavailable', () => {
@@ -225,6 +241,18 @@ describe('reconcilePullRequest — release unavailable', () => {
       'disarm',
       undefined,
       false,
+    ]);
+  });
+
+  it('falls back to the workflow client to disarm', async () => {
+    const client = new FakeGitHubClient(
+      makePullRequestData({ labels: ['auto-merge enabled'], autoMergeEnabled: true }),
+    );
+
+    await reconcilePullRequest(client, 7, ARMING, { release: 'unavailable' });
+
+    expect(client.writes.filter((call) => call.method === 'disableAutoMerge')).toEqual([
+      { method: 'disableAutoMerge', args: ['PR_node'] },
     ]);
   });
 

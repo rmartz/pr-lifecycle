@@ -97,14 +97,17 @@ explain it are written, and the update, which moves the head, comes last.
   workflows (releases, CI on `main`). So arming, merging, and [updating](#auto-update) go through `ReleaseActions`
   (`enableAutoMerge`, `mergePullRequest`, `updateBranch`, `createIssueComment`),
   a client built from a separate release token that is never used for anything
-  else, reads included. Disarming uses the main client, since any token may do it.
+  else, reads included. Disarming (`disableAutoMerge`) goes through it too: GitHub
+  refuses the disarm from a workflow token with only `contents: read`
+  (`Resource not accessible by integration`), so the actor that armed the PR
+  disarms it.
   `reconcilePullRequest` takes it as `options.release`, defaulting to the main
   client, which is right when that token is itself a real actor.
 - **No release token.** `release: 'unavailable'` applies `withoutReleaseActions`
   to the plan: labels converge, the arm, merge, or update is skipped (reported as
-  `skippedAutoMerge` / `skippedUpdate`), and a disarm still happens. It never falls back to the
-  main token. A stub that refuses both calls stands in, so a regression fails
-  loudly instead. The CLI's handling (a warning and an advisory comment) is in
+  `skippedAutoMerge` / `skippedUpdate`), and a disarm is still attempted with the
+  main client. Arming, merging, and updating never fall back to the main token: a
+  stub that refuses those calls stands in, so a regression fails loudly instead. The CLI's handling (a warning and an advisory comment) is in
   [the CLI](cli.md#release-token).
 
 ## Auto-update

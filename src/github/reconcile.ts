@@ -16,9 +16,10 @@ export interface ReconcileOptions extends GatherOptions {
   /** Compute and return the plan without writing anything. */
   dryRun?: boolean;
   /**
-   * Who arms, merges, and updates. Defaults to `client`, right when its token is a
-   * real actor. `'unavailable'` (no real-actor token configured) skips them rather
-   * than doing them with a token whose pushes and merges trigger no workflows.
+   * Who disarms, arms, merges, and updates. Defaults to `client`, right when its
+   * token is a real actor. `'unavailable'` (no real-actor token configured) skips
+   * arming, merging, and updating rather than doing them with a token whose pushes
+   * and merges trigger no workflows; a disarm falls back to `client`.
    */
   release?: ReleaseActions | 'unavailable';
 }
@@ -39,15 +40,20 @@ export interface ReconcileResult {
 
 /**
  * Stands in for the release actions when none are available. `withoutReleaseActions`
- * already removed every arm, merge, and update from the plan, so reaching this is a
- * bug; refusing guarantees it can never fall back to a token whose writes fire nothing.
+ * already removed every arm, merge, and update from the plan, so reaching one of
+ * those is a bug; refusing guarantees it can never fall back to a token whose writes
+ * fire nothing. A disarm is safety, so it is still attempted with the workflow
+ * client: nothing this package did armed the PR, but whoever did may be undone.
  */
-const REFUSE_RELEASE: ReleaseActions = {
-  createIssueComment: () => Promise.reject(new Error('rebase requests need a release token')),
-  enableAutoMerge: () => Promise.reject(new Error('arming needs a release token')),
-  mergePullRequest: () => Promise.reject(new Error('merging needs a release token')),
-  updateBranch: () => Promise.reject(new Error('updating needs a release token')),
-};
+function refuseRelease(client: GitHubClient): ReleaseActions {
+  return {
+    createIssueComment: () => Promise.reject(new Error('rebase requests need a release token')),
+    disableAutoMerge: (pullRequestNodeId) => client.disableAutoMerge(pullRequestNodeId),
+    enableAutoMerge: () => Promise.reject(new Error('arming needs a release token')),
+    mergePullRequest: () => Promise.reject(new Error('merging needs a release token')),
+    updateBranch: () => Promise.reject(new Error('updating needs a release token')),
+  };
+}
 
 /**
  * One full reconcile pass for a PR: gather its facts (waiting to settle first if it
@@ -74,7 +80,7 @@ export async function reconcilePullRequest(
   const plan = unavailable ? withoutReleaseActions(planned) : planned;
   if (options.dryRun !== true) {
     const release =
-      options.release === 'unavailable' ? REFUSE_RELEASE : (options.release ?? client);
+      options.release === 'unavailable' ? refuseRelease(client) : (options.release ?? client);
     await executePlan(client, { pr, nodeId, headSha: facts.headSha }, plan, release);
   }
   const wanted = planned.autoMerge;

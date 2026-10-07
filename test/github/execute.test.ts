@@ -209,15 +209,17 @@ describe('executePlan — release actions', () => {
     ]);
   });
 
-  it('disarms with the main client, since any token may disarm', async () => {
+  // A workflow token without contents: write is refused the disarm (#77), so the
+  // real actor that armed the PR disarms it.
+  it('disarms with the release actions, not the main client', async () => {
     const client = makeClient();
     const release = makeClient();
 
     await executePlan(client, TARGET, makePlan({ autoMerge: 'disarm' }), release);
 
-    expect([client.writes.map((call) => call.method), release.calls]).toEqual([
-      ['disableAutoMerge'],
+    expect([client.writes, release.calls.map((call) => call.method)]).toEqual([
       [],
+      ['disableAutoMerge'],
     ]);
   });
 
