@@ -119,6 +119,7 @@ don't post verdicts. So an `escalation-needed` verdict stops counting once a
 for a verdict author: a `User` with `write`, `maintain` or `admin`, narrowed by
 `trusted-authors`. Otherwise the verdict would re-apply the label on the next
 reconcile.
+
 - The PR then has no counting verdict, so it goes back to `review requested`, or
   to `approved` if it is an eligible bot PR. The approvals the escalation
   superseded stay superseded: a removal never approves a human-authored PR by

@@ -88,7 +88,9 @@ function readSkillMeta(body: string): SkillMeta | undefined {
 }
 
 /** The verdict a review expresses, or undefined when it is not a verdict. */
-export function parseVerdict(review: Pick<ReviewFact, 'body' | 'state'>): ParsedVerdict | undefined {
+export function parseVerdict(
+  review: Pick<ReviewFact, 'body' | 'state'>,
+): ParsedVerdict | undefined {
   // A dismissed review was revoked by a maintainer, and a pending one was never
   // submitted: neither is a verdict, whatever its body's marker says.
   if (review.state === 'DISMISSED' || review.state === 'PENDING') {
@@ -157,8 +159,7 @@ function isEscalationResolved(
 ): boolean {
   const postedAt = Date.parse(escalation.submittedAt);
   return facts.escalationRemovals.some(
-    (removal) =>
-      isTrustedAuthor(removal.actor, policy) && Date.parse(removal.removedAt) > postedAt,
+    (removal) => isTrustedAuthor(removal.actor, policy) && Date.parse(removal.removedAt) > postedAt,
   );
 }
 

@@ -14,8 +14,6 @@ export async function gatherEscalationRemovals(
   pr: number,
   reviews: readonly ReviewData[],
 ): Promise<LabelRemovalData[]> {
-  const escalated = reviews.some(
-    (review) => parseVerdict(review)?.verdict === 'escalation-needed',
-  );
+  const escalated = reviews.some((review) => parseVerdict(review)?.verdict === 'escalation-needed');
   return escalated ? client.listLabelRemovals(pr, ESCALATION_LABEL) : [];
 }
