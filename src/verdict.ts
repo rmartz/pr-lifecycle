@@ -7,7 +7,7 @@ import type { PullRequestFacts, ReconcilePolicy, ReviewAuthor, ReviewFact } from
  * only when bound to the current head. See docs/reconciler-design.md §Verdicts.
  */
 
-export const VERDICTS = ['approved', 'changes-requested', 'escalation-needed'] as const;
+export const VERDICTS = ['approved', 'blocked', 'changes-requested', 'escalation-needed'] as const;
 export type Verdict = (typeof VERDICTS)[number];
 
 const TRUSTED_PERMISSIONS: ReadonlySet<ReviewAuthor['permission']> = new Set([
@@ -37,11 +37,11 @@ export interface ParsedVerdict {
 }
 
 // The hyphenated verdict names are the canonical marker outcomes. The legacy
-// spellings older /review markers carry (`changes requested`, and `blocked` for
-// the verdict that applies `escalation needed`) are still read.
+// spelling older /review markers carry (`changes requested`) is still read.
+// `blocked` is a verdict of its own: the change is ready but waits on another PR
+// or issue, and the next /review lifts it when that closes (#81).
 const LEGACY_MARKER_OUTCOMES: Readonly<Record<string, Verdict>> = {
   'changes requested': 'changes-requested',
-  blocked: 'escalation-needed',
 };
 
 // A /review pass that deliberately did nothing: not a verdict.

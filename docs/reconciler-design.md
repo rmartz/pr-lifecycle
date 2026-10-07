@@ -49,10 +49,12 @@ maintainer revokes an approval, so a marker must not outlive it. Otherwise, a
 review is a **verdict** when either:
 
 - its body carries a `skill-meta` marker with `"skill": "review"`. The marker's
-  `outcome` is the verdict: canonically `approved`, `changes-requested`, or
-  `escalation-needed`. The legacy spellings in older markers are still read:
-  `changes requested` means `changes-requested` and `blocked` means
-  `escalation-needed`. A `skipped` outcome is **not** a verdict: `/review`
+  `outcome` is the verdict: canonically `approved`, `blocked`,
+  `changes-requested`, or `escalation-needed`. `blocked` means the change is
+  ready but waits on another PR or issue. It is a hold that the next `/review`
+  replaces when that ref closes, never an escalation. The legacy spelling
+  `changes requested` in older markers is still read as `changes-requested`. A
+  `skipped` outcome is **not** a verdict: `/review`
   deliberately did nothing. Any other outcome fails closed to
   `escalation-needed`, including a missing or non-string one. An unreadable
   `/review` verdict must never let an earlier approval stand, so a human looks
@@ -96,6 +98,7 @@ The **latest** counting verdict (by submitted time, then review id) decides.
 | 5   | `ciStatus` is `failing` and `baseCiFailing`                             | `blocked-base-red`    | none                         |
 | 6   | `ciStatus` is `failing`                                                 | `ci-failing`          | `fix required`, `ci failing` |
 | 7   | counting verdict `approved`                                             | `approved`            | `approved`                   |
+| 7   | counting verdict `blocked`                                              | `blocked`             | `blocked`                    |
 | 7   | counting verdict `changes-requested`                                    | `changes-requested`   | `changes requested`          |
 | 7   | counting verdict `escalation-needed`                                    | `escalation-needed`   | `escalation needed`          |
 | 8   | `botEligible`                                                           | `approved`            | `approved`                   |
@@ -304,9 +307,9 @@ The CLI always does; library callers that omit it simply get no carry-over.
 
 - **Labels are output only**, with one exception: `escalation needed` is also an
   input. The core never removes a present one, and a trusted person
-  removing it resolves an escalation verdict (see [State](#state-in-priority-order)). The core owns the six lifecycle labels
-  (`approved`, `changes requested`, `escalation needed`, `fix required`,
-  `ci failing`, `review requested`), [`dependabot rebasing`](#dependabot-rebasing-label),
+  removing it resolves an escalation verdict (see [State](#state-in-priority-order)). The core owns the seven lifecycle labels
+  (`approved`, `blocked`, `changes requested`, `escalation needed`,
+  `fix required`, `ci failing`, `review requested`), [`dependabot rebasing`](#dependabot-rebasing-label),
   and, in arming mode, `auto-merge enabled`. It adds the desired ones and removes every
   other owned label present, so a hand-applied `approved` with no verdict behind
   it is removed. Labels the core doesn't own are never touched. When the labels

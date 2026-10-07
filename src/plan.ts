@@ -11,6 +11,7 @@ import { computeState } from './state.js';
 
 export const LIFECYCLE_LABELS = [
   'approved',
+  'blocked',
   'changes requested',
   'escalation needed',
   'fix required',
@@ -57,6 +58,8 @@ function lifecycleLabels(state: LifecycleState): readonly LifecycleLabel[] {
   switch (state) {
     case 'approved':
       return ['approved'];
+    case 'blocked':
+      return ['blocked'];
     case 'changes-requested':
       return ['changes requested'];
     case 'escalation-needed':

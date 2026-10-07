@@ -37,8 +37,9 @@ are specified in [Reconciler core design](reconciler-design.md#state-in-priority
 In short: a draft or `[WIP]` PR has no lifecycle label; a PR waiting on a
 requested bot review (Copilot) has none either; once no bot review is pending it
 gets `review requested`; a
-trusted verdict on the head sets `approved`, `changes requested`, or
-`escalation needed`; an eligible bot PR is `approved`. A push invalidates every
+trusted verdict on the head sets `approved`, `changes requested`, `blocked` (a
+hold until another PR or issue closes), or `escalation needed`; an eligible bot
+PR is `approved`. A push invalidates every
 verdict on the old head. `escalation needed` is sticky: once present, whether a
 verdict or a person applied it, the reconciler keeps it and treats the PR as
 escalated until someone removes the label. When a trusted person removes it,
@@ -99,6 +100,12 @@ the escalation is resolved and the PR goes back to review.
   `Bot`) with write, maintain, or admin permission on the repo, optionally narrowed
   by a `trusted-authors` list. This grants no new privilege: a write user can
   already merge a PR once its required checks pass.
+- **An agent's approval arms the merge; UAT is the human gate.** Coordinator
+  agents post `/review` verdicts with the user's token, so their approval is a
+  trusted verdict and arms auto-merge, just as `/merge` merged it before. This is
+  deliberate: review catches mechanical problems, and pr-policy's UAT gate keeps
+  human attention on user-facing behavior. A separate agent identity
+  (rmartz/dotfiles#1585) would let the two be told apart, but isn't required.
 - **Labels are output only.** Hand-applied lifecycle labels are reconciled away.
   A human approves the same way an agent does, by posting a verdict review. The
   exception is `escalation needed`. An agent escalates and a person removes the

@@ -22,6 +22,12 @@ export const OWNED_LABEL_DEFINITIONS: Record<
     color: '1F883D',
     description: 'Native auto-merge is armed on this PR; it merges once required checks pass.',
   },
+  blocked: {
+    name: 'blocked',
+    color: 'F97316',
+    description:
+      'Waiting on an external dependency. PRs auto-unpark when their `blocked on <ref>` closes.',
+  },
   'changes requested': {
     name: 'changes requested',
     color: 'DA3633',
