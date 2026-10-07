@@ -20,8 +20,15 @@ are made, and trim the open questions they resolve.
 > [GitHub edge layer](github-edge-layer.md), [bot eligibility](bot-eligibility.md),
 > and the [`pr-lifecycle reconcile` CLI](cli.md) are implemented. The composite
 > action that runs it in consumer repos is built in
-> [`rmartz/pr-lifecycle-action`](https://github.com/rmartz/pr-lifecycle-action).
-> Remaining work (dogfooding) is tracked in the **Reconciler v1** milestone.
+> [`rmartz/pr-lifecycle-action`](https://github.com/rmartz/pr-lifecycle-action),
+> and this repo dogfoods it with arming on. The fleet rollout is tracked on #75.
+
+**Adopting it in a repo:** follow the action's
+[consumer guide](https://github.com/rmartz/pr-lifecycle-action/blob/main/docs/consuming.md):
+the caller workflow, its permissions, the real-actor token and where to store
+it, and the checks to make before turning on arming. A repo moving off
+bot-automerge also follows
+[Cutting over from bot-automerge](bot-eligibility.md#cutting-over-from-bot-automerge).
 
 ## Lifecycle
 
