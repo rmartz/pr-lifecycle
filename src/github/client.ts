@@ -87,6 +87,15 @@ export interface ReviewData {
   submittedAt: string | undefined;
 }
 
+/** A removal of a label from the PR, from its issue events. */
+export interface LabelRemovalData {
+  /** Undefined when the actor's account was deleted. */
+  login: string | undefined;
+  type: ActorType;
+  /** ISO-8601 time of the removal. */
+  removedAt: string;
+}
+
 /** The collaborator-permission API's answer: the legacy level and the role. */
 export interface CollaboratorPermission {
   /** Legacy level: admin, write, read, or none (maintain → write, triage → read). */
@@ -122,6 +131,8 @@ export interface GitHubClient {
   addLabels(pr: number, names: readonly string[]): Promise<void>;
   /** Throws a GitHubApiError with status 404 when the label is not on the PR. */
   removeLabel(pr: number, name: string): Promise<void>;
+  /** Every removal of `label` from the PR, oldest first. */
+  listLabelRemovals(pr: number, label: string): Promise<LabelRemovalData[]>;
   /** When the PR was last marked ready for review (ISO-8601), if ever. */
   getLastReadyForReviewAt(pr: number): Promise<string | undefined>;
   /** Bodies of the PR's conversation comments, oldest first. */

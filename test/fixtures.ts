@@ -44,6 +44,7 @@ export function makeFacts(overrides: Partial<PullRequestFacts> = {}): PullReques
     rebasePending: false,
     dependabotRebasing: false,
     reviews: [],
+    escalationRemovals: [],
     pendingBotReviewers: [],
     ...overrides,
   };

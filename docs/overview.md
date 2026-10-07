@@ -34,7 +34,8 @@ trusted verdict on the head sets `approved`, `changes requested`, or
 `escalation needed`; an eligible bot PR is `approved`. A push invalidates every
 verdict on the old head. `escalation needed` is sticky: once present, whether a
 verdict or a person applied it, the reconciler keeps it and treats the PR as
-escalated until someone removes the label.
+escalated until someone removes the label. When a trusted person removes it,
+the escalation is resolved and the PR goes back to review.
 
 ## Design constraints
 
@@ -92,7 +93,10 @@ escalated until someone removes the label.
   by a `trusted-authors` list. This grants no new privilege: a write user can
   already merge a PR once its required checks pass.
 - **Labels are output only.** Hand-applied lifecycle labels are reconciled away.
-  A human approves the same way an agent does, by posting a verdict review.
+  A human approves the same way an agent does, by posting a verdict review. The
+  exception is `escalation needed`. An agent escalates and a person removes the
+  label once the problem is addressed, so a trusted removal resolves the
+  escalation verdict and sends the PR back to review (#79).
 - **Arming is opt-in.** One package; auto-merge arming sits behind an
   `arm-auto-merge` input that defaults to off, so consumers can adopt labelling
   before their ruleset gates are ready.

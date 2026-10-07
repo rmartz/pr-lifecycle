@@ -36,6 +36,10 @@ export interface RestPull {
 export interface RestIssueEvent {
   event: string;
   created_at: string;
+  /** `null` when the actor's account was deleted. */
+  actor?: { login: string; type: string } | null;
+  /** Present on `labeled` / `unlabeled` events. */
+  label?: { name: string };
 }
 
 export interface RestPullFile {

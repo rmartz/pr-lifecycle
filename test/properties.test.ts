@@ -98,6 +98,13 @@ const factsArb: fc.Arbitrary<PullRequestFacts> = fc.record({
   rebasePending: fc.boolean(),
   dependabotRebasing: fc.boolean(),
   reviews: reviewsArb(),
+  escalationRemovals: fc.array(
+    fc.record({
+      actor: authorArb,
+      removedAt: fc.constantFrom('2026-09-23T12:30:00Z', '2026-09-25T00:00:00Z'),
+    }),
+    { maxLength: 2 },
+  ),
   pendingBotReviewers: fc.subarray([COPILOT_REQUEST_LOGIN, 'coderabbitai[bot]']),
 });
 

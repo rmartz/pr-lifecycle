@@ -50,6 +50,14 @@ export interface ReviewFact {
   submittedAt: string;
 }
 
+/** Someone removing the `escalation needed` label from the PR. */
+export interface LabelRemovalFact {
+  /** Who removed it, with their permission fetched at the edge (as for review authors). */
+  actor: ReviewAuthor;
+  /** ISO-8601 time of the removal. */
+  removedAt: string;
+}
+
 export interface PullRequestFacts {
   status: PullRequestStatus;
   isDraft: boolean;
@@ -97,6 +105,13 @@ export interface PullRequestFacts {
    */
   dependabotRebasing: boolean;
   reviews: readonly ReviewFact[];
+  /**
+   * Every removal of the `escalation needed` label, by anyone. A trusted person
+   * removing it after an escalation verdict resolves that escalation (see
+   * `currentVerdict`). Gathered only when a review is an escalation verdict, so
+   * empty otherwise.
+   */
+  escalationRemovals: readonly LabelRemovalFact[];
   /**
    * Logins of the bots (e.g. Copilot) whose review is requested and not yet
    * submitted. Users and teams are left out: the lifecycle never waits on people.

@@ -88,7 +88,7 @@ function readSkillMeta(body: string): SkillMeta | undefined {
 }
 
 /** The verdict a review expresses, or undefined when it is not a verdict. */
-export function parseVerdict(review: ReviewFact): ParsedVerdict | undefined {
+export function parseVerdict(review: Pick<ReviewFact, 'body' | 'state'>): ParsedVerdict | undefined {
   // A dismissed review was revoked by a maintainer, and a pending one was never
   // submitted: neither is a verdict, whatever its body's marker says.
   if (review.state === 'DISMISSED' || review.state === 'PENDING') {
@@ -143,7 +143,30 @@ function countingCommits(facts: PullRequestFacts): ReadonlySet<string> {
   return new Set([facts.headSha, ...facts.cleanAncestors]);
 }
 
-/** The latest verdict that counts for the PR's current head, if any. */
+/**
+ * Whether a trusted person removed `escalation needed` after this escalation was
+ * posted. That removal is how people resolve an escalation (they don't post
+ * verdicts), so it must outlast the verdict that applied the label. A removal in
+ * the same instant as the post doesn't count: post-review-verdict.py may clear a
+ * stale label while posting a fresh escalation.
+ */
+function isEscalationResolved(
+  escalation: ReviewFact,
+  facts: PullRequestFacts,
+  policy: ReconcilePolicy,
+): boolean {
+  const postedAt = Date.parse(escalation.submittedAt);
+  return facts.escalationRemovals.some(
+    (removal) =>
+      isTrustedAuthor(removal.actor, policy) && Date.parse(removal.removedAt) > postedAt,
+  );
+}
+
+/**
+ * The latest verdict that counts for the PR's current head, if any. An escalation
+ * a trusted person resolved by removing its label leaves no verdict: the PR goes
+ * back through review, and the approvals it superseded stay superseded.
+ */
 export function currentVerdict(
   facts: PullRequestFacts,
   policy: ReconcilePolicy,
@@ -161,6 +184,12 @@ export function currentVerdict(
     if (counts && (latest === undefined || compareSubmission(review, latest.review) > 0)) {
       latest = { review, verdict: parsed.verdict };
     }
+  }
+  if (
+    latest?.verdict === 'escalation-needed' &&
+    isEscalationResolved(latest.review, facts, policy)
+  ) {
+    return undefined;
   }
   return latest?.verdict;
 }
