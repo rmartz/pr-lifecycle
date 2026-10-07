@@ -106,8 +106,9 @@ export async function runCli(argv: readonly string[], io: CliIo, deps: CliDeps):
         token,
         ...(args.prosePatterns === undefined ? {} : { prosePatterns: args.prosePatterns }),
       },
-      // Only arming, merging, and updating use the release token (never reads).
-      // Without one they are skipped, not done with GITHUB_TOKEN; see docs/cli.md.
+      // Only disarming, arming, merging, and updating use the release token (never
+      // reads). Without one, arming, merging, and updating are skipped rather than
+      // done with GITHUB_TOKEN, and a disarm falls back to it; see docs/cli.md.
       release: hasReleaseToken ? clientFor(releaseToken) : 'unavailable',
     });
     if (result.skippedAutoMerge !== undefined) {

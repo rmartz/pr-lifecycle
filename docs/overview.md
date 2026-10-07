@@ -60,6 +60,8 @@ escalated until someone removes the label.
    `GITHUB_TOKEN` doesn't trigger downstream `on: push` releases, so arming and
    merging use a separate real-actor [release token](cli.md#release-token), and
    are skipped (never done with `GITHUB_TOKEN`) when it isn't configured.
+   Disarming uses the same token, because GitHub refuses it from a `GITHUB_TOKEN`
+   with only `contents: read`.
 4. **Merge gating belongs to the consumer's ruleset.** This package moves a PR
    through review, fix, and approval and arms auto-merge on `approved`; it owns
    no merge gate of its own and never renames a PR. The hard gates a PR must pass
