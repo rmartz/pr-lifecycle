@@ -79,8 +79,11 @@ severity. The same check list runs in two places:
 [`.github/dependabot.yml`](../.github/dependabot.yml) updates npm and GitHub
 Actions weekly. Commit prefixes follow what each change ships: production npm
 deps use `fix` (cuts a patch release), dev deps and Actions use `chore` (no
-release). Prettier and TypeScript bumps get their own PRs; everything else is
-batched per dependency type. The npm entry authenticates to GitHub Packages via
+release). Prettier and TypeScript bumps get their own PRs. Other patch and minor
+bumps are batched, per dependency type for npm and in one group for Actions, so
+the reconciler can approve and arm them as eligible bot PRs. Every major gets its
+own PR for review, so a pending major never holds the routine bumps back. The npm
+entry authenticates to GitHub Packages via
 the `DEPENDABOT_PACKAGES_TOKEN` **Dependabot** secret (separate from Actions
 secrets); without it, all npm updates silently stop.
 

@@ -39,8 +39,7 @@ updates:
     groups:
       # Prettier isolated (case-by-case choice): any Prettier bump, even a minor,
       # can reformat the tree and fail the Format check, so it gets its own PR.
-      # No update-types filter — a filter would silently DROP excluded bumps
-      # rather than let them fall through to the catch-all.
+      # No update-types filter, so its majors stay in this group too.
       prettier:
         patterns:
           - 'prettier'
@@ -50,16 +49,24 @@ updates:
       typescript:
         patterns:
           - 'typescript'
-      # Catch-all groups batch every update type, majors included (checklist
-      # default); a failing major is split out case by case when it happens.
+      # Catch-all groups batch patch and minor bumps, which auto-merge. A major
+      # matches no group, so Dependabot opens it as its own PR for review instead
+      # of holding every routine bump in the group (rmartz/ai repository
+      # checklist §Supply chain).
       dev-dependencies:
         dependency-type: development
         patterns:
           - '*'
+        update-types:
+          - minor
+          - patch
       production-dependencies:
         dependency-type: production
         patterns:
           - '*'
+        update-types:
+          - minor
+          - patch
 
   - package-ecosystem: github-actions
     directory: /
@@ -77,6 +84,10 @@ updates:
       prefix: chore
       include: scope
     groups:
+      # Patch and minor only; each major gets its own PR (see the npm groups).
       github-actions:
         patterns:
           - '*'
+        update-types:
+          - minor
+          - patch
