@@ -10,6 +10,7 @@ export const LIFECYCLE_STATES = [
   'approved',
   'awaiting-bot-review',
   'awaiting-ci',
+  'blocked',
   'blocked-base-red',
   'changes-requested',
   'ci-failing',

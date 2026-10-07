@@ -15,10 +15,11 @@ describe('parseVerdict', () => {
     ['approved', 'approved'],
     ['changes-requested', 'changes-requested'],
     ['escalation-needed', 'escalation-needed'],
-    // Legacy space-separated spellings from markers written before the
+    // A hold on another PR or issue, never an escalation (#81).
+    ['blocked', 'blocked'],
+    // Legacy space-separated spelling from markers written before the
     // hyphenated names became canonical.
     ['changes requested', 'changes-requested'],
-    ['blocked', 'escalation-needed'],
   ] as const)('reads the %s outcome from a /review marker', (outcome, expected) => {
     const review = makeReview({ body: makeVerdictBody(outcome) });
 
