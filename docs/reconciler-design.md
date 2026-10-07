@@ -159,6 +159,14 @@ Pending CI comes **after** verdicts, and that ordering is the safety mechanism:
   lands here, is not `approved`, and is **disarmed**. Otherwise GitHub would merge
   the unreviewed commit as soon as CI passed.
 
+`awaiting-ci` deliberately carries **no label**. Every push to an unapproved PR
+removes `review requested` and puts it back once CI on the new head is green, a
+flicker of a few seconds on a fast CI. That is intended: a label is only ever
+present for a state the current head has reached, so no lifecycle label is left
+describing a head that is still being evaluated. Don't "fix" it by keeping a
+label through pending CI; that would make labels an input, as only
+`escalation needed` is.
+
 ### CI gate
 
 `ciStatus` (`src/ci.ts`) covers the base branch's **required checks** (the union
