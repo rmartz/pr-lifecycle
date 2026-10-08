@@ -3,7 +3,7 @@
 This repo is the home of `@rmartz/pr-lifecycle`: an event-driven reconciler that
 recomputes a pull request's lifecycle state from its current facts on every GitHub
 event, converges its labels to match, and arms native auto-merge when a PR reaches
-`approved`. The design, constraints, and open questions are in
+`approved`. The design, constraints, and decisions are in
 [docs/overview.md](docs/overview.md).
 
 Because an approval here **authorizes a merge**, correctness and security bugs are

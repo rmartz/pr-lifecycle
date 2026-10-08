@@ -1,7 +1,7 @@
 ---
 type: Reference
 title: What pr-lifecycle is
-description: The event-driven PR lifecycle reconciler — recompute state from facts on every event, verify verdict authors, arm native auto-merge on approval — its constraints, sibling packages, and open design questions.
+description: The event-driven PR lifecycle reconciler — recompute state from facts on every event, verify verdict authors, arm native auto-merge on approval — its constraints, settled decisions, and sibling packages.
 tags: [pr-lifecycle, reconciler, labels, auto-merge, overview]
 ---
 
@@ -14,7 +14,7 @@ facts and **arms native auto-merge when a PR reaches `approved`** — so the
 consumer's ruleset required checks, not a separate merge step, gate the merge.
 
 This page is the source of truth for the design: record decisions here as they
-are made, and trim the open questions they resolve.
+are made, and trim any open questions they resolve.
 
 > **Status:** the pure reconciler core ([design](reconciler-design.md)), the
 > [GitHub edge layer](github-edge-layer.md), [bot eligibility](bot-eligibility.md),
@@ -128,8 +128,21 @@ the escalation is resolved and the PR goes back to review.
   back) can't keep current. This matches `repo-hygiene-action` and
   `bot-automerge-action`. The CLI ↔ action interface contract is
   tracked on #6.
-
-## Open questions
-
-- What happens to `/merge`, `merge-pr.py`, and `pr-route.py` once this is live
-  (#11).
+- **The agent-side merge path defers through the `auto-merge enabled` label**
+  (#11). pr-lifecycle applies the same label bot-automerge does when it arms, so
+  the coordinator's existing auto-merge park (rmartz/dotfiles `pr-route.md`)
+  already leaves an armed PR alone: no review, fix-review, or `/merge`.
+  - **`/merge` and `merge-pr.py` stay.** They are the merge path in a repo that
+    doesn't arm, and a manual fallback. In a repo that does, a PR is only `/merge`d
+    if the coordinator picks it in the few seconds between `/review` approving
+    and pr-lifecycle arming. Either way it merges once.
+  - **`post-review-verdict.py` keeps writing verdict labels.** A repo that hasn't
+    adopted pr-lifecycle needs them. In one that has, it writes the same labels
+    the reconciler converges to. Its removal of `escalation needed` while posting
+    a new verdict is a trusted removal, which the new verdict then supersedes.
+  - **A repo that arms must enable `auto-update`.** The park also skips the
+    coordinator's branch-sync rule, so nothing else brings an armed PR current
+    when merge-safety flags `update required`.
+  - **The `/review` marker is a contract.** Its `skill`, `outcome`, and `pr_head`
+    fields are documented on both sides: [§Verdicts](reconciler-design.md#verdicts)
+    here, and `docs/scripts/skill-meta.md` in rmartz/dotfiles.
