@@ -1,7 +1,7 @@
 ---
 type: Reference
 title: What pr-lifecycle is
-description: The event-driven PR lifecycle reconciler — recompute state from facts on every event, verify verdict authors, arm native auto-merge on approval — its constraints, sibling packages, and open design questions.
+description: The event-driven PR lifecycle reconciler — recompute state from facts on every event, verify verdict authors, arm native auto-merge on approval — its constraints, settled decisions, and sibling packages.
 tags: [pr-lifecycle, reconciler, labels, auto-merge, overview]
 ---
 
@@ -14,7 +14,7 @@ facts and **arms native auto-merge when a PR reaches `approved`** — so the
 consumer's ruleset required checks, not a separate merge step, gate the merge.
 
 This page is the source of truth for the design: record decisions here as they
-are made, and trim the open questions they resolve.
+are made, and trim any open questions they resolve.
 
 > **Status:** the pure reconciler core ([design](reconciler-design.md)), the
 > [GitHub edge layer](github-edge-layer.md), [bot eligibility](bot-eligibility.md),
