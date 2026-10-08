@@ -84,7 +84,8 @@ backtracking regex.
      dependency (its `Bumps … from A to B.` line, or its `Updates … from A to B`
      line in a group), and `to` must equal the entry's `dependency-version`;
   2. the PR's diff must **remove** a line containing `A` and **add** a line
-     containing `B`, each as a whole version token. Dependabot has misstated a
+     containing `B`, each as a whole version token (a single `v` prefix is
+     allowed, so an action pin's `# v4.1.0` comment counts). Dependabot has misstated a
      from-version before (rmartz/envctl#27), and pr-policy's `dependabot` check
      verifies only the target, so this stops a misstated `A` from hiding a
      larger jump. A file whose patch GitHub omitted adds no evidence either way.
