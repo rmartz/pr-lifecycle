@@ -87,6 +87,33 @@ entry authenticates to GitHub Packages via
 the `DEPENDABOT_PACKAGES_TOKEN` **Dependabot** secret (separate from Actions
 secrets); without it, all npm updates silently stop.
 
+## Pilot read-out
+
+`pnpm run pilot-readout [owner/repo ...] [--json]` measures the labels-only pilots
+of the fleet rollout (#75) against the arming criteria agreed there. By default it
+covers personal-budget, hidden-role-game and group-picks. For each repo, starting
+from when `pr-lifecycle.yml` landed on its default branch, it reports:
+
+- **Window:** working days elapsed and PRs merged, against the agreed threshold of
+  5 working days or 15 merged PRs.
+- **`reconcile` runs:** succeeded, cancelled (superseded), awaiting approval, and
+  held runs GitHub later failed without starting a job. A run that ran a job and
+  failed, or timed out, counts as a failure. Any other run (still in progress,
+  `startup_failure`, an unrecognised conclusion) is listed as unclassified and
+  blocks the pass, so an unknown outcome is never read as success.
+- **Label checks:** whether each merged PR, and each settled open PR, carries the
+  label matching the latest `/review` verdict on its head. The verdict is read
+  with this package's own `parseVerdict`, which is why the script builds first.
+  PRs with no verdict on the head, or whose CI state outranks the verdict, are
+  reported as not comparable.
+- **Routing cases:** PRs the reconciler labelled `fix required`, `ci failing`,
+  `blocked`, or `escalation needed`. Checking that the coordinator routed them
+  sensibly is the one criterion left to a person.
+
+It calls only the REST API (through `gh api`), so it works while the GraphQL quota
+is exhausted. It is rollout tooling under `scripts/`, not part of the published
+package.
+
 ## Releases
 
 A push to `main` runs semantic-release with the `conventionalcommits` preset on

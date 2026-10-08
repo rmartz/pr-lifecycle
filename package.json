@@ -52,6 +52,7 @@
     "test:watch": "vitest",
     "hygiene": "ai-repo-hygiene conflict-markers action-pins package-pins docs-links md-pairing okf okf-index file-caps --check --config .repo-hygiene.yml",
     "hygiene:staged": "ai-repo-hygiene conflict-markers action-pins package-pins docs-links md-pairing okf okf-index file-caps --staged --config .repo-hygiene.yml",
+    "pilot-readout": "tsup && node scripts/pilot-readout.mjs",
     "prepare": "husky"
   },
   "devDependencies": {
