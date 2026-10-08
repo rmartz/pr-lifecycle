@@ -77,7 +77,12 @@ jobs:
       - uses: rmartz/pr-lifecycle-action@a4771798d3fd1aeae39dffb897dc30d1d9ec47d0 # v4.1.1
         with:
           arm-auto-merge: true
-          # Real-actor PAT, used only to arm and merge: a merge armed with
+          # Bring an approved PR current when merge-safety flags `update
+          # required` (a Dependabot PR is asked to rebase instead). The
+          # coordinator parks armed PRs, including its own branch sync, so
+          # nothing else updates them (#11).
+          auto-update: true
+          # Real-actor PAT, used to arm, merge, disarm, and update: a merge armed with
           # GITHUB_TOKEN fires no `on: push` workflows, so release.yml would
           # never run. The fleet stores it as both an Actions and a Dependabot
           # secret, since a Dependabot-triggered run sees only the latter. When
