@@ -142,7 +142,8 @@ describe('reconcilePullRequest — escalation resolved by removing its label', (
     client.commits = [
       {
         authorLogin: 'dependabot[bot]',
-        message: '---\nupdated-dependencies:\n  update-type: version-update:semver-minor\n...',
+        message:
+          '---\nupdated-dependencies:\n- dependency-name: left-pad\n  update-type: version-update:semver-minor\n...',
       },
     ];
     client.labelRemovals.set('escalation needed', [

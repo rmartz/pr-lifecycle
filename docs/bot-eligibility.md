@@ -31,7 +31,9 @@ PR with a `changes requested` review.
      pushed (say, a fix for a breaking bump), it is no longer a pure dependency
      bump and needs a review. An unlinked commit author counts as someone else;
    - and the highest update type across its commits is `semver-patch` or
-     `semver-minor`. Majors are held for review.
+     `semver-minor`. Majors are held for review. A security update's type is
+     derived from its versions (below), so a patch or minor security fix is
+     eligible too.
 3. **release-please** is recognized by a head branch starting `release-please--`,
    and is eligible only when its diff is a **pure release** (below). The
    `autorelease: pending` label is **not** a signal: triage permission can apply
@@ -67,12 +69,35 @@ from a dependency change by patch alone) and `extra-files` from
 ## Reading the Dependabot update type
 
 Dependabot writes an `updated-dependencies:` YAML block into every commit
-message, with one `update-type: version-update:semver-*` line per dependency.
-`parseDependabotUpdateType` reads that block and returns the **highest** type, so
-a grouped update with one major is treated as a major. It fails safe: a missing
-block, a block with no update type, or **any** unrecognized value (e.g.
-`security-update`) yields no type, and the PR is not eligible. Commit messages are
-untrusted input, so the parser scans line by line with no backtracking regex.
+message, with one entry per dependency (`dependency-name`, `dependency-version`,
+`dependency-type`). The **highest** type across the entries decides, so a grouped
+update with one major is treated as a major (`src/dependabot-versions.ts`). Commit
+messages and diffs are untrusted input, so the parsers scan line by line with no
+backtracking regex.
+
+- **Version updates** carry an `update-type: version-update:semver-*` line per
+  entry, which is used as is. An unrecognized value yields no type.
+- **Security updates** leave `update-type` out. They are raised as their own PR,
+  since groups apply only to version updates by default. Their type is
+  **derived** (#92):
+  1. the `from`/`to` versions come from Dependabot's own prose for that
+     dependency (its `Bumps … from A to B.` line, or its `Updates … from A to B`
+     line in a group), and `to` must equal the entry's `dependency-version`;
+  2. the PR's diff must **remove** a line containing `A` and **add** a line
+     containing `B`, each as a whole version token. Dependabot has misstated a
+     from-version before (rmartz/envctl#27), and pr-policy's `dependabot` check
+     verifies only the target, so this stops a misstated `A` from hiding a
+     larger jump. A file whose patch GitHub omitted adds no evidence either way.
+     The diff is fetched only for a commit without an explicit type;
+  3. the type is the first differing component of `A` and `B`, by literal
+     position, as Dependabot computes it.
+
+  It fails safe at every step. These all yield no type, and the PR is not
+  eligible: a missing block; a `to` that disagrees with `dependency-version`; no
+  stated versions; a pre-release, build suffix or non-numeric version (e.g. an
+  action SHA); a downgrade; a diff that doesn't show both versions; or any
+  unclassifiable entry in a group. A derived major is held for review like any
+  other. The eligibility reason says when a type was derived.
 
 Reading the commit metadata directly, rather than taking a
 `dependabot/fetch-metadata` output as bot-automerge does, lets the reconciler
