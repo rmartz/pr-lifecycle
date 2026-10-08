@@ -130,6 +130,28 @@ describe('diffCorroborates', () => {
   it('fails closed with no files', () => {
     expect(diffCorroborates(undefined, bump)).toBe(false);
   });
+
+  // The fleet pins actions as `@<sha> # vX.Y.Z`, so an Actions security update's
+  // diff shows the version only behind a `v`.
+  it('matches a version behind a single v prefix, as in an action pin comment', () => {
+    const pin = makeChangedFile({
+      filename: '.github/workflows/ci.yml',
+      patch:
+        '-      - uses: actions/checkout@aaaaaaa # v4.1.0\n+      - uses: actions/checkout@bbbbbbb # v4.1.1\n',
+    });
+
+    expect(diffCorroborates([pin], { from: '4.1.0', to: '4.1.1' })).toBe(true);
+  });
+
+  it.each([
+    ['a v inside a longer token', 'xv4.1.0'],
+    ['a longer version', '14.1.0'],
+    ['a double v', 'vv4.1.0'],
+  ])('does not match a version after %s', (_label, removed) => {
+    const diff = makeChangedFile({ patch: `-  ${removed}\n+  4.1.1\n` });
+
+    expect(diffCorroborates([diff], { from: '4.1.0', to: '4.1.1' })).toBe(false);
+  });
 });
 
 describe('commitUpdateType', () => {
@@ -195,6 +217,14 @@ describe('classifyBotPr — Dependabot security updates', () => {
 
   it('holds a security update when the diff was not read', () => {
     expect(classifyBotPr(makeSecurityFacts({ changedFiles: undefined })).eligible).toBe(false);
+  });
+
+  // An omitted patch adds no evidence, so a diff of only omitted patches can't
+  // corroborate anything.
+  it('holds a security update whose only changed file has no patch', () => {
+    const omitted = makeChangedFile({ filename: 'pnpm-lock.yaml', patch: undefined });
+
+    expect(classifyBotPr(makeSecurityFacts({ changedFiles: [omitted] })).eligible).toBe(false);
   });
 
   it('still holds a security update with a non-Dependabot commit', () => {

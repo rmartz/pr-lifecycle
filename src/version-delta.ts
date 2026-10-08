@@ -72,6 +72,20 @@ function isVersionChar(char: string | undefined): boolean {
   return char === '.' || isDigit || isLetter;
 }
 
+/**
+ * Whether the text before index `at` ends a token boundary for a version: no
+ * version character, or a single `v` prefix that is itself on a boundary. The
+ * prefix lets `4.1.0` match an action pin's `# v4.1.0` comment, as `semverDelta`
+ * already accepts `v4.1.0`, while `xv4.1.0` or `14.1.0` still don't match.
+ */
+function startsToken(line: string, at: number): boolean {
+  const before = line[at - 1];
+  if (before === 'v') {
+    return !isVersionChar(line[at - 2]);
+  }
+  return !isVersionChar(before);
+}
+
 /** Whether `version` occurs in `line` as a whole token, not inside a longer version. */
 function hasVersionToken(line: string, version: string): boolean {
   let from = 0;
@@ -80,7 +94,7 @@ function hasVersionToken(line: string, version: string): boolean {
     if (at === -1) {
       return false;
     }
-    if (!isVersionChar(line[at - 1]) && !isVersionChar(line[at + version.length])) {
+    if (startsToken(line, at) && !isVersionChar(line[at + version.length])) {
       return true;
     }
     from = at + 1;
