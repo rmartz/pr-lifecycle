@@ -97,8 +97,10 @@ from when `pr-lifecycle.yml` landed on its default branch, it reports:
 - **Window:** working days elapsed and PRs merged, against the agreed threshold of
   5 working days or 15 merged PRs.
 - **`reconcile` runs:** succeeded, cancelled (superseded), awaiting approval, and
-  held runs GitHub later failed without starting a job. Only a run that ran a job
-  and failed counts as a failure.
+  held runs GitHub later failed without starting a job. A run that ran a job and
+  failed, or timed out, counts as a failure. Any other run (still in progress,
+  `startup_failure`, an unrecognised conclusion) is listed as unclassified and
+  blocks the pass, so an unknown outcome is never read as success.
 - **Label checks:** whether each merged PR, and each settled open PR, carries the
   label matching the latest `/review` verdict on its head. The verdict is read
   with this package's own `parseVerdict`, which is why the script builds first.

@@ -4,8 +4,10 @@
 // For each pilot repo it measures, since the day `pr-lifecycle.yml` landed on the
 // default branch, the arming criteria agreed on #75:
 //   - window: 5 working days or 15 merged PRs, whichever comes first;
-//   - no failed `reconcile` run (cancelled runs, and held runs GitHub later fails
-//     without starting a job, are counted but not failures);
+//   - no failed `reconcile` run (a failure that ran a job, or a timeout; cancelled
+//     runs, and held runs GitHub later fails without starting a job, are counted but
+//     not failures) and no unclassified run (in progress, startup_failure, anything
+//     else), which blocks the pass rather than reading as "not a failure";
 //   - no PR whose lifecycle label disagrees with its `/review` verdict once the
 //     reconciler has caught up;
 //   - a list of PRs that carried `fix required`, `ci failing`, `blocked` or
@@ -165,16 +167,28 @@ function checkRuns(repo, since) {
     held: 0,
     heldFailed: 0,
     failed: [],
+    unclassified: [],
   };
+  const summary = (run) => ({
+    id: run.id,
+    url: run.html_url,
+    event: run.event,
+    state: run.conclusion ?? run.status,
+  });
   for (const run of runs) {
     if (run.conclusion === 'success') counts.success += 1;
     else if (run.conclusion === 'cancelled') counts.cancelled += 1;
     else if (run.conclusion === 'action_required' || run.status === 'waiting') counts.held += 1;
+    else if (run.conclusion === 'timed_out') counts.failed.push(summary(run));
     else if (run.conclusion === 'failure') {
       // A held run GitHub fails without ever starting a job is not a reconcile failure.
       const jobs = gh(`repos/${repo}/actions/runs/${run.id}/jobs`);
       if (jobs.total_count === 0) counts.heldFailed += 1;
-      else counts.failed.push({ id: run.id, url: run.html_url, event: run.event });
+      else counts.failed.push(summary(run));
+    } else {
+      // In progress, startup_failure, neutral, stale, skipped, or anything new: never
+      // read as "not a failure", since this output gates arming.
+      counts.unclassified.push(summary(run));
     }
   }
   return counts;
@@ -206,7 +220,11 @@ function readRepo(repo, now) {
     prs,
     mismatches,
     routingCases: prs.filter((pr) => pr.routing.length > 0),
-    passes: windowMet && runs.failed.length === 0 && mismatches.length === 0,
+    passes:
+      windowMet &&
+      runs.failed.length === 0 &&
+      runs.unclassified.length === 0 &&
+      mismatches.length === 0,
   };
 }
 
@@ -221,8 +239,11 @@ function render(results) {
     const window = `${r.workingDays}/${WINDOW_WORKING_DAYS} working days, ${r.merged}/${WINDOW_MERGED_PRS} merged PRs`;
     lines.push(
       `- Since ${r.start}: ${window} — window ${r.windowMet ? 'met' : 'not yet met'}`,
-      `- reconcile runs: ${r.runs.total} (${r.runs.success} succeeded, ${r.runs.cancelled} cancelled, ${r.runs.held} awaiting approval, ${r.runs.heldFailed} held then failed without a job), **${r.runs.failed.length} failed**`,
-      ...r.runs.failed.map((run) => `  - ${run.event}: ${run.url}`),
+      `- reconcile runs: ${r.runs.total} (${r.runs.success} succeeded, ${r.runs.cancelled} cancelled, ${r.runs.held} awaiting approval, ${r.runs.heldFailed} held then failed without a job), **${r.runs.failed.length} failed**, **${r.runs.unclassified.length} unclassified**`,
+      ...r.runs.failed.map((run) => `  - ${run.state} (${run.event}): ${run.url}`),
+      ...r.runs.unclassified.map(
+        (run) => `  - unclassified ${run.state} (${run.event}): ${run.url}`,
+      ),
       `- Label checks: ${r.prs.filter((pr) => pr.check === 'agrees').length} agree, **${r.mismatches.length} mismatch**, ${r.prs.filter((pr) => pr.check.startsWith('no ') || pr.check.startsWith('skipped')).length} not comparable`,
       ...r.mismatches.map(
         (pr) =>
