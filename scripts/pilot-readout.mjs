@@ -88,7 +88,10 @@ function expectedVerdictLabel(reviews, headSha) {
       continue;
     }
     const parsed = parseVerdict({ body: review.body ?? '', state: review.state });
-    if (parsed === undefined || (parsed.markerHead !== undefined && parsed.markerHead !== headSha)) {
+    if (
+      parsed === undefined ||
+      (parsed.markerHead !== undefined && parsed.markerHead !== headSha)
+    ) {
       continue;
     }
     if (latest === undefined || Date.parse(review.submitted_at) >= Date.parse(latest.at)) {
@@ -115,7 +118,9 @@ function checkPullRequest(repo, pr, now) {
   const routing = ROUTING_LABELS.filter((name) =>
     events.some(
       (event) =>
-        event.event === 'labeled' && event.label?.name === name && event.actor?.login === RECONCILER,
+        event.event === 'labeled' &&
+        event.label?.name === name &&
+        event.actor?.login === RECONCILER,
     ),
   );
   const result = { number: pr.number, title: pr.title, merged: pr.merged_at !== null, routing };
@@ -138,7 +143,8 @@ function checkPullRequest(repo, pr, now) {
     want = undefined;
   }
   const present = labels.filter((name) => VERDICT_LABELS.has(name));
-  const agrees = want === undefined ? present.length === 0 : present.length === 1 && present[0] === want;
+  const agrees =
+    want === undefined ? present.length === 0 : present.length === 1 && present[0] === want;
   return {
     ...result,
     check: agrees ? 'agrees' : 'MISMATCH',
@@ -152,7 +158,14 @@ function checkRuns(repo, since) {
     `repos/${repo}/actions/workflows/pr-lifecycle.yml/runs?created=>=${since.toISOString()}&per_page=100`,
     'workflow_runs',
   );
-  const counts = { total: runs.length, success: 0, cancelled: 0, held: 0, heldFailed: 0, failed: [] };
+  const counts = {
+    total: runs.length,
+    success: 0,
+    cancelled: 0,
+    held: 0,
+    heldFailed: 0,
+    failed: [],
+  };
   for (const run of runs) {
     if (run.conclusion === 'success') counts.success += 1;
     else if (run.conclusion === 'cancelled') counts.cancelled += 1;
@@ -173,8 +186,9 @@ function readRepo(repo, now) {
   if (start === undefined) {
     return { repo, started: false };
   }
-  const closed = ghAll(`repos/${repo}/pulls?state=closed&base=${branch}&sort=updated&direction=desc&per_page=100`)
-    .filter((pr) => pr.merged_at !== null && Date.parse(pr.merged_at) >= start.getTime());
+  const closed = ghAll(
+    `repos/${repo}/pulls?state=closed&base=${branch}&sort=updated&direction=desc&per_page=100`,
+  ).filter((pr) => pr.merged_at !== null && Date.parse(pr.merged_at) >= start.getTime());
   const open = ghAll(`repos/${repo}/pulls?state=open&base=${branch}&per_page=100`);
   const prs = [...closed, ...open].map((pr) => checkPullRequest(repo, pr, now));
   const runs = checkRuns(repo, start);
@@ -211,10 +225,14 @@ function render(results) {
       ...r.runs.failed.map((run) => `  - ${run.event}: ${run.url}`),
       `- Label checks: ${r.prs.filter((pr) => pr.check === 'agrees').length} agree, **${r.mismatches.length} mismatch**, ${r.prs.filter((pr) => pr.check.startsWith('no ') || pr.check.startsWith('skipped')).length} not comparable`,
       ...r.mismatches.map(
-        (pr) => `  - #${pr.number} ${pr.title}: expected \`${pr.expected}\`, has ${pr.present.map((l) => `\`${l}\``).join(', ') || 'none'}`,
+        (pr) =>
+          `  - #${pr.number} ${pr.title}: expected \`${pr.expected}\`, has ${pr.present.map((l) => `\`${l}\``).join(', ') || 'none'}`,
       ),
       `- Routing cases to review by hand: ${r.routingCases.length}`,
-      ...r.routingCases.map((pr) => `  - #${pr.number} ${pr.title} (${pr.routing.join(', ')})${pr.merged ? ', merged' : ''}`),
+      ...r.routingCases.map(
+        (pr) =>
+          `  - #${pr.number} ${pr.title} (${pr.routing.join(', ')})${pr.merged ? ', merged' : ''}`,
+      ),
       `- **${r.passes ? 'Meets the arming criteria' : 'Not ready to arm'}**${r.passes && r.routingCases.length > 0 ? ' (after the routing cases are checked)' : ''}`,
       '',
     );
