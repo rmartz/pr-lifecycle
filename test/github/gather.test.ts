@@ -115,6 +115,46 @@ describe('gatherFacts — bot eligibility', () => {
     expect(client.calls.some((call) => call.method === 'listCommits')).toBe(false);
   });
 
+  it('skips the file fetch for a version update with an explicit type', async () => {
+    const client = makeDependabotClient();
+
+    await gatherFacts(client, 7);
+
+    expect(client.calls.some((call) => call.method === 'listPullRequestFiles')).toBe(false);
+  });
+
+  // A security update has no update-type line, so its versions are corroborated
+  // against the diff (#92).
+  it('reads the diff to classify a security update', async () => {
+    const client = makeDependabotClient();
+    client.commits = [
+      {
+        authorLogin: 'dependabot[bot]',
+        message: [
+          'Bumps [next](https://github.com/vercel/next.js) from 16.3.6 to 16.3.8.',
+          '---',
+          'updated-dependencies:',
+          '- dependency-name: next',
+          '  dependency-version: 16.3.8',
+          '...',
+        ].join('\n'),
+      },
+    ];
+    client.files = [
+      makeChangedFile({
+        filename: 'package.json',
+        patch: '-    "next": "16.3.6",\n+    "next": "16.3.8",\n',
+      }),
+    ];
+
+    const { botEligibility } = await gatherFacts(client, 7);
+
+    expect([botEligibility.eligible, botEligibility.updateType]).toEqual([
+      true,
+      'version-update:semver-patch',
+    ]);
+  });
+
   it('skips the commit fetch for a non-Dependabot PR', async () => {
     const client = new FakeGitHubClient();
 

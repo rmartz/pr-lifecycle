@@ -223,7 +223,8 @@ describe('runCli — --json contract (schemaVersion 1)', () => {
     client.commits = [
       {
         authorLogin: 'dependabot[bot]',
-        message: '---\nupdated-dependencies:\n  update-type: version-update:semver-minor\n...',
+        message:
+          '---\nupdated-dependencies:\n- dependency-name: left-pad\n  update-type: version-update:semver-minor\n...',
       },
     ];
     const { out, io } = makeIo();

@@ -1,5 +1,10 @@
+import type { DependabotUpdateType } from './dependabot-versions.js';
+import { commitUpdateType, DEPENDABOT_UPDATE_TYPES } from './dependabot-versions.js';
 import type { ChangedFile } from './release-diff.js';
 import { classifyReleaseDiff } from './release-diff.js';
+
+export type { DependabotUpdateType } from './dependabot-versions.js';
+export { DEPENDABOT_UPDATE_TYPES, parseDependabotUpdateType } from './dependabot-versions.js';
 
 /**
  * Bot-PR eligibility: is this a bot PR trusted enough to count as `approved`
@@ -14,14 +19,6 @@ import { classifyReleaseDiff } from './release-diff.js';
 
 export const DEPENDABOT_LOGIN = 'dependabot[bot]';
 export const RELEASE_PLEASE_BRANCH_PREFIX = 'release-please--';
-
-/** Dependabot's semver update types, lowest to highest risk. */
-export const DEPENDABOT_UPDATE_TYPES = [
-  'version-update:semver-patch',
-  'version-update:semver-minor',
-  'version-update:semver-major',
-] as const;
-export type DependabotUpdateType = (typeof DEPENDABOT_UPDATE_TYPES)[number];
 
 const ELIGIBLE_UPDATE_TYPES: ReadonlySet<DependabotUpdateType> = new Set([
   'version-update:semver-patch',
@@ -44,8 +41,10 @@ export interface BotPrFacts {
   /** The PR's commits; only consulted for Dependabot PRs. */
   commits: readonly BotPrCommit[];
   /**
-   * The PR's changed files; only consulted for release-please PRs. Undefined when
-   * not fetched or not read in full, which is never eligible.
+   * The PR's changed files. A release-please PR needs them read in full; a
+   * Dependabot security update uses them to corroborate its versions. Undefined
+   * when not fetched (or, for release-please, not read in full), which never
+   * makes a PR eligible on their account.
    */
   changedFiles: readonly ChangedFile[] | undefined;
 }
@@ -58,41 +57,6 @@ export interface BotEligibility {
   updateType: DependabotUpdateType | undefined;
 }
 
-function isUpdateType(value: string): value is DependabotUpdateType {
-  return DEPENDABOT_UPDATE_TYPES.some((type) => type === value);
-}
-
-/**
- * The highest update type in a Dependabot commit's `updated-dependencies`
- * metadata block, or undefined when the block is missing or any entry's type is
- * unrecognized (fail-safe). A grouped update lists several dependencies; the
- * riskiest one decides. Scans line by line — commit messages are untrusted
- * input, so no backtracking regex runs over the whole message.
- */
-export function parseDependabotUpdateType(message: string): DependabotUpdateType | undefined {
-  const lines = message.split('\n');
-  const start = lines.findIndex((line) => line.trim() === 'updated-dependencies:');
-  if (start === -1) {
-    return undefined;
-  }
-  let highest = -1;
-  for (const line of lines.slice(start + 1)) {
-    const trimmed = line.trim();
-    if (trimmed === '...') {
-      break;
-    }
-    if (!trimmed.startsWith('update-type:')) {
-      continue;
-    }
-    const value = trimmed.slice('update-type:'.length).trim();
-    if (!isUpdateType(value)) {
-      return undefined;
-    }
-    highest = Math.max(highest, DEPENDABOT_UPDATE_TYPES.indexOf(value));
-  }
-  return DEPENDABOT_UPDATE_TYPES[highest];
-}
-
 function result(
   eligible: boolean,
   reason: string,
@@ -102,7 +66,10 @@ function result(
   return { eligible, reason, prType, updateType };
 }
 
-function classifyDependabot(commits: readonly BotPrCommit[]): BotEligibility {
+function classifyDependabot(
+  commits: readonly BotPrCommit[],
+  changedFiles: readonly ChangedFile[] | undefined,
+): BotEligibility {
   if (commits.length === 0) {
     return result(false, 'Dependabot PR with no commits — not eligible', 'dependabot');
   }
@@ -116,18 +83,31 @@ function classifyDependabot(commits: readonly BotPrCommit[]): BotEligibility {
     );
   }
   let highest = -1;
+  let derived = false;
   for (const commit of commits) {
-    const type = parseDependabotUpdateType(commit.message);
-    if (type === undefined) {
-      return result(false, 'Dependabot update type unavailable — not eligible', 'dependabot');
+    const commitType = commitUpdateType(commit.message, changedFiles);
+    if (commitType.type === undefined) {
+      return result(
+        false,
+        `Dependabot update type unavailable (${commitType.reason}) — not eligible`,
+        'dependabot',
+      );
     }
-    highest = Math.max(highest, DEPENDABOT_UPDATE_TYPES.indexOf(type));
+    highest = Math.max(highest, DEPENDABOT_UPDATE_TYPES.indexOf(commitType.type));
+    derived ||= commitType.derived;
   }
   const updateType = DEPENDABOT_UPDATE_TYPES[highest];
+  // A security update carries no update-type line, so its type came from its versions.
+  const how = derived ? ' (derived from the versions)' : '';
   if (updateType !== undefined && ELIGIBLE_UPDATE_TYPES.has(updateType)) {
-    return result(true, `Dependabot ${updateType} — eligible`, 'dependabot', updateType);
+    return result(true, `Dependabot ${updateType}${how} — eligible`, 'dependabot', updateType);
   }
-  return result(false, `Dependabot ${updateType} — held for review`, 'dependabot', updateType);
+  return result(
+    false,
+    `Dependabot ${updateType}${how} — held for review`,
+    'dependabot',
+    updateType,
+  );
 }
 
 export function classifyBotPr(facts: BotPrFacts): BotEligibility {
@@ -138,7 +118,7 @@ export function classifyBotPr(facts: BotPrFacts): BotEligibility {
     return result(false, 'head branch is in a fork — never a trusted bot PR');
   }
   if (facts.authorLogin === DEPENDABOT_LOGIN) {
-    return classifyDependabot(facts.commits);
+    return classifyDependabot(facts.commits, facts.changedFiles);
   }
   // Only the branch identifies release-please: pushing one needs write access,
   // while a label can be applied with triage alone. The branch still isn't
