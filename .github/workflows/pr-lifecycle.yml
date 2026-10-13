@@ -74,7 +74,7 @@ jobs:
       cancel-in-progress: true
     steps:
       # The action resolves the PR from the event, including a dispatch's `pr`.
-      - uses: rmartz/pr-lifecycle-action@a4771798d3fd1aeae39dffb897dc30d1d9ec47d0 # v4.1.1
+      - uses: rmartz/pr-lifecycle-action@1916e94c1956f3cef31ac6496a03ffb3d4824f33 # v4.2.1
         with:
           arm-auto-merge: true
           # Bring an approved PR current when merge-safety flags `update
