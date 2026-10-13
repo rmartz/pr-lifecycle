@@ -43,6 +43,17 @@ updates:
       prettier:
         patterns:
           - 'prettier'
+      # ESLint isolated, like Prettier: a new eslint can flag code a PR never
+      # touched, so pr-policy requires a `ci` title for it. Its plugins and
+      # configs move in lockstep with it, so they ride along in one PR instead of
+      # landing as mismatched bumps in the catch-all. No update-types filter, so
+      # an eslint major brings its plugins with it.
+      eslint:
+        patterns:
+          - 'eslint'
+          - 'eslint-*'
+          - '@eslint/*'
+          - 'typescript-eslint'
       # TypeScript isolated (case-by-case choice): a compiler bump can change
       # type-checking across the whole codebase, and typescript-eslint pins a
       # supported TS range, so it warrants its own reviewable PR.
