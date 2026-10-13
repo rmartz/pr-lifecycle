@@ -37,19 +37,14 @@ updates:
       prefix-development: chore
       include: scope
     groups:
-      # Prettier isolated (case-by-case choice): any Prettier bump, even a minor,
-      # can reformat the tree and fail the Format check, so it gets its own PR.
-      # No update-types filter, so its majors stay in this group too.
-      prettier:
+      # CI-sensitive tools in one group: a new Prettier or ESLint can fail files a
+      # PR never touched, so pr-policy requires a `ci` title for any version
+      # change to them. In a catch-all they would block every routine bump, so
+      # they get their own PR. Plugins and configs move in lockstep with their
+      # tool. No update-types filter, so a major brings its family with it.
+      ci:
         patterns:
           - 'prettier'
-      # ESLint isolated, like Prettier: a new eslint can flag code a PR never
-      # touched, so pr-policy requires a `ci` title for it. Its plugins and
-      # configs move in lockstep with it, so they ride along in one PR instead of
-      # landing as mismatched bumps in the catch-all. No update-types filter, so
-      # an eslint major brings its plugins with it.
-      eslint:
-        patterns:
           - 'eslint'
           - 'eslint-*'
           - '@eslint/*'

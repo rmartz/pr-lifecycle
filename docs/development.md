@@ -79,9 +79,10 @@ severity. The same check list runs in two places:
 [`.github/dependabot.yml`](../.github/dependabot.yml) updates npm and GitHub
 Actions weekly. Commit prefixes follow what each change ships: production npm
 deps use `fix` (cuts a patch release), dev deps and Actions use `chore` (no
-release). Prettier, ESLint (with its plugins and configs), and TypeScript bumps
-get their own PRs. The Prettier and ESLint PRs still need a `ci(deps…)` retitle
-before pr-policy's title check passes: Dependabot can't set a per-group prefix.
+release). The CI-sensitive tools (Prettier, and ESLint with its plugins and
+configs) share one `ci` group, and TypeScript gets its own PR. The `ci` group's
+PR still needs a `ci(deps…)` retitle before pr-policy's title check passes:
+Dependabot can't set a per-group prefix.
 Other patch and minor
 bumps are batched, per dependency type for npm and in one group for Actions, so
 the reconciler can approve and arm them as eligible bot PRs. Every major gets its
