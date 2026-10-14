@@ -78,12 +78,15 @@ disarms it. Nothing else uses the token (no reads, no labels).
 - **Which PRs.** Every PR the lifecycle arms or merges, not only release PRs:
   every merge to `main` should fire its `on: push` workflows. This departs from
   bot-automerge, which used its PAT only on the release-please path.
-- **What it is.** Today, a fine-grained PAT with **Contents: read and write** and
-  **Pull requests: read and write** on the repository. The input is
-  token-agnostic, so a GitHub App installation token can replace it later with no
-  CLI change.
-- **Where to store it.** A personal account has no shared secrets, so it's stored
-  per repo as `PR_LIFECYCLE_TOKEN`, as an **Actions** secret and also as a **Dependabot** secret when bot
+- **What it is.** Any token with **Contents: read and write** and **Pull
+  requests: read and write** on the repository; the CLI is token-agnostic. The
+  recommended value is a GitHub App installation token (this repo mints one per
+  run for the `rmartz-merge-bot` App): it has its own rate-limit pool and
+  attributes merges to the bot. A fine-grained PAT still works, but it shares
+  its owner's per-user rate-limit pool and attributes merges to that user.
+- **Where to store it.** A personal account has no shared secrets, so the
+  credentials (the App's Client ID and private key, or a PAT) are stored per
+  repo as an **Actions** secret and also as a **Dependabot** secret when bot
   PRs are auto-merged. A run triggered by Dependabot sees only Dependabot secrets
   ([GitHub docs](https://docs.github.com/en/code-security/dependabot/troubleshooting-dependabot/troubleshooting-dependabot-on-github-actions)),
   and bot PRs are armed on exactly those runs.
