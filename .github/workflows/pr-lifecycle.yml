@@ -32,11 +32,14 @@ on:
     types: [submitted, dismissed, edited]
   # CI completion re-routes a PR through the CI gate. check_suite never fires for
   # suites GitHub Actions creates, so workflow_run lists this repo's required
-  # Actions workflows.
+  # Actions workflows. That includes pr-policy: the CI gate ignores a hold
+  # check's pending but counts its failure, so its failing-to-passing transition
+  # needs a re-reconcile to clear `ci failing`. merge-safety needs no entry: the
+  # CI gate ignores it and its `update required` label fires `labeled`.
   check_suite:
     types: [completed]
   workflow_run:
-    workflows: [CI, Repo Hygiene, Release check]
+    workflows: [CI, Repo Hygiene, Release check, pr-policy]
     types: [completed]
   workflow_dispatch:
     inputs:
