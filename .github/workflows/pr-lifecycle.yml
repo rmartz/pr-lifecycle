@@ -12,6 +12,13 @@ run-name: pr-lifecycle (${{ github.event_name }}${{ github.event.action && forma
 # SAFETY: auto-merge lands the moment the default-branch ruleset's required
 # checks pass (CI, Repo hygiene, pr-policy, release-check, merge-safety).
 # This is only safe while those checks are REQUIRED on main.
+#
+# Every read and write goes through an installation token for the
+# rmartz-merge-bot GitHub App, not GITHUB_TOKEN, so labels are attributed to the
+# bot and API calls draw on the App's own rate-limit pool rather than the
+# user's (rmartz/scripts#22). Unlike GITHUB_TOKEN, App-authored events trigger
+# workflows, so the job skips the label and review-request events the App
+# itself causes; see the job's `if`.
 
 on:
   pull_request_target:
@@ -47,14 +54,9 @@ on:
         description: PR number to reconcile
         required: true
 
-permissions:
-  pull-requests: write # labels, review requests, advisory comment
-  contents: read # branch rules, base head, commits for approval carry-over
-  checks: read # the CI gate
-  statuses: read # the CI gate
-  # Lets the action cancel its own run when a transient failure (a rate limit, a
-  # GitHub outage) interrupts the reconcile, so it reads as cancelled, not failed.
-  actions: write
+# GITHUB_TOKEN is unused: the App token below carries every permission the
+# action needs, including contents:write to merge and update branches.
+permissions: {}
 
 jobs:
   reconcile:
@@ -62,9 +64,21 @@ jobs:
     # A review on a fork PR runs with a read-only token, so it can't write
     # labels; skip it. The fork PR is reconciled on its next
     # pull_request_target event, or on demand via workflow_dispatch.
+    #
+    # Also skip the label and review-request events this workflow's own writes
+    # cause. Every run recomputes the PR from its current facts, so the run that
+    # wrote them already converged, and a follow-up run would only no-op while
+    # cancelling the in-flight writer. Only the App's own login is excluded: a
+    # label from a person or another workflow still re-reconciles. The App's
+    # arm, merge, and branch-update writes fire other events (auto_merge_enabled,
+    # synchronize, push), which are not in this list.
     if: >-
-      github.event_name != 'pull_request_review' ||
-      github.event.pull_request.head.repo.full_name == github.repository
+      (github.event_name != 'pull_request_review' ||
+      github.event.pull_request.head.repo.full_name == github.repository) &&
+      !(github.event_name == 'pull_request_target' &&
+      github.event.sender.login == 'rmartz-merge-bot[bot]' &&
+      contains(fromJSON('["labeled", "unlabeled", "review_requested", "review_request_removed"]'),
+      github.event.action))
     runs-on: ubuntu-latest
     timeout-minutes: 5
     # One run per PR at a time; a newer event supersedes an in-flight one, since
@@ -81,6 +95,9 @@ jobs:
       # without them, are skipped by the job-level `if:` above).
       # The App's Client ID and private key are stored as both Actions and
       # Dependabot secrets (a Dependabot-triggered run sees only the latter).
+      # The token is not scoped down with `permission-*` inputs: merging and
+      # updating branches need contents:write on top of the read and label
+      # permissions.
       - uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         id: app-token
         with:
@@ -95,10 +112,12 @@ jobs:
           # coordinator parks armed PRs, including its own branch sync, so
           # nothing else updates them (#11).
           auto-update: true
-          # Installation token for the rmartz-merge-bot GitHub App, used to arm,
-          # merge, disarm, and update: a merge armed with GITHUB_TOKEN fires no
-          # `on: push` workflows, so release.yml would never run. App-authored
-          # events do trigger them, and the App has its own rate-limit pool, so
-          # a coordinator that exhausts the user's GraphQL quota cannot fail
-          # this job (rmartz/scripts#22).
+          # The App token is used for every read and label, review-request, and
+          # comment write (github-token) as well as to arm, merge, disarm, and
+          # update (token): a merge armed with GITHUB_TOKEN fires no `on: push`
+          # workflows, so release.yml would never run. App-authored events do
+          # trigger them, and the App has its own rate-limit pool, so a
+          # coordinator that exhausts the user's GraphQL quota cannot fail this
+          # job (rmartz/scripts#22).
+          github-token: ${{ steps.app-token.outputs.token }}
           token: ${{ steps.app-token.outputs.token }}
