@@ -15,7 +15,7 @@ the plan. Because the output depends only on current facts, never on the event
 that triggered the run, replaying, reordering or dropping events cannot drive a PR
 into a wrong state.
 
-Source: `src/` (`facts.ts`, `verdict.ts`, `state.ts`, `plan.ts`).
+Source: `src/` (`facts.ts`, `verdict.ts`, `head-binding.ts`, `state.ts`, `plan.ts`).
 
 ## Facts
 
