@@ -50,9 +50,8 @@ limit, a 5xx, or a network failure, so the CLI can
   Dependabot PR from this repository, and its changed files only for a same-repo
   `release-please--` branch: the cases where they can change the answer
   (`bot-facts.ts`). The verdict, with its `reason`, is returned alongside the facts.
-- **Branch updater.** A PR authored by `dependabot[bot]` is updated by Dependabot;
-  its comments are read (for `rebasePending`) only when an update could be
-  planned: auto-update on, the PR open and labelled `update required`.
+- **Branch updater.** A PR authored by `dependabot[bot]` is left to Dependabot
+  (`updater: dependabot`) and never updated; see [Auto-update](#auto-update).
 - **Dependabot rebasing** (`dependabotRebasing`) is read from the PR body
   already fetched, so it costs no extra request; it is `false` for any PR not
   authored by `dependabot[bot]`, since anyone can paste the notice into a body.
@@ -124,16 +123,16 @@ When the plan says `update` (see [Plan](reconciler-design.md#plan)):
   `expected_head_sha` = the planned head. A 422 (the head moved, or the base has
   nothing new) is a no-op: the push that caused it triggers a fresh run. Any
   other error propagates.
-- **`dependabot-rebase`** posts `@dependabot rebase` (the command alone on the
-  first line, then a hidden `pr-lifecycle:dependabot-rebase head=<sha>` marker).
-  A Dependabot PR is **only** ever asked; it is never updated directly, because a
-  foreign commit on its branch permanently breaks Dependabot's own rebasing.
-- **Once per head.** No request is made while the PR body says _"Dependabot is
-  rebasing this PR"_ (or _recreating_), or when a marker for the current head already exists.
-  After asking, the reconciler waits: a rebase is a new head (which may be asked
-  again if merge-safety still flags it), while an error reply from Dependabot
-  leaves the head unchanged, so nothing is re-requested and the PR is left to a
-  person. A forged marker can only suppress a request, never cause one.
+- **A Dependabot PR is never updated.** `update-branch` would put a foreign
+  commit on its branch, which permanently breaks Dependabot's own rebasing. Asking
+  doesn't work either: Dependabot refuses `@dependabot rebase` from a GitHub App
+  (_"Sorry, only users with push access can use that command"_). It refused every
+  request in the 2026-10 rollout pilots (rmartz/pr-lifecycle#97,
+  rmartz/hidden-role-game#985 and #986, rmartz/personal-budget#559–#561), while
+  the same command from a person worked. So an approved Dependabot PR flagged
+  `update required` stays as it is: a person comments `@dependabot rebase` (or
+  `recreate`), or Dependabot rebases it on its own (it does so on a conflict). The
+  rebase is a new head, and the PR is reconciled from there.
 - **Afterwards.** [Carry-over](reconciler-design.md#approval-carry-over) keeps the
   PR `approved` across the verified clean merge, CI runs on the new head (it was
   pushed by a real actor), merge-safety clears `update required`, and armed

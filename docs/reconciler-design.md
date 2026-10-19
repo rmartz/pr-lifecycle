@@ -19,24 +19,23 @@ Source: `src/` (`facts.ts`, `verdict.ts`, `state.ts`, `plan.ts`).
 
 ## Facts
 
-| Fact                   | Source (edge layer)                                                                                                       |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `status`               | PR `state` / `merged`: `open`, `closed`, or `merged`                                                                      |
-| `isDraft`, `title`     | PR fields; a `[WIP]` title (any case) is treated like a draft                                                             |
-| `headSha`              | PR `head.sha`                                                                                                             |
-| `labels`               | current label names                                                                                                       |
-| `autoMergeEnabled`     | PR `auto_merge` is non-null                                                                                               |
-| `botEligible`          | [bot-PR eligibility](bot-eligibility.md): same-repo Dependabot patch/minor, release-please pure release                   |
-| `mergeable`            | PR `mergeable`: `true`, `false` (merge conflict), or unknown (`null` → `undefined`: still computing)                      |
-| `immediatelyMergeable` | PR `mergeable_state` is `clean`, `has_hooks`, or `unstable`: GitHub would merge now, so auto-merge can't be armed         |
-| `ciStatus`             | [CI gate](#ci-gate) over the head's required checks: `passing`, `failing`, or `pending`                                   |
-| `baseCiFailing`        | the same required checks are failing on the base branch head (fetched only when `ciStatus` is `failing`)                  |
-| `cleanAncestors`       | commits whose reviews carry over to the head (see [Approval carry-over](#approval-carry-over)); verified at the edge      |
-| `updater`              | `dependabot` for a PR opened by `dependabot[bot]` (it rebases its own branch), else `github` (`update-branch`)            |
-| `rebasePending`        | Dependabot PRs only: a rebase or recreate is running (PR body) or was already requested for this head (a marker comment)  |
-| `dependabotRebasing`   | Dependabot PRs only: the PR body carries Dependabot's own rebasing or recreating notice; our request marker doesn't count |
-| `reviews`              | PR reviews: author login, type (`User`/`Bot`), repo permission, `commit_id`, state, body, submitted time                  |
-| `pendingBotReviewers`  | PR `requested_reviewers` entries of type `Bot` (Copilot appears as `Copilot`); users and teams are left out               |
+| Fact                   | Source (edge layer)                                                                                                     |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `status`               | PR `state` / `merged`: `open`, `closed`, or `merged`                                                                    |
+| `isDraft`, `title`     | PR fields; a `[WIP]` title (any case) is treated like a draft                                                           |
+| `headSha`              | PR `head.sha`                                                                                                           |
+| `labels`               | current label names                                                                                                     |
+| `autoMergeEnabled`     | PR `auto_merge` is non-null                                                                                             |
+| `botEligible`          | [bot-PR eligibility](bot-eligibility.md): same-repo Dependabot patch/minor, release-please pure release                 |
+| `mergeable`            | PR `mergeable`: `true`, `false` (merge conflict), or unknown (`null` → `undefined`: still computing)                    |
+| `immediatelyMergeable` | PR `mergeable_state` is `clean`, `has_hooks`, or `unstable`: GitHub would merge now, so auto-merge can't be armed       |
+| `ciStatus`             | [CI gate](#ci-gate) over the head's required checks: `passing`, `failing`, or `pending`                                 |
+| `baseCiFailing`        | the same required checks are failing on the base branch head (fetched only when `ciStatus` is `failing`)                |
+| `cleanAncestors`       | commits whose reviews carry over to the head (see [Approval carry-over](#approval-carry-over)); verified at the edge    |
+| `updater`              | `dependabot` for a PR opened by `dependabot[bot]` (it rebases its own branch), else `github` (`update-branch`)          |
+| `dependabotRebasing`   | Dependabot PRs only: the PR body carries Dependabot's own rebasing or recreating notice; a rebase request doesn't count |
+| `reviews`              | PR reviews: author login, type (`User`/`Bot`), repo permission, `commit_id`, state, body, submitted time                |
+| `pendingBotReviewers`  | PR `requested_reviewers` entries of type `Bot` (Copilot appears as `Copilot`); users and teams are left out             |
 
 The author's **repo permission** is a fact gathered at the edge (the collaborator
 permission API), so trust evaluation stays pure.
@@ -327,10 +326,11 @@ The CLI always does; library callers that omit it simply get no carry-over.
   `auto-merge enabled` isn't owned.
 - **Auto-update (opt-in via `policy.autoUpdate`, default off).** When the state
   is `approved` and merge-safety's `update required` label is present (read,
-  never written), the plan's `update` is `update-branch`, or `dependabot-rebase`
-  for a Dependabot PR (none while `rebasePending`). A Dependabot PR is **never**
-  planned `update-branch`: a foreign commit permanently breaks its rebasing. No
-  update is planned for a PR being merged in the same pass, or without the
+  never written), the plan's `update` is `update-branch`. A Dependabot PR is
+  **never** updated: a foreign commit permanently breaks its rebasing, and
+  Dependabot refuses `@dependabot rebase` from a GitHub App, so a person or
+  Dependabot itself rebases it (see [Auto-update](github-edge-layer.md#auto-update)).
+  No update is planned for a PR being merged in the same pass, or without the
   label: absent merge-safety there is no auto-update. The update keeps the
   approval through [carry-over](#approval-carry-over); see
   [Auto-update](github-edge-layer.md#auto-update) for how it's executed.
@@ -349,7 +349,7 @@ a rebase or recreate starts and removes it when done; both edits fire
 `pull_request: edited`, so a consumer that reconciles on `edited` converges the
 label both ways.
 
-- **Only Dependabot's notice counts**, not our `@dependabot rebase` request: if
+- **Only Dependabot's notice counts**, not a `@dependabot rebase` request: if
   Dependabot replies with an error instead of rebasing, a label raised on the
   request would never clear.
 - **A stalled rebase keeps the label.** Dependabot sometimes leaves the notice in
@@ -374,9 +374,8 @@ label both ways.
 - **No unapproved armed PR.** In arming mode, an armed open PR that isn't
   `approved`, whatever its CI, conflict or review state, is always disarmed, and
   a PR is only ever armed or merged when `approved`.
-- **Updates are approved-only and Dependabot-safe.** An `update` is only ever
-  planned for an `approved` PR, never `update-branch` for a Dependabot PR, and a
-  rebase is requested at most once per head.
+- **Updates are approved-only and never touch Dependabot.** An `update` is only
+  ever planned for an `approved` PR, and never for a Dependabot PR.
 - **`withoutReleaseActions` removes release actions and nothing else.** No arm,
   merge, update, or `auto-merge enabled` survives it; every other change, a
   disarm included, does.
