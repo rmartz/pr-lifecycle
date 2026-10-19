@@ -131,6 +131,26 @@ describe('reconcilePullRequest with rebase carry-over', () => {
     expect([plan.state, plan.autoMerge]).toEqual(['approved', 'arm']);
   });
 
+  it('keeps the approval when GitHub recorded the force-push that moved the review', async () => {
+    const client = rebasedPr((fixture) => fixture.git('rebase', '--quiet', 'main'));
+    // The review (submitted 2026-09-23) predates the push GitHub moved it onto.
+    client.forcePushes = [{ headSha: client.pull.headSha, pushedAt: '2026-09-24T00:00:00Z' }];
+
+    const { plan } = await reconcilePullRequest(client, 7, { armAutoMerge: true }, LINEAGE);
+
+    expect([plan.state, plan.autoMerge]).toEqual(['approved', 'arm']);
+  });
+
+  it('drops a moved native approval with no marker, even across a clean rebase', async () => {
+    const client = rebasedPr((fixture) => fixture.git('rebase', '--quiet', 'main'));
+    client.forcePushes = [{ headSha: client.pull.headSha, pushedAt: '2026-09-24T00:00:00Z' }];
+    client.reviews = client.reviews.map((review) => ({ ...review, state: 'APPROVED', body: '' }));
+
+    const { plan } = await reconcilePullRequest(client, 7, { armAutoMerge: true }, LINEAGE);
+
+    expect(plan.state).toBe('review-requested');
+  });
+
   it('drops the approval after a rebase that changed the content', async () => {
     const client = rebasedPr((fixture) => {
       fixture.git('rebase', '--quiet', 'main');

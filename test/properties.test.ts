@@ -12,6 +12,7 @@ import {
   withoutReleaseActions,
 } from '../src/plan.js';
 import { computeState } from '../src/state.js';
+import { parseVerdict } from '../src/verdict.js';
 import {
   applyPlan,
   COPILOT_REQUEST_LOGIN,
@@ -94,6 +95,7 @@ const factsArb: fc.Arbitrary<PullRequestFacts> = fc.record({
   ciStatus: fc.constantFrom('passing', 'passing', 'pending', 'failing'),
   baseCiFailing: fc.boolean(),
   cleanAncestors: fc.constantFrom([], [], [OLD_SHA]),
+  cleanRebaseSources: fc.constantFrom([], [], [OLD_SHA]),
   updater: fc.constantFrom(...BRANCH_UPDATERS),
   dependabotRebasing: fc.boolean(),
   reviews: reviewsArb(),
@@ -128,6 +130,7 @@ const openFactsArb: fc.Arbitrary<PullRequestFacts> = factsArb.map((facts) => ({
   // No carry-over: the inertness properties are about commits whose verdicts
   // must not count.
   cleanAncestors: [],
+  cleanRebaseSources: [],
 }));
 
 /** Security properties get more runs than the default 100. */
@@ -272,6 +275,49 @@ describe('reconciler properties', () => {
             ...facts,
             forcePushes: [],
             reviews: reviews.map((review) => ({
+              ...review,
+              commitSha: HEAD_SHA,
+              body: review.body.replaceAll(OLD_SHA, HEAD_SHA),
+            })),
+          };
+
+          expect(computeState(carried, policy)).toBe(computeState(onHead, policy));
+        },
+      ),
+      SECURITY_RUNS,
+    );
+  });
+
+  // Likewise across a rebase. GitHub either leaves a review's commit_id on the
+  // rebased-away commit, or moves it onto the new head with a force-push; a moved
+  // review then counts only through a marker naming the verified source.
+  it('treats a rebase-carried verdict exactly like one on the head', () => {
+    const onSource = reviewArb(authorArb, fc.constant(OLD_SHA));
+    fc.assert(
+      fc.property(
+        openFactsArb,
+        policyArb,
+        fc.uniqueArray(onSource, { selector: (review) => review.id, maxLength: 6 }),
+        fc.boolean(),
+        (facts, policy, reviews, moved) => {
+          const carried = {
+            ...facts,
+            cleanRebaseSources: [OLD_SHA],
+            forcePushes: moved ? [{ headSha: HEAD_SHA, pushedAt: '2030-01-01T00:00:00Z' }] : [],
+            reviews: reviews.map((review) => ({
+              ...review,
+              commitSha: moved ? HEAD_SHA : OLD_SHA,
+              body: review.body.replaceAll(HEAD_SHA, OLD_SHA),
+            })),
+          };
+          // A moved review without a marker head names no reviewed commit: inert.
+          const counted = moved
+            ? reviews.filter((review) => parseVerdict(review)?.markerHead !== undefined)
+            : reviews;
+          const onHead = {
+            ...facts,
+            forcePushes: [],
+            reviews: counted.map((review) => ({
               ...review,
               commitSha: HEAD_SHA,
               body: review.body.replaceAll(OLD_SHA, HEAD_SHA),

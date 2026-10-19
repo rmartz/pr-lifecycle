@@ -32,6 +32,7 @@ Source: `src/` (`facts.ts`, `verdict.ts`, `state.ts`, `plan.ts`).
 | `ciStatus`             | [CI gate](#ci-gate) over the head's required checks: `passing`, `failing`, or `pending`                                 |
 | `baseCiFailing`        | the same required checks are failing on the base branch head (fetched only when `ciStatus` is `failing`)                |
 | `cleanAncestors`       | commits whose reviews carry over to the head (see [Approval carry-over](#approval-carry-over)); verified at the edge    |
+| `cleanRebaseSources`   | reviewed commits a force-push removed, whose reviews carry over (see [Rebased heads](#rebased-heads)); verified at edge |
 | `updater`              | `dependabot` for a PR opened by `dependabot[bot]` (it rebases its own branch), else `github` (`update-branch`)          |
 | `dependabotRebasing`   | Dependabot PRs only: the PR body carries Dependabot's own rebasing or recreating notice; a rebase request doesn't count |
 | `reviews`              | PR reviews: author login, type (`User`/`Bot`), repo permission, `commit_id`, state, body, submitted time                |
@@ -84,21 +85,27 @@ A verdict **counts** only when all of the following hold:
    trust: anyone can write one into a comment. This boundary grants no new
    privilege, because a write-permission user can already merge a PR once its
    required checks pass.
-2. **Bound to the current head.** The review's `commit_id` is the head, or one of
-   the head's [clean ancestors](#approval-carry-over), and if the marker names a
-   `pr_head`, it names that same commit. A verdict on any other older commit never
-   counts, so a real push after approval un-approves the PR without extra logic.
-   **No force-push to that commit happened at or after the review was
-   submitted.** GitHub moves an `APPROVED` review's `commit_id` onto the new head
-   when a force-push leaves the PR's diff unchanged, for example a clean rebase
-   such as `@dependabot rebase`. A `COMMENTED` review, or a push that changes
-   the diff, keeps its original commit. A moved review reads as bound to a commit
-   its author never saw, so `commit_id` alone can't bind it. A marker's `pr_head`
-   catches this on its own, but a native approval has no marker. Without this
-   rule it would survive the rebase and stay armed on a new combination of code
-   that nobody reviewed, outside the checks [carry-over](#approval-carry-over)
-   applies. The rule fails closed. A push GitHub didn't name the commit of, or a
-   review with no readable submission time, counts as moved. A commit
+2. **Bound to the current head.** The commit the review covered (the marker's
+   `pr_head` when it names one, else the review's `commit_id`) is the head, a
+   [clean ancestor](#approval-carry-over), or a
+   [clean rebase source](#rebased-heads). When the marker names a different commit
+   than `commit_id`, it counts only if the marker's commit is a clean ancestor or
+   rebase source. A marker can never claim the head for a review GitHub bound to
+   another commit. A verdict on any other commit never counts, so a real push
+   after approval un-approves the PR without extra logic.
+   **A review GitHub moved by a force-push binds only through its marker.**
+   GitHub moves an `APPROVED` review's `commit_id` onto the new head when a
+   force-push leaves the PR's diff unchanged, for example a clean rebase such as
+   `@dependabot rebase`. A `COMMENTED` review, or a push that changes the diff,
+   keeps its original commit. A moved review reads as bound to a commit its
+   author never saw, so its `commit_id` can't bind it at all. A review counts as
+   moved when a force-push to its commit happened at or after it was submitted.
+   It then counts only when its marker's `pr_head` names a verified
+   [clean rebase source](#rebased-heads) (or clean ancestor), never the head. A
+   native approval has no marker, so a moved one is inert: without this rule it
+   would survive the rebase and stay armed on a new combination of code that
+   nobody reviewed. The rule fails closed. A push GitHub didn't name the commit
+   of, or a review with no readable submission time, counts as moved. A commit
    force-pushed away and then back drops the reviews made before it came back.
 
 The **latest** counting verdict (by submitted time, then review id) decides.
@@ -316,6 +323,46 @@ verdict, so a carried approval on a broken head becomes `ci-failing`. While CI
 runs, the carried approval keeps the PR `approved` and armed, which is safe
 because GitHub's auto-merge waits for required checks.
 
+### Rebased heads
+
+A force-push takes the reviewed commit `S` out of the branch's history, which is
+what `@dependabot rebase` does, so the merge walk can't reach it. Without this
+rule, a Dependabot major that already got its human sign-off would lose it to
+every rebase. A reviewed commit the walk didn't reach also counts for the head
+`H` when `H` is a **verified clean rebase** of it (`src/github/lineage-rebase.ts`):
+
+1. `S` is **not** in `H`'s history. A commit that is in it is the merge walk's to
+   judge, step by step.
+2. **The base only moved forward.** `S`'s merge base with the base branch is an
+   ancestor of (or equal to) `H`'s merge base with it. A head moved onto an
+   older base is rejected.
+3. **`H`'s tree is byte-identical to the automatic replay** of `S`'s change onto
+   `H`'s base: `git merge-tree --write-tree --merge-base=<base of S> S <base of H>`,
+   which must also report no conflicts. This is the tree a clean update-branch
+   merge would have produced, so the rule grants nothing the merge rule doesn't.
+   An extra edit, a hand-resolved conflict, a dependency re-resolved to different
+   versions, or a rebase onto anything but the base branch fails.
+4. **The prose rule applies as it does to a merge.** If `S`'s change and the
+   base's progress since `S` both edited the same prose file, the approval doesn't
+   carry.
+
+The reviewed commit is the marker's `pr_head` when there is one, for the same
+reason as in [Verdicts](#verdicts): `commit_id` is re-pointed after a force-push.
+Validated on rmartz/personal-budget#562 (a happy-dom major rebased after
+sign-off): the replayed tree matched the new head byte for byte.
+
+**Bounded and contained.** Anyone can post a review naming any commit, so:
+
+- only reviews by a `User` that parse as a verdict are considered;
+- a non-hex `pr_head` is skipped before it reaches an API path or git's argv;
+- at most `MAX_REBASE_CHECKS` (3) commits are checked, newest review first;
+- an error in one check (say, a 404 for a commit GitHub doesn't have) rejects only
+  that check, never the merge walk or another review's check.
+
+The trust rules don't change: the review must still come from a trusted author.
+Like the merge rule, a rebase whose content checks out but breaks the build is
+caught by CI, which outranks every verdict. A wrong rejection only costs a review.
+
 Carry-over runs when the caller supplies a git runner (`GatherOptions.lineage`).
 The CLI always does; library callers that omit it simply get no carry-over.
 
@@ -343,6 +390,7 @@ The CLI always does; library callers that omit it simply get no carry-over.
   **never** updated: a foreign commit permanently breaks its rebasing, and
   Dependabot refuses `@dependabot rebase` from a GitHub App, so a person or
   Dependabot itself rebases it (see [Auto-update](github-edge-layer.md#auto-update)).
+  A clean rebase keeps the approval through [rebase carry-over](#rebased-heads).
   No update is planned for a PR being merged in the same pass, or without the
   label: absent merge-safety there is no auto-update. The update keeps the
   approval through [carry-over](#approval-carry-over); see
@@ -392,9 +440,10 @@ label both ways.
 - **`withoutReleaseActions` removes release actions and nothing else.** No arm,
   merge, update, or `auto-merge enabled` survives it; every other change, a
   disarm included, does.
-- **Carry-over grants nothing new.** A review on a clean ancestor counts exactly
-  as if the same reviewer had posted it on the head.
-- **A moved review is inert.** A review on the head that predates a force-push
-  to the head plans exactly as if it weren't there.
+- **Carry-over grants nothing new.** A review on a clean ancestor or clean rebase
+  source counts exactly as if the same reviewer had posted it on the head.
+- **A moved review counts only through a verified marker.** A review on the head
+  that predates a force-push to the head plans exactly as if it weren't there,
+  unless its marker names a verified clean rebase source.
 - **A review request only holds.** A pending bot request can move a PR from
   `review-requested` to `awaiting-bot-review` and changes no other state.
