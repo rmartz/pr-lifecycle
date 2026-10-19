@@ -227,6 +227,58 @@ describe('currentVerdict', () => {
     ).toBeUndefined();
   });
 
+  it('carries a verdict on a verified clean rebase source over to the head', () => {
+    const review = makeReview({ commitSha: OLD_SHA, body: makeVerdictBody('approved', OLD_SHA) });
+
+    expect(
+      currentVerdict(makeFacts({ reviews: [review], cleanRebaseSources: [OLD_SHA] }), {}),
+    ).toBe('approved');
+  });
+
+  it('carries a rebased verdict whose commit_id GitHub re-pointed at the head', () => {
+    const review = makeReview({ commitSha: HEAD_SHA, body: makeVerdictBody('approved', OLD_SHA) });
+
+    expect(
+      currentVerdict(makeFacts({ reviews: [review], cleanRebaseSources: [OLD_SHA] }), {}),
+    ).toBe('approved');
+  });
+
+  it('carries an unmarked native approval on a clean rebase source', () => {
+    const review = makeReview({ commitSha: OLD_SHA, state: 'APPROVED' });
+
+    expect(
+      currentVerdict(makeFacts({ reviews: [review], cleanRebaseSources: [OLD_SHA] }), {}),
+    ).toBe('approved');
+  });
+
+  it('does not let a marker claim the head for a review bound to a rebase source', () => {
+    const review = makeReview({ commitSha: OLD_SHA, body: makeVerdictBody('approved', HEAD_SHA) });
+
+    expect(
+      currentVerdict(makeFacts({ reviews: [review], cleanRebaseSources: [OLD_SHA] }), {}),
+    ).toBeUndefined();
+  });
+
+  it('ignores a marker naming an unverified commit, even on a review GitHub bound to the head', () => {
+    const review = makeReview({ commitSha: HEAD_SHA, body: makeVerdictBody('approved', OLD_SHA) });
+
+    expect(
+      currentVerdict(makeFacts({ reviews: [review], cleanRebaseSources: ['c'.repeat(40)] }), {}),
+    ).toBeUndefined();
+  });
+
+  it('never carries an untrusted verdict from a clean rebase source', () => {
+    const review = makeReview({
+      commitSha: OLD_SHA,
+      author: makeAuthor({ login: 'drive-by', permission: 'read' }),
+      body: makeVerdictBody('approved', OLD_SHA),
+    });
+
+    expect(
+      currentVerdict(makeFacts({ reviews: [review], cleanRebaseSources: [OLD_SHA] }), {}),
+    ).toBeUndefined();
+  });
+
   it('never carries an untrusted verdict, even from a clean ancestor', () => {
     const review = makeReview({
       commitSha: OLD_SHA,

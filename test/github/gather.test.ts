@@ -332,6 +332,7 @@ describe('gatherFacts — lineage error boundary', () => {
     expect(lineage).toEqual({
       cleanAncestors: [],
       stoppedBecause: 'verification failed: rate limit',
+      rebases: [],
     });
   });
 
@@ -358,6 +359,7 @@ describe('gatherFacts — lineage error boundary', () => {
     expect(lineage).toEqual({
       cleanAncestors: [],
       stoppedBecause: 'verification failed: malformed review',
+      rebases: [],
     });
   });
 });

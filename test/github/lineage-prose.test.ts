@@ -62,6 +62,7 @@ describe('gatherLineage — prose overlap', () => {
     expect(lineage).toEqual({
       cleanAncestors: [],
       stoppedBecause: `${repo.head()}: both sides edited the same prose (docs/guide.md)`,
+      rebases: [],
     });
   });
 

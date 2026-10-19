@@ -91,6 +91,93 @@ describe('reconcilePullRequest with approval carry-over', () => {
   });
 });
 
+describe('reconcilePullRequest with rebase carry-over', () => {
+  /**
+   * A PR reviewed on S, then force-pushed by `rewrite`. Like GitHub after a
+   * force-push, the review's commit_id points at the new head; its marker still
+   * names S.
+   */
+  function rebasedPr(rewrite: (fixture: GitFixture) => void): FakeGitHubClient {
+    repo.checkout('pr', true);
+    const reviewed = repo.commit('pr change', { 'feat.txt': 'feat\n' });
+    repo.checkout('main');
+    repo.commit('main change', { 'other.txt': 'main\n' });
+    repo.checkout('pr');
+    rewrite(repo);
+
+    const client = new FakeGitHubClient(
+      makePullRequestData({ headSha: repo.head(), cloneUrl: repo.url }),
+      [
+        makeReviewData({
+          id: 2,
+          commitSha: repo.head(),
+          body: makeVerdictBody('approved', reviewed),
+        }),
+      ],
+    );
+    client.permissions.set('maintainer', { permission: 'write', roleName: 'write' });
+    client.branchHeads.set('main', repo.git('rev-parse', 'main'));
+    const fixtureClient = repo.client();
+    client.getCommit = fixtureClient.getCommit;
+    client.compareCommits = fixtureClient.compareCommits;
+    return client;
+  }
+
+  it('keeps the approval (and arms) after a clean rebase onto the base', async () => {
+    const client = rebasedPr((fixture) => fixture.git('rebase', '--quiet', 'main'));
+
+    const { plan } = await reconcilePullRequest(client, 7, { armAutoMerge: true }, LINEAGE);
+
+    expect([plan.state, plan.autoMerge]).toEqual(['approved', 'arm']);
+  });
+
+  it('keeps the approval when GitHub recorded the force-push that moved the review', async () => {
+    const client = rebasedPr((fixture) => fixture.git('rebase', '--quiet', 'main'));
+    // The review (submitted 2026-09-23) predates the push GitHub moved it onto.
+    client.forcePushes = [{ headSha: client.pull.headSha, pushedAt: '2026-09-24T00:00:00Z' }];
+
+    const { plan } = await reconcilePullRequest(client, 7, { armAutoMerge: true }, LINEAGE);
+
+    expect([plan.state, plan.autoMerge]).toEqual(['approved', 'arm']);
+  });
+
+  it('drops a moved native approval with no marker, even across a clean rebase', async () => {
+    const client = rebasedPr((fixture) => fixture.git('rebase', '--quiet', 'main'));
+    client.forcePushes = [{ headSha: client.pull.headSha, pushedAt: '2026-09-24T00:00:00Z' }];
+    client.reviews = client.reviews.map((review) => ({ ...review, state: 'APPROVED', body: '' }));
+
+    const { plan } = await reconcilePullRequest(client, 7, { armAutoMerge: true }, LINEAGE);
+
+    expect(plan.state).toBe('review-requested');
+  });
+
+  it('drops the approval after a rebase that changed the content', async () => {
+    const client = rebasedPr((fixture) => {
+      fixture.git('rebase', '--quiet', 'main');
+      fixture.commit('sneaky', { 'feat.txt': 'feat\nsneaky\n' });
+      fixture.git('reset', '--quiet', '--soft', 'HEAD~2');
+      fixture.git('commit', '--quiet', '--message', 'pr change');
+    });
+
+    const { plan } = await reconcilePullRequest(client, 7, { armAutoMerge: true }, LINEAGE);
+
+    expect(plan.state).toBe('review-requested');
+  });
+
+  it('converges to the same plan when reconciled twice', async () => {
+    const client = rebasedPr((fixture) => fixture.git('rebase', '--quiet', 'main'));
+
+    const first = await reconcilePullRequest(client, 7, { armAutoMerge: true }, LINEAGE);
+    const second = await reconcilePullRequest(client, 7, { armAutoMerge: true }, LINEAGE);
+
+    expect([first.plan.state, second.plan.state, second.plan.addLabels]).toEqual([
+      'approved',
+      'approved',
+      [],
+    ]);
+  });
+});
+
 describe('reconcilePullRequest auto-update, end to end', () => {
   it('updates an approved PR, then keeps it approved and armed once CI is green', async () => {
     // The update the fake update-branch will produce: a clean merge of main,
