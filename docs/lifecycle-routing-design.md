@@ -28,7 +28,7 @@ decisions behind them.
   See the core design's [CI gate](reconciler-design.md#ci-gate).
 - **Approvals carry over a clean base update or rebase** under a
   content-verified rule, so an update doesn't cost a review cycle. See
-  [Approval carry-over](reconciler-design.md#approval-carry-over).
+  [Approval carry-over](approval-carry-over.md).
 - **Approved PRs are auto-updated when merge-safety says it matters.** The
   trigger is merge-safety's selective `update required` label, not GitHub's
   generic "behind", and it is opt-in (`--auto-update`). Dependabot PRs are never

@@ -8,7 +8,7 @@ import { parseGitVersion } from './git.js';
 /**
  * Verifies that a merge commit is exactly the automatic, conflict-free merge of
  * its parents — the content check behind approval carry-over (see
- * docs/reconciler-design.md §Approval carry-over). The commits are fetched as git
+ * docs/approval-carry-over.md). The commits are fetched as git
  * data only into a throwaway bare repository; nothing is checked out and no PR
  * code runs.
  */

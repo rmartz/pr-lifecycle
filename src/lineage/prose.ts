@@ -4,7 +4,7 @@ import type { MergeStep, MergeVerifier } from './verify.js';
  * Which files are prose for approval carry-over: a clean base merge in which both
  * sides edited the same prose file doesn't carry an approval over, because no CI
  * check can tell whether two concurrent edits to a page still read correctly
- * together (docs/reconciler-design.md §Approval carry-over).
+ * together (docs/approval-carry-over.md).
  *
  * Patterns match a file's **basename** with `*` as the only wildcard; a leading
  * `!` excludes. A file is prose when it matches some pattern and no exclusion.

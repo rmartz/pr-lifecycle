@@ -19,25 +19,25 @@ Source: `src/` (`facts.ts`, `verdict.ts`, `head-binding.ts`, `state.ts`, `plan.t
 
 ## Facts
 
-| Fact                   | Source (edge layer)                                                                                                     |
-| ---------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `status`               | PR `state` / `merged`: `open`, `closed`, or `merged`                                                                    |
-| `isDraft`, `title`     | PR fields; a `[WIP]` title (any case) is treated like a draft                                                           |
-| `headSha`              | PR `head.sha`                                                                                                           |
-| `labels`               | current label names                                                                                                     |
-| `autoMergeEnabled`     | PR `auto_merge` is non-null                                                                                             |
-| `botEligible`          | [bot-PR eligibility](bot-eligibility.md): same-repo Dependabot patch/minor, release-please pure release                 |
-| `mergeable`            | PR `mergeable`: `true`, `false` (merge conflict), or unknown (`null` → `undefined`: still computing)                    |
-| `immediatelyMergeable` | PR `mergeable_state` is `clean`, `has_hooks`, or `unstable`: GitHub would merge now, so auto-merge can't be armed       |
-| `ciStatus`             | [CI gate](#ci-gate) over the head's required checks: `passing`, `failing`, or `pending`                                 |
-| `baseCiFailing`        | the same required checks are failing on the base branch head (fetched only when `ciStatus` is `failing`)                |
-| `cleanAncestors`       | commits whose reviews carry over to the head (see [Approval carry-over](#approval-carry-over)); verified at the edge    |
-| `cleanRebaseSources`   | reviewed commits a force-push removed, whose reviews carry over (see [Rebased heads](#rebased-heads)); verified at edge |
-| `updater`              | `dependabot` for a PR opened by `dependabot[bot]` (it rebases its own branch), else `github` (`update-branch`)          |
-| `dependabotRebasing`   | Dependabot PRs only: the PR body carries Dependabot's own rebasing or recreating notice; a rebase request doesn't count |
-| `reviews`              | PR reviews: author login, type (`User`/`Bot`), repo permission, `commit_id`, state, body, submitted time                |
-| `forcePushes`          | `head_ref_force_pushed` issue events: the commit each made the head, and when (read only when some review is a verdict) |
-| `pendingBotReviewers`  | PR `requested_reviewers` entries of type `Bot` (Copilot appears as `Copilot`); users and teams are left out             |
+| Fact                   | Source (edge layer)                                                                                                                           |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `status`               | PR `state` / `merged`: `open`, `closed`, or `merged`                                                                                          |
+| `isDraft`, `title`     | PR fields; a `[WIP]` title (any case) is treated like a draft                                                                                 |
+| `headSha`              | PR `head.sha`                                                                                                                                 |
+| `labels`               | current label names                                                                                                                           |
+| `autoMergeEnabled`     | PR `auto_merge` is non-null                                                                                                                   |
+| `botEligible`          | [bot-PR eligibility](bot-eligibility.md): same-repo Dependabot patch/minor, release-please pure release                                       |
+| `mergeable`            | PR `mergeable`: `true`, `false` (merge conflict), or unknown (`null` → `undefined`: still computing)                                          |
+| `immediatelyMergeable` | PR `mergeable_state` is `clean`, `has_hooks`, or `unstable`: GitHub would merge now, so auto-merge can't be armed                             |
+| `ciStatus`             | [CI gate](#ci-gate) over the head's required checks: `passing`, `failing`, or `pending`                                                       |
+| `baseCiFailing`        | the same required checks are failing on the base branch head (fetched only when `ciStatus` is `failing`)                                      |
+| `cleanAncestors`       | commits whose reviews carry over to the head (see [Approval carry-over](approval-carry-over.md)); verified at the edge                        |
+| `cleanRebaseSources`   | reviewed commits a force-push removed, whose reviews carry over (see [Rebased heads](approval-carry-over.md#rebased-heads)); verified at edge |
+| `updater`              | `dependabot` for a PR opened by `dependabot[bot]` (it rebases its own branch), else `github` (`update-branch`)                                |
+| `dependabotRebasing`   | Dependabot PRs only: the PR body carries Dependabot's own rebasing or recreating notice; a rebase request doesn't count                       |
+| `reviews`              | PR reviews: author login, type (`User`/`Bot`), repo permission, `commit_id`, state, body, submitted time                                      |
+| `forcePushes`          | `head_ref_force_pushed` issue events: the commit each made the head, and when (read only when some review is a verdict)                       |
+| `pendingBotReviewers`  | PR `requested_reviewers` entries of type `Bot` (Copilot appears as `Copilot`); users and teams are left out                                   |
 
 The author's **repo permission** is a fact gathered at the edge (the collaborator
 permission API), so trust evaluation stays pure.
@@ -87,8 +87,8 @@ A verdict **counts** only when all of the following hold:
    required checks pass.
 2. **Bound to the current head.** The commit the review covered (the marker's
    `pr_head` when it names one, else the review's `commit_id`) is the head, a
-   [clean ancestor](#approval-carry-over), or a
-   [clean rebase source](#rebased-heads). When the marker names a different commit
+   [clean ancestor](approval-carry-over.md), or a
+   [clean rebase source](approval-carry-over.md#rebased-heads). When the marker names a different commit
    than `commit_id`, it counts only if the marker's commit is a clean ancestor or
    rebase source. A marker can never claim the head for a review GitHub bound to
    another commit. A verdict on any other commit never counts, so a real push
@@ -101,7 +101,7 @@ A verdict **counts** only when all of the following hold:
    author never saw, so its `commit_id` can't bind it at all. A review counts as
    moved when a force-push to its commit happened at or after it was submitted.
    It then counts only when its marker's `pr_head` names a verified
-   [clean rebase source](#rebased-heads) (or clean ancestor), never the head. A
+   [clean rebase source](approval-carry-over.md#rebased-heads) (or clean ancestor), never the head. A
    native approval has no marker, so a moved one is inert: without this rule it
    would survive the rebase and stay armed on a new combination of code that
    nobody reviewed. The rule fails closed. A push GitHub didn't name the commit
@@ -268,103 +268,10 @@ moves the PR back to `awaiting-bot-review`.
 
 ## Approval carry-over
 
-Head binding makes any push drop the approval, so without carry-over every base
-update would cost a full review cycle. A review bound to commit `A` also counts
-for the head `H` when every commit on the first-parent chain from `H` back to `A`
-is a **verified clean base merge** (`src/github/lineage-facts.ts`,
-`src/lineage/verify.ts`). Each step must satisfy:
-
-1. It is a merge commit with **exactly two parents**, and the second parent is
-   **on the base branch** (reachable from the base head, via the compare API).
-2. **Its tree is byte-identical to the automatic merge**, recomputed with
-   `git merge-tree --write-tree --merge-base=<M> <first> <second>`, which must also
-   report no conflicts.
-3. **The two sides didn't both edit the same prose file.** The files the PR side
-   changed (`<M>` → first parent) and the base side changed (`<M>` → second
-   parent) are listed with `git diff-tree`; a path in both that matches the prose
-   patterns stops the chain. By default that is every `*.md` except `index.md`;
-   the CLI's `--prose-paths` changes it, and an empty list turns the rule off.
-
-**Why prose is special.** merge-safety already forces an update whenever `main`
-changed a file the PR also changed, so the overlapping merge is always made and
-verified here. For code, a clean merge that breaks something is caught by CI
-(see below). For prose, nothing automatic checks that two concurrent edits to a
-page still read correctly together, so that merge costs a new review instead.
-The walk's `stoppedBecause` names the files, so the reviewer knows what to
-re-read. Index pages are exempt because they take routine concurrent appends,
-which a clean merge gets right.
-
-**Content, not provenance.** GitHub's `web-flow` committer also signs web-editor
-conflict resolutions and in-browser edits, so "GitHub made this commit" doesn't
-mean clean; rule 2 ignores who made the commit. Any extra edit, hand-resolved
-conflict, reverted base change (`-s ours`) or octopus merge fails. It was
-validated against **real GitHub update-branch merges**: 8 of 8 from the fleet's
-history reproduced byte for byte, and each tampered variant was rejected.
-
-**Safety of the check itself.**
-
-- The commits are fetched as **git data only** (`fetch --depth=1` by SHA into a
-  throwaway bare repo); nothing is checked out and no PR code runs.
-- The token travels only as a `GIT_CONFIG_*` header (as `actions/checkout`
-  does), never in argv or the URL.
-- Every SHA from the API is validated as a hex object id before it reaches git's
-  argv, the URL must be `https://` or `file://`, and `--end-of-options` precedes
-  it, so no API value can be read as a git option.
-
-**Fails closed.** Any API or git error (including a failure to list either
-side's changed files), git older than 2.40, a missing binary, or
-a chain longer than 20 steps means no carry-over, which costs an extra review and
-never produces a false approval. The walk runs only when some review sits on an
-earlier commit, and stops as soon as every such commit is reached.
-
-**Semantic breakage is covered by the state order, not by this rule.** A
-textually clean merge can still break the build; failing CI outranks every
-verdict, so a carried approval on a broken head becomes `ci-failing`. While CI
-runs, the carried approval keeps the PR `approved` and armed, which is safe
-because GitHub's auto-merge waits for required checks.
-
-### Rebased heads
-
-A force-push takes the reviewed commit `S` out of the branch's history, which is
-what `@dependabot rebase` does, so the merge walk can't reach it. Without this
-rule, a Dependabot major that already got its human sign-off would lose it to
-every rebase. A reviewed commit the walk didn't reach also counts for the head
-`H` when `H` is a **verified clean rebase** of it (`src/github/lineage-rebase.ts`):
-
-1. `S` is **not** in `H`'s history. A commit that is in it is the merge walk's to
-   judge, step by step.
-2. **The base only moved forward.** `S`'s merge base with the base branch is an
-   ancestor of (or equal to) `H`'s merge base with it. A head moved onto an
-   older base is rejected.
-3. **`H`'s tree is byte-identical to the automatic replay** of `S`'s change onto
-   `H`'s base: `git merge-tree --write-tree --merge-base=<base of S> S <base of H>`,
-   which must also report no conflicts. This is the tree a clean update-branch
-   merge would have produced, so the rule grants nothing the merge rule doesn't.
-   An extra edit, a hand-resolved conflict, a dependency re-resolved to different
-   versions, or a rebase onto anything but the base branch fails.
-4. **The prose rule applies as it does to a merge.** If `S`'s change and the
-   base's progress since `S` both edited the same prose file, the approval doesn't
-   carry.
-
-The reviewed commit is the marker's `pr_head` when there is one, for the same
-reason as in [Verdicts](#verdicts): `commit_id` is re-pointed after a force-push.
-Validated on rmartz/personal-budget#562 (a happy-dom major rebased after
-sign-off): the replayed tree matched the new head byte for byte.
-
-**Bounded and contained.** Anyone can post a review naming any commit, so:
-
-- only reviews by a `User` that parse as a verdict are considered;
-- a non-hex `pr_head` is skipped before it reaches an API path or git's argv;
-- at most `MAX_REBASE_CHECKS` (3) commits are checked, newest review first;
-- an error in one check (say, a 404 for a commit GitHub doesn't have) rejects only
-  that check, never the merge walk or another review's check.
-
-The trust rules don't change: the review must still come from a trusted author.
-Like the merge rule, a rebase whose content checks out but breaks the build is
-caught by CI, which outranks every verdict. A wrong rejection only costs a review.
-
-Carry-over runs when the caller supplies a git runner (`GatherOptions.lineage`).
-The CLI always does; library callers that omit it simply get no carry-over.
+Head binding makes any push drop an approval. Carry-over keeps a review counting
+when the head's content is verifiably what was reviewed: a chain of clean base
+merges, or a clean rebase after a force-push. The rules and their safety
+properties are on their own page: [Approval carry-over](approval-carry-over.md).
 
 ## Plan
 
@@ -390,10 +297,10 @@ The CLI always does; library callers that omit it simply get no carry-over.
   **never** updated: a foreign commit permanently breaks its rebasing, and
   Dependabot refuses `@dependabot rebase` from a GitHub App, so a person or
   Dependabot itself rebases it (see [Auto-update](github-edge-layer.md#auto-update)).
-  A clean rebase keeps the approval through [rebase carry-over](#rebased-heads).
+  A clean rebase keeps the approval through [rebase carry-over](approval-carry-over.md#rebased-heads).
   No update is planned for a PR being merged in the same pass, or without the
   label: absent merge-safety there is no auto-update. The update keeps the
-  approval through [carry-over](#approval-carry-over); see
+  approval through [carry-over](approval-carry-over.md); see
   [Auto-update](github-edge-layer.md#auto-update) for how it's executed.
 - **`withoutReleaseActions(plan)`** strips an `arm` or `merge` (and the
   `auto-merge enabled` it would add) and any `update`, and keeps everything else,

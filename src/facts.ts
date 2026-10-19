@@ -94,13 +94,13 @@ export interface PullRequestFacts {
   /**
    * Earlier commits whose verdicts carry over to the head: every commit reached
    * from the head through a chain of verified clean base merges (see
-   * docs/reconciler-design.md §Approval carry-over). Verified at the edge.
+   * docs/approval-carry-over.md). Verified at the edge.
    */
   cleanAncestors: readonly string[];
   /**
    * Reviewed commits no longer in the branch's history whose verdicts carry over
    * to the head, because the head is their verified clean rebase onto the base
-   * (see docs/reconciler-design.md §Rebased heads). Verified at the edge; absent
+   * (see docs/approval-carry-over.md §Rebased heads). Verified at the edge; absent
    * means none.
    */
   cleanRebaseSources?: readonly string[];

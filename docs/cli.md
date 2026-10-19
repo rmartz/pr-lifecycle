@@ -24,20 +24,20 @@ pr-lifecycle reconcile --repo <owner/repo> --pr <n>
   [--json] [--no-token-advisory]
 ```
 
-| Flag                      | Effect                                                                                                                                                                                                                                                         |
-| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--repo <owner/repo>`     | Repository (required).                                                                                                                                                                                                                                         |
-| `--pr <n>`                | Pull request number (required, a positive integer).                                                                                                                                                                                                            |
-| `--arm-auto-merge`        | Arm, merge, or disarm from the state (`policy.armAutoMerge`); arming and merging need a [release token](#release-token). Off by default.                                                                                                                       |
-| `--auto-update`           | Bring an approved PR that merge-safety labels `update required` up to date (`policy.autoUpdate`): `update-branch`, never for a Dependabot PR (see [Auto-update](github-edge-layer.md#auto-update)). Needs a [release token](#release-token). Off by default.   |
-| `--trusted-authors <a,b>` | Narrow trust to these logins; they still need write access (`policy.trustedAuthors`). An empty list is an error.                                                                                                                                               |
-| `--skip-copilot-review`   | Deprecated: don't wait for requested bot reviewers (`policy.skipCopilotReview`); the wait now ends on its own.                                                                                                                                                 |
-| `--hold-checks <a,b>`     | Required checks whose _pending_ is a hold, not a running build; their failures still count (`policy.holdChecks`, default `pr-policy`).                                                                                                                         |
-| `--ignore-checks <a,b>`   | Required checks the CI gate never counts (`policy.ignoredChecks`, default `merge-safety`). An empty value counts every check.                                                                                                                                  |
-| `--prose-paths <a,b>`     | Basename patterns (`*` wildcard, `!` excludes) for prose files: a base merge in which both sides edited the same one doesn't [carry an approval over](reconciler-design.md#approval-carry-over). Default `*.md,!index.md`; an empty value turns the check off. |
-| `--dry-run`               | Gather and plan, but write nothing.                                                                                                                                                                                                                            |
-| `--json`                  | Print the result as one JSON object (below) instead of a summary line.                                                                                                                                                                                         |
-| `--no-token-advisory`     | Don't post the [advisory comment](#release-token) when arming is skipped for want of a release token.                                                                                                                                                          |
+| Flag                      | Effect                                                                                                                                                                                                                                                       |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `--repo <owner/repo>`     | Repository (required).                                                                                                                                                                                                                                       |
+| `--pr <n>`                | Pull request number (required, a positive integer).                                                                                                                                                                                                          |
+| `--arm-auto-merge`        | Arm, merge, or disarm from the state (`policy.armAutoMerge`); arming and merging need a [release token](#release-token). Off by default.                                                                                                                     |
+| `--auto-update`           | Bring an approved PR that merge-safety labels `update required` up to date (`policy.autoUpdate`): `update-branch`, never for a Dependabot PR (see [Auto-update](github-edge-layer.md#auto-update)). Needs a [release token](#release-token). Off by default. |
+| `--trusted-authors <a,b>` | Narrow trust to these logins; they still need write access (`policy.trustedAuthors`). An empty list is an error.                                                                                                                                             |
+| `--skip-copilot-review`   | Deprecated: don't wait for requested bot reviewers (`policy.skipCopilotReview`); the wait now ends on its own.                                                                                                                                               |
+| `--hold-checks <a,b>`     | Required checks whose _pending_ is a hold, not a running build; their failures still count (`policy.holdChecks`, default `pr-policy`).                                                                                                                       |
+| `--ignore-checks <a,b>`   | Required checks the CI gate never counts (`policy.ignoredChecks`, default `merge-safety`). An empty value counts every check.                                                                                                                                |
+| `--prose-paths <a,b>`     | Basename patterns (`*` wildcard, `!` excludes) for prose files: a base merge in which both sides edited the same one doesn't [carry an approval over](approval-carry-over.md). Default `*.md,!index.md`; an empty value turns the check off.                 |
+| `--dry-run`               | Gather and plan, but write nothing.                                                                                                                                                                                                                          |
+| `--json`                  | Print the result as one JSON object (below) instead of a summary line.                                                                                                                                                                                       |
+| `--no-token-advisory`     | Don't post the [advisory comment](#release-token) when arming is skipped for want of a release token.                                                                                                                                                        |
 
 The policy options are described in the [core design](reconciler-design.md).
 
@@ -54,7 +54,7 @@ The policy options are described in the [core design](reconciler-design.md).
 `checks: read` and `statuses: read` (the CI gate). The collaborator-permission
 lookup also needs at least read access to the repository.
 
-**git.** [Approval carry-over](reconciler-design.md#approval-carry-over) needs
+**git.** [Approval carry-over](approval-carry-over.md) needs
 `git` ≥ 2.40 on `PATH` (GitHub-hosted runners have it), and uses the same token,
 sent as a header, to fetch the commits it verifies. Without a suitable git, carry-over
 is skipped (an extra review, never an error).
@@ -177,9 +177,9 @@ writes a `notice:` line to stderr.
 `update` is the branch update done: `update-branch` or `none`; `updateSkipped`
 is `{ "action": "update-branch", "reason": "token-missing" }` when one was skipped, else `null`. `botEligibility` is described in
 [Bot-PR eligibility](bot-eligibility.md). `carryOver` reports
-[approval carry-over](reconciler-design.md#approval-carry-over): the verified clean
+[approval carry-over](approval-carry-over.md): the verified clean
 ancestors whose reviews count, and why the walk stopped (e.g. `… is not the clean
-automatic merge`). `rebases` lists each [clean-rebase check](reconciler-design.md#rebased-heads)
+automatic merge`). `rebases` lists each [clean-rebase check](approval-carry-over.md#rebased-heads)
 as `{ "source", "carried", "reason" }`. It is `null` when carry-over didn't run (a closed PR); a walk that failed reports `verification failed: …` and carries nothing.
 
 ## Versioning

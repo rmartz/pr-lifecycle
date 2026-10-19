@@ -10,7 +10,7 @@ import type { GitHubClient } from './client.js';
  * The head's tree must be byte-identical to what git's automatic three-way merge
  * produces when the reviewed commit's change is replayed onto the head's newer
  * base: the same content a clean update-branch merge would have produced, which
- * already carries an approval (docs/reconciler-design.md §Rebased heads). Every
+ * already carries an approval (docs/approval-carry-over.md §Rebased heads). Every
  * doubt returns a reason, never a carry-over.
  */
 

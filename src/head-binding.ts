@@ -3,7 +3,7 @@ import type { PullRequestFacts, ReviewFact } from './facts.js';
 /**
  * Head binding: which commit a verdict reviewed, and whether that commit still
  * counts for the PR's current head. See docs/reconciler-design.md §Verdicts
- * (rule 2), §Approval carry-over and §Rebased heads.
+ * (rule 2) and docs/approval-carry-over.md.
  */
 
 /**

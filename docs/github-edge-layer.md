@@ -174,8 +174,8 @@ When the plan says `update` (see [Plan](reconciler-design.md#plan)):
   `update required` stays as it is: a person comments `@dependabot rebase` (or
   `recreate`), or Dependabot rebases it on its own (it does so on a conflict). The
   rebase is a new head, and the PR is reconciled from there. A clean rebase keeps
-  the approval ([Rebased heads](reconciler-design.md#rebased-heads)).
-- **Afterwards.** [Carry-over](reconciler-design.md#approval-carry-over) keeps the
+  the approval ([Rebased heads](approval-carry-over.md#rebased-heads)).
+- **Afterwards.** [Carry-over](approval-carry-over.md) keeps the
   PR `approved` across the verified clean merge, CI runs on the new head (it was
   pushed by a real actor), merge-safety clears `update required`, and armed
   auto-merge lands the PR once required checks pass.
