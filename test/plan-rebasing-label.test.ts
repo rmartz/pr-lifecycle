@@ -29,14 +29,6 @@ describe('planReconcile dependabot rebasing label', () => {
     expect([...plan.addLabels, ...plan.removeLabels]).toEqual([]);
   });
 
-  // A request we posted is not a rebase in progress: Dependabot may reply with an
-  // error instead, and a label raised on the request would then never clear.
-  it('does not add the label for a pending rebase request alone', () => {
-    const plan = planReconcile(dependabot({ rebasePending: true }), {});
-
-    expect(plan.addLabels).not.toContain(DEPENDABOT_REBASING_LABEL);
-  });
-
   it('never adds the label to a PR Dependabot does not own', () => {
     const facts = dependabot({ updater: 'github', dependabotRebasing: true });
 

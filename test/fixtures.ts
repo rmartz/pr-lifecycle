@@ -41,7 +41,6 @@ export function makeFacts(overrides: Partial<PullRequestFacts> = {}): PullReques
     baseCiFailing: false,
     cleanAncestors: [],
     updater: 'github',
-    rebasePending: false,
     dependabotRebasing: false,
     reviews: [],
     escalationRemovals: [],
@@ -72,9 +71,7 @@ export function applyPlan(facts: PullRequestFacts, plan: ReconcilePlan): PullReq
   }
   const autoMergeEnabled =
     plan.autoMerge === 'none' ? facts.autoMergeEnabled : plan.autoMerge === 'arm';
-  // A rebase request stays pending until Dependabot pushes a new head.
-  const rebasePending = facts.rebasePending || plan.update === 'dependabot-rebase';
-  return { ...facts, labels, autoMergeEnabled, rebasePending };
+  return { ...facts, labels, autoMergeEnabled };
 }
 
 /** A `package.json` patch that bumps only the version, as release-please writes it. */

@@ -1,7 +1,6 @@
 import type { ReconcilePlan } from '../plan.js';
 import type { GitHubClient, ReleaseActions } from './client.js';
 import { GitHubApiError, isApiStatus } from './client.js';
-import { buildRebaseRequestBody } from './dependabot-rebase.js';
 import { labelDefinition } from './label-roster.js';
 
 /**
@@ -90,9 +89,6 @@ export async function executePlan(
   switch (plan.update) {
     case 'update-branch':
       await updateBranch(release, target);
-      break;
-    case 'dependabot-rebase':
-      await release.createIssueComment(target.pr, buildRebaseRequestBody(target.headSha));
       break;
     case 'none':
       break;

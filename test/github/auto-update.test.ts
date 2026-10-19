@@ -4,7 +4,6 @@ import { DEPENDABOT_LOGIN } from '../../src/bot-eligibility.js';
 import type { PullRequestData } from '../../src/github/client.js';
 import { GitHubApiError } from '../../src/github/client.js';
 import {
-  buildRebaseRequestBody,
   DEPENDABOT_REBASING_NOTICE,
   DEPENDABOT_RECREATING_NOTICE,
 } from '../../src/github/dependabot-rebase.js';
@@ -50,23 +49,6 @@ describe('gatherFacts — branch updater', () => {
     expect(facts.updater).toBe('dependabot');
   });
 
-  it('sees a rebase in progress from the PR body', async () => {
-    const client = makeFlaggedClient({ ...DEPENDABOT, body: DEPENDABOT_REBASING_NOTICE });
-
-    const { facts } = await gatherFacts(client, 7, AUTO_UPDATE);
-
-    expect(facts.rebasePending).toBe(true);
-  });
-
-  it('sees a rebase already requested for this head', async () => {
-    const client = makeFlaggedClient(DEPENDABOT);
-    client.comments = [buildRebaseRequestBody(HEAD_SHA)];
-
-    const { facts } = await gatherFacts(client, 7, AUTO_UPDATE);
-
-    expect(facts.rebasePending).toBe(true);
-  });
-
   it('reports Dependabot rebasing from the PR body', async () => {
     const client = makeFlaggedClient({ ...DEPENDABOT, body: DEPENDABOT_RECREATING_NOTICE });
 
@@ -75,10 +57,10 @@ describe('gatherFacts — branch updater', () => {
     expect(facts.dependabotRebasing).toBe(true);
   });
 
-  // The request marker means "asked", not "running": it must not raise the label.
+  // A person's request means "asked", not "running": it must not raise the label.
   it('does not report Dependabot rebasing from a rebase request alone', async () => {
     const client = makeFlaggedClient(DEPENDABOT);
-    client.comments = [buildRebaseRequestBody(HEAD_SHA)];
+    client.comments = ['@dependabot rebase'];
 
     const { facts } = await gatherFacts(client, 7, AUTO_UPDATE);
 
@@ -94,16 +76,8 @@ describe('gatherFacts — branch updater', () => {
     expect(facts.dependabotRebasing).toBe(false);
   });
 
-  it('reads no comments when auto-update is off', async () => {
+  it('reads no comments for a Dependabot PR, even with auto-update on', async () => {
     const client = makeFlaggedClient(DEPENDABOT);
-
-    await gatherFacts(client, 7, {});
-
-    expect(client.calls.some((call) => call.method === 'listIssueComments')).toBe(false);
-  });
-
-  it('reads no comments for a PR not opened by Dependabot', async () => {
-    const client = makeFlaggedClient();
 
     await gatherFacts(client, 7, AUTO_UPDATE);
 
@@ -140,17 +114,6 @@ describe('executePlan — update', () => {
     );
   });
 
-  it('asks Dependabot to rebase through the release actions', async () => {
-    const client = new FakeGitHubClient();
-    const release = new FakeGitHubClient();
-
-    await executePlan(client, TARGET, makePlan('dependabot-rebase'), release);
-
-    expect(release.writes).toEqual([
-      { method: 'createIssueComment', args: [7, buildRebaseRequestBody(HEAD_SHA)] },
-    ]);
-  });
-
   it('updates after arming, since the update moves the head', async () => {
     const client = new FakeGitHubClient();
     const plan = { ...makePlan('update-branch'), autoMerge: 'arm' as const };
@@ -170,42 +133,22 @@ describe('reconcilePullRequest — auto-update', () => {
     expect(client.writes).toEqual([{ method: 'updateBranch', args: [7, HEAD_SHA] }]);
   });
 
-  it('never calls update-branch on a Dependabot PR', async () => {
+  // Dependabot refuses `@dependabot rebase` from a GitHub App ("only users with
+  // push access"), and update-branch would break its own rebasing: write nothing.
+  it('leaves an approved Dependabot PR flagged update required untouched', async () => {
     const client = makeFlaggedClient(DEPENDABOT);
 
     await reconcilePullRequest(client, 7, AUTO_UPDATE);
 
-    expect(client.writes).toEqual([
-      { method: 'createIssueComment', args: [7, buildRebaseRequestBody(HEAD_SHA)] },
-    ]);
+    expect(client.writes).toEqual([]);
   });
 
-  it('asks Dependabot only once for the same head', async () => {
-    const client = makeFlaggedClient(DEPENDABOT);
+  it('reports no skipped update for a Dependabot PR without a release token', async () => {
+    const result = await reconcilePullRequest(makeFlaggedClient(DEPENDABOT), 7, AUTO_UPDATE, {
+      release: 'unavailable',
+    });
 
-    await reconcilePullRequest(client, 7, AUTO_UPDATE);
-    await reconcilePullRequest(client, 7, AUTO_UPDATE);
-
-    expect(client.comments).toEqual([buildRebaseRequestBody(HEAD_SHA)]);
-  });
-
-  it('asks again once Dependabot has pushed a new head', async () => {
-    const client = makeFlaggedClient(DEPENDABOT);
-    await reconcilePullRequest(client, 7, AUTO_UPDATE);
-    const rebased = 'e'.repeat(40);
-    client.pull.headSha = rebased;
-    client.reviews = client.reviews.map((review) => ({
-      ...review,
-      commitSha: rebased,
-      body: review.id === 2 ? makeVerdictBody('approved', rebased) : review.body,
-    }));
-
-    await reconcilePullRequest(client, 7, AUTO_UPDATE);
-
-    expect(client.comments).toEqual([
-      buildRebaseRequestBody(HEAD_SHA),
-      buildRebaseRequestBody(rebased),
-    ]);
+    expect(result.skippedUpdate).toBeUndefined();
   });
 
   it('skips and reports the update when no release token is available', async () => {

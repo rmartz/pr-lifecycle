@@ -40,10 +40,11 @@ export type AutoMergeAction = 'arm' | 'disarm' | 'merge' | 'none';
 
 /**
  * How an approved PR flagged `update required` is brought up to date. A Dependabot
- * PR is never updated directly — a foreign commit on its branch permanently breaks
- * its own rebasing — so it is only ever asked to rebase itself.
+ * PR is never updated: a foreign commit on its branch permanently breaks its own
+ * rebasing, and Dependabot refuses `@dependabot rebase` from a GitHub App ("only
+ * users with push access"), so a person or Dependabot itself rebases it.
  */
-export type UpdateAction = 'dependabot-rebase' | 'none' | 'update-branch';
+export type UpdateAction = 'none' | 'update-branch';
 
 export interface ReconcilePlan {
   state: LifecycleState;
@@ -79,10 +80,10 @@ function lifecycleLabels(state: LifecycleState): readonly LifecycleLabel[] {
   }
 }
 
-function updateFor(updater: BranchUpdater, rebasePending: boolean): UpdateAction {
+function updateFor(updater: BranchUpdater): UpdateAction {
   switch (updater) {
     case 'dependabot':
-      return rebasePending ? 'none' : 'dependabot-rebase';
+      return 'none';
     case 'github':
       return 'update-branch';
   }
@@ -101,7 +102,7 @@ function planUpdate(
   if (!facts.labels.includes(UPDATE_REQUIRED_LABEL)) {
     return 'none';
   }
-  return updateFor(facts.updater, facts.rebasePending);
+  return updateFor(facts.updater);
 }
 
 export function planReconcile(facts: PullRequestFacts, policy: ReconcilePolicy): ReconcilePlan {

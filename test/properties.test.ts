@@ -95,7 +95,6 @@ const factsArb: fc.Arbitrary<PullRequestFacts> = fc.record({
   baseCiFailing: fc.boolean(),
   cleanAncestors: fc.constantFrom([], [], [OLD_SHA]),
   updater: fc.constantFrom(...BRANCH_UPDATERS),
-  rebasePending: fc.boolean(),
   dependabotRebasing: fc.boolean(),
   reviews: reviewsArb(),
   escalationRemovals: fc.array(
@@ -344,29 +343,16 @@ describe('reconciler properties', () => {
     );
   });
 
-  // A foreign commit on a Dependabot branch permanently breaks its rebasing.
-  it('never plans update-branch for a Dependabot PR', () => {
+  // A foreign commit on a Dependabot branch permanently breaks its rebasing, and
+  // Dependabot refuses commands from a GitHub App, so its PR is never updated.
+  it('never plans an update for a Dependabot PR', () => {
     fc.assert(
       fc.property(factsArb, policyArb, (facts, policy) => {
         const plan = planReconcile({ ...facts, updater: 'dependabot' }, policy);
 
-        expect(plan.update).not.toBe('update-branch');
+        expect(plan.update).toBe('none');
       }),
       SECURITY_RUNS,
-    );
-  });
-
-  it('asks Dependabot to rebase at most once per head', () => {
-    fc.assert(
-      fc.property(factsArb, policyArb, (facts, policy) => {
-        const dependabot = { ...facts, updater: 'dependabot' as const };
-        const replanned = planReconcile(
-          applyPlan(dependabot, planReconcile(dependabot, policy)),
-          policy,
-        );
-
-        expect(replanned.update).toBe('none');
-      }),
     );
   });
 

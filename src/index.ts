@@ -47,13 +47,9 @@ export type {
   ReviewData,
 } from './github/client.js';
 export {
-  buildRebaseRequestBody,
-  DEPENDABOT_REBASE_COMMAND,
   DEPENDABOT_REBASING_NOTICE,
   DEPENDABOT_RECREATING_NOTICE,
   isDependabotRebasing,
-  isRebasePending,
-  rebaseRequestMarker,
 } from './github/dependabot-rebase.js';
 export { executePlan } from './github/execute.js';
 export type { PlanTarget } from './github/execute.js';

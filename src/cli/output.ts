@@ -36,11 +36,11 @@ export interface ReconcileJson {
   carryOver: { cleanAncestors: string[]; stoppedBecause: string } | null;
   /** An arm or merge the plan wanted but skipped; `null` when nothing was skipped. */
   autoMergeSkipped: { action: 'arm' | 'merge'; reason: 'token-missing' } | null;
-  /** The branch update performed: `none`, `update-branch`, or `dependabot-rebase`. */
+  /** The branch update performed: `none` or `update-branch`. */
   update: string;
   /** A branch update the plan wanted but skipped; `null` when nothing was skipped. */
   updateSkipped: {
-    action: 'dependabot-rebase' | 'update-branch';
+    action: 'update-branch';
     reason: 'token-missing';
   } | null;
 }
