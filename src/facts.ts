@@ -97,6 +97,13 @@ export interface PullRequestFacts {
    * docs/reconciler-design.md §Approval carry-over). Verified at the edge.
    */
   cleanAncestors: readonly string[];
+  /**
+   * Reviewed commits no longer in the branch's history whose verdicts carry over
+   * to the head, because the head is their verified clean rebase onto the base
+   * (see docs/reconciler-design.md §Rebased heads). Verified at the edge; absent
+   * means none.
+   */
+  cleanRebaseSources?: readonly string[];
   /** Who updates the branch (see `BranchUpdater`). */
   updater: BranchUpdater;
   /**

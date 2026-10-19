@@ -1,3 +1,5 @@
+import type { MergeStep, MergeVerifier } from './verify.js';
+
 /**
  * Which files are prose for approval carry-over: a clean base merge in which both
  * sides edited the same prose file doesn't carry an approval over, because no CI
@@ -40,4 +42,25 @@ export function overlappingProse(
 ): string[] {
   const theirSet = new Set(theirs);
   return ours.filter((path) => theirSet.has(path) && isProse(path)).sort();
+}
+
+/**
+ * Why a clean merge (or rebase, see src/github/lineage-rebase.ts) still can't
+ * carry an approval over, or undefined when it can: the step's two sides edited
+ * the same prose file. A failed diff counts as a reason: fail closed.
+ */
+export async function proseOverlapReason(
+  verifier: MergeVerifier,
+  step: MergeStep,
+  isProse: ProseMatcher,
+): Promise<string | undefined> {
+  const ours = await verifier.changedPaths(step.mergeBase, step.first);
+  const theirs = await verifier.changedPaths(step.mergeBase, step.second);
+  if (ours === undefined || theirs === undefined) {
+    return 'could not list the files each side changed';
+  }
+  const overlap = overlappingProse(ours, theirs, isProse);
+  return overlap.length === 0
+    ? undefined
+    : `both sides edited the same prose (${overlap.join(', ')})`;
 }

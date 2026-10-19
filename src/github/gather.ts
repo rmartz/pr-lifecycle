@@ -144,7 +144,7 @@ async function gatherLineageFor(
   } catch (error) {
     // Fail closed, but keep the reason: `undefined` would read as "didn't run".
     const message = error instanceof Error ? error.message : String(error);
-    return { cleanAncestors: [], stoppedBecause: `verification failed: ${message}` };
+    return { cleanAncestors: [], stoppedBecause: `verification failed: ${message}`, rebases: [] };
   }
 }
 
@@ -192,6 +192,8 @@ export async function gatherFacts(
       ciStatus: ci.ciStatus,
       baseCiFailing: ci.baseCiFailing,
       cleanAncestors: lineage?.cleanAncestors ?? [],
+      cleanRebaseSources:
+        lineage?.rebases.filter((check) => check.carried).map((check) => check.source) ?? [],
       updater,
       dependabotRebasing: updater === 'dependabot' && isDependabotRebasing(pull.body),
       reviews: reviews.map((review) => toReviewFact(review, permissions)),

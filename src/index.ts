@@ -58,8 +58,10 @@ export type { GatheredPullRequest } from './github/gather.js';
 export { createHttpClient } from './github/http-client.js';
 export type { HttpClientOptions } from './github/http-client.js';
 export { OWNED_LABEL_DEFINITIONS } from './github/label-roster.js';
-export { gatherLineage, MAX_CHAIN_STEPS } from './github/lineage-facts.js';
+export { gatherLineage, MAX_CHAIN_STEPS, MAX_REBASE_CHECKS } from './github/lineage-facts.js';
 export type { Lineage, LineageInput } from './github/lineage-facts.js';
+export { checkCleanRebase } from './github/lineage-rebase.js';
+export type { RebaseCheck, RebaseInput } from './github/lineage-rebase.js';
 export { reconcilePullRequest } from './github/reconcile.js';
 export { DEFAULT_SETTLE_MS } from './github/settle.js';
 export type { SettleOptions } from './github/settle.js';
@@ -75,9 +77,14 @@ export {
 export type { GatherOptions } from './github/gather.js';
 export { createGitRunner, parseGitVersion } from './lineage/git.js';
 export type { GitResult, GitRunner } from './lineage/git.js';
-export { DEFAULT_PROSE_PATTERNS, overlappingProse, proseMatcher } from './lineage/prose.js';
+export {
+  DEFAULT_PROSE_PATTERNS,
+  overlappingProse,
+  proseMatcher,
+  proseOverlapReason,
+} from './lineage/prose.js';
 export type { ProseMatcher } from './lineage/prose.js';
-export { createMergeVerifier } from './lineage/verify.js';
+export { createMergeVerifier, isObjectId } from './lineage/verify.js';
 export type { MergeStep, MergeVerifier, RepoSource } from './lineage/verify.js';
 export {
   AUTO_MERGE_LABEL,

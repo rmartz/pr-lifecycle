@@ -20,8 +20,13 @@ const MIN_GIT: [number, number] = [2, 40];
 // can be read as an option (e.g. a "sha" of `--upload-pack=…`).
 const OBJECT_ID = /^[0-9a-f]{40}([0-9a-f]{24})?$/;
 
+/** Whether a value is a full hex git object id, safe for git's argv and API paths. */
+export function isObjectId(value: string): boolean {
+  return OBJECT_ID.test(value);
+}
+
 function isStepSafe(step: MergeStep): boolean {
-  return [step.mergeBase, step.first, step.second, step.tree].every((id) => OBJECT_ID.test(id));
+  return [step.mergeBase, step.first, step.second, step.tree].every(isObjectId);
 }
 
 export interface MergeStep {
@@ -134,7 +139,7 @@ export async function createMergeVerifier(
       return merged.code === 0 && merged.stdout.split('\n')[0]?.trim() === step.tree;
     },
     async changedPaths(from, to) {
-      if (!OBJECT_ID.test(from) || !OBJECT_ID.test(to)) {
+      if (!isObjectId(from) || !isObjectId(to)) {
         return undefined;
       }
       const diff = await git.run([

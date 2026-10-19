@@ -136,13 +136,13 @@ function compareSubmission(a: ReviewFact, b: ReviewFact): number {
 }
 
 /**
- * The commits whose reviews count for the head: the head itself, plus every
- * commit whose only changes since are verified clean base merges. A clean base
- * merge leaves the PR's diff unchanged, so a review of the earlier commit still
- * describes the change being merged.
+ * The earlier commits whose reviews carry over to the head: every commit whose
+ * only changes since are verified clean base merges, and every reviewed commit
+ * the head is a verified clean rebase of. Either way the PR's diff is unchanged,
+ * so a review of the earlier commit still describes the change being merged.
  */
-function countingCommits(facts: PullRequestFacts): ReadonlySet<string> {
-  return new Set([facts.headSha, ...facts.cleanAncestors]);
+function carriedCommits(facts: PullRequestFacts): ReadonlySet<string> {
+  return new Set([...facts.cleanAncestors, ...(facts.cleanRebaseSources ?? [])]);
 }
 
 /**
@@ -161,6 +161,36 @@ function isReboundByForcePush(review: ReviewFact, facts: PullRequestFacts): bool
       (push.headSha === undefined || push.headSha === review.commitSha) &&
       !(Date.parse(push.pushedAt) < submittedAt),
   );
+}
+
+/**
+ * Whether a verdict is bound to a commit that counts for the head. The commit it
+ * reviewed is its marker's `pr_head` when it names one, else its `commit_id`, and
+ * that must be the head or a carried commit. A marker naming a different commit
+ * than `commit_id` is honored only for a carried commit: GitHub re-points an old
+ * review's `commit_id` at the new head after a force-push, so the marker is what
+ * still names the commit actually reviewed. A marker can never claim the head
+ * for a review GitHub bound to some other commit.
+ *
+ * A review GitHub moved by a force-push has no trustworthy `commit_id` at all, so
+ * it counts only through its marker, and only when the marker names a verified
+ * carried commit (a clean rebase source): never the head, and never without a
+ * marker.
+ */
+function isBoundToHead(
+  review: ReviewFact,
+  markerHead: string | undefined,
+  facts: PullRequestFacts,
+  carried: ReadonlySet<string>,
+): boolean {
+  if (isReboundByForcePush(review, facts)) {
+    return markerHead !== undefined && carried.has(markerHead);
+  }
+  const reviewed = markerHead ?? review.commitSha;
+  if (reviewed !== facts.headSha && !carried.has(reviewed)) {
+    return false;
+  }
+  return markerHead === undefined || markerHead === review.commitSha || carried.has(markerHead);
 }
 
 /**
@@ -190,17 +220,14 @@ export function currentVerdict(
   facts: PullRequestFacts,
   policy: ReconcilePolicy,
 ): Verdict | undefined {
-  const countingShas = countingCommits(facts);
+  const carried = carriedCommits(facts);
   let latest: { review: ReviewFact; verdict: Verdict } | undefined;
   for (const review of facts.reviews) {
     const parsed = parseVerdict(review);
     const counts =
       parsed !== undefined &&
       isTrustedAuthor(review.author, policy) &&
-      countingShas.has(review.commitSha) &&
-      !isReboundByForcePush(review, facts) &&
-      // The marker, when present, must name the same commit the review is bound to.
-      (parsed.markerHead === undefined || parsed.markerHead === review.commitSha);
+      isBoundToHead(review, parsed.markerHead, facts, carried);
     if (counts && (latest === undefined || compareSubmission(review, latest.review) > 0)) {
       latest = { review, verdict: parsed.verdict };
     }
