@@ -79,7 +79,8 @@ explain it are written, and the update, which moves the head, comes last.
 
 - **Tolerated errors.** Removing a label that's already gone (404) and creating a
   label that already exists (422, e.g. from a concurrent run) both mean the goal
-  state is reached. Every other error propagates. A failed run is safe to retry,
+  state is reached. An arm or merge that loses the [merge-state race](#the-merge-state-race)
+  twice is deferred, not failed. Every other error propagates. A failed run is safe to retry,
   because the next event recomputes from facts.
 - **Missing labels.** Before adding labels, the repo's labels are listed once, and
   any owned label the repo lacks is created from the fleet roster definition
@@ -95,12 +96,12 @@ explain it are written, and the update, which moves the head, comes last.
 - **Bound to the planned head.** Both mutations pass `expectedHeadOid` = the head
   the plan was computed for. If a commit lands mid-run, GitHub rejects the merge
   or arm instead of merging an unreviewed commit, and the error is not retried.
-- **Clean-status fallback.** If arming fails with _"…clean status"_ (the PR became
-  mergeable between the read and the arm), the executor merges instead, bound to
-  the same head. Any other arming error propagates.
+- **Fallbacks for the merge-state race.** Arming and merging each fall back to
+  the other once, bound to the same head; see
+  [The merge-state race](#the-merge-state-race).
 - **A real-actor token.** A merge made with `GITHUB_TOKEN` triggers no `on: push`
   workflows (releases, CI on `main`). So arming, merging, and [updating](#auto-update) go through `ReleaseActions`
-  (`enableAutoMerge`, `mergePullRequest`, `updateBranch`, `createIssueComment`),
+  (`enableAutoMerge`, `mergePullRequest`, `updateBranch`),
   a client built from a separate release token that is never used for anything
   else, reads included. Disarming (`disableAutoMerge`) goes through it too: GitHub
   refuses the disarm from a workflow token with only `contents: read`
@@ -114,6 +115,40 @@ explain it are written, and the update, which moves the head, comes last.
   main client. Arming, merging, and updating never fall back to the main token: a
   stub that refuses those calls stands in, so a regression fails loudly instead. The CLI's handling (a warning and an advisory comment) is in
   [the CLI](cli.md#release-token).
+
+### The merge-state race
+
+GitHub has no atomic "merge if mergeable, else arm": arming a PR that is already
+mergeable fails (_"Pull request is in clean status"_), and merging one whose
+required checks haven't finished fails (_"Required status check … is queued"_,
+or _expected_, _pending_, _in progress_). The plan chooses from the merge state
+it read, and that state can change before the write, often because of the run's
+own label writes: a consumer's merge-safety workflow runs on `labeled` and
+`unlabeled`, so writing `approved` queues a fresh required `merge-safety` check
+before the merge (rmartz/hidden-role-game#988).
+
+- **Each falls back to the other once.** A refused arm is retried as a merge, and
+  a merge refused for a pending required check is retried as an arm. Exactly one
+  of the two always applies to a PR's current state, so the fallback succeeds
+  unless the state flips again in between.
+- **A second loss defers.** If the fallback is refused for its own race reason,
+  the run stops there without error, reports the action as deferred
+  (`autoMergeDeferred` in the [CLI's JSON](cli.md#output)), and leaves it to
+  the next event: the check finishing, a review, or a push. A deferred PR keeps
+  any planned update, which moves the head and re-triggers the reconcile.
+- **Narrow on purpose.** Only those two refusals count. A failed required check, a
+  moved head, a permission error, or anything else propagates and is never
+  retried, so the fallback can't arm a PR on a red check or merge an unreviewed
+  commit.
+- **What was done is reported.** `executePlan` returns the action actually taken.
+  The result's `autoMerge` (and the CLI's) can differ from the plan's: `arm` for a
+  planned merge, `merge` for a planned arm, `none` when deferred. A merge, planned
+  or by fallback, skips any update.
+- **No `merge-safety` re-trigger.** Callers don't list `merge-safety` in
+  `workflow_run`. Merge-safety re-runs on every label event and on each push to
+  the base, so that would roughly double the reconcile runs, and with the
+  fallbacks only a double flip within one run is left for the next event to
+  settle.
 
 ## Auto-update
 
