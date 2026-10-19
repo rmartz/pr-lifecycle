@@ -210,6 +210,7 @@ describe('runCli — --json contract (schemaVersion 1)', () => {
         },
         carryOver: { cleanAncestors: [], stoppedBecause: 'no reviews on earlier commits' },
         autoMergeSkipped: null,
+        autoMergeDeferred: null,
         update: 'none',
         updateSkipped: null,
       },

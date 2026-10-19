@@ -54,7 +54,7 @@ describe('executePlan', () => {
 
     await expect(
       executePlan(client, TARGET, makePlan({ removeLabels: ['approved'] })),
-    ).resolves.toBeUndefined();
+    ).resolves.toEqual({ autoMerge: 'none', deferred: undefined });
   });
 
   it('propagates a label-removal error other than 404', async () => {

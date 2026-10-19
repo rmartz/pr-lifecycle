@@ -154,6 +154,7 @@ never omitted:
     "stoppedBecause": "no reviews on earlier commits"
   },
   "autoMergeSkipped": null,
+  "autoMergeDeferred": null,
   "update": "none",
   "updateSkipped": null
 }
@@ -161,9 +162,17 @@ never omitted:
 
 `state` is one of the lifecycle states in the
 [core design](reconciler-design.md#state-in-priority-order). `autoMerge` is what
-was done: `arm`, `merge` (the PR was already mergeable), `disarm`, or `none`.
+was done: `arm`, `merge` (the PR was already mergeable), `disarm`, or `none`. It
+can differ from the plan when the PR's merge state changed mid-run: a refused
+merge falls back to `arm`, and a refused arm to `merge` (see
+[The merge-state race](github-edge-layer.md#the-merge-state-race)). On a
+`--dry-run` it is the planned action.
 `autoMergeSkipped` is `{ "action": "arm" | "merge", "reason": "token-missing" }`
 when an arm or merge was skipped (see [Release token](#release-token)), else `null`.
+`autoMergeDeferred` is `{ "action": "arm" | "merge", "reason": "merge-state-changed" }`
+when both the planned action and its fallback lost that race, so nothing was
+armed or merged and the next event retries; else `null`. A deferral exits 0 and
+writes a `notice:` line to stderr.
 `update` is the branch update done: `update-branch` or `none`; `updateSkipped`
 is `{ "action": "update-branch", "reason": "token-missing" }` when one was skipped, else `null`. `botEligibility` is described in
 [Bot-PR eligibility](bot-eligibility.md). `carryOver` reports

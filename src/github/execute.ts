@@ -1,4 +1,4 @@
-import type { ReconcilePlan } from '../plan.js';
+import type { AutoMergeAction, ReconcilePlan } from '../plan.js';
 import type { GitHubClient, ReleaseActions } from './client.js';
 import { GitHubApiError, isApiStatus } from './client.js';
 import { labelDefinition } from './label-roster.js';
@@ -21,21 +21,100 @@ export interface PlanTarget {
 }
 
 /**
- * GitHub's refusal to arm a PR that is already mergeable. The PR became
- * mergeable between the read and the arm, so it is merged instead.
+ * What the executor actually did about auto-merge. `autoMerge` can differ from the
+ * plan's when GitHub's merge state changed between the read and the write (see
+ * `armOrMerge`). `deferred` is set when both an arm and a merge lost that race:
+ * nothing was armed or merged, and the next event converges.
+ */
+export interface ExecuteOutcome {
+  autoMerge: AutoMergeAction;
+  deferred: 'arm' | 'merge' | undefined;
+}
+
+/**
+ * GitHub's refusal to arm a PR that is already mergeable ("clean status"). The PR
+ * became mergeable between the read and the arm, so it is merged instead.
  */
 function isCleanStatusError(error: unknown): boolean {
   return error instanceof GitHubApiError && /clean status/i.test(error.message);
 }
 
-async function armOrMerge(release: ReleaseActions, target: PlanTarget): Promise<void> {
+/**
+ * GitHub's refusal to merge a PR whose required checks haven't finished: a check
+ * that is expected, queued, pending, or in progress. The PR stopped being
+ * mergeable between the read and the merge (for example, the run's own label
+ * writes re-triggered a required check), so it is armed instead and merges once
+ * the check passes. Deliberately narrow: a failed check, a moved head, or any
+ * other refusal is not a race and still propagates.
+ */
+function isPendingCheckError(error: unknown): boolean {
+  return (
+    error instanceof GitHubApiError &&
+    /required status checks? .+ (?:is|are) (?:expected|queued|pending|in progress)/i.test(
+      error.message,
+    )
+  );
+}
+
+type ArmOrMerge = 'arm' | 'merge';
+
+const OTHER: Record<ArmOrMerge, ArmOrMerge> = { arm: 'merge', merge: 'arm' };
+
+async function attempt(
+  action: ArmOrMerge,
+  release: ReleaseActions,
+  target: PlanTarget,
+): Promise<void> {
+  switch (action) {
+    case 'arm':
+      await release.enableAutoMerge(target.nodeId, target.headSha);
+      return;
+    case 'merge':
+      await release.mergePullRequest(target.nodeId, target.headSha);
+  }
+}
+
+/** The error that means `action` lost the race and the other action should run. */
+function lostRace(action: ArmOrMerge, error: unknown): boolean {
+  switch (action) {
+    case 'arm':
+      return isCleanStatusError(error);
+    case 'merge':
+      return isPendingCheckError(error);
+  }
+}
+
+/**
+ * Arms or merges an approved PR. GitHub has no atomic "merge if mergeable, else
+ * arm": arming a mergeable PR fails ("clean status") and merging one with a
+ * required check still running fails, and the merge state can change between the
+ * read and the write. Whichever is refused for that reason, the other is tried
+ * once, bound to the same head. If the state flips back and the second is refused
+ * the same way, the run gives up without error and reports it as deferred: the
+ * next event (the check finishing, a review, a push) recomputes and converges.
+ */
+async function armOrMerge(
+  planned: ArmOrMerge,
+  release: ReleaseActions,
+  target: PlanTarget,
+): Promise<ExecuteOutcome> {
   try {
-    await release.enableAutoMerge(target.nodeId, target.headSha);
+    await attempt(planned, release, target);
+    return { autoMerge: planned, deferred: undefined };
   } catch (error) {
-    if (!isCleanStatusError(error)) {
+    if (!lostRace(planned, error)) {
       throw error;
     }
-    await release.mergePullRequest(target.nodeId, target.headSha);
+  }
+  const fallback = OTHER[planned];
+  try {
+    await attempt(fallback, release, target);
+    return { autoMerge: fallback, deferred: undefined };
+  } catch (error) {
+    if (!lostRace(fallback, error)) {
+      throw error;
+    }
+    return { autoMerge: 'none', deferred: planned };
   }
 }
 
@@ -62,7 +141,7 @@ export async function executePlan(
   target: PlanTarget,
   plan: ReconcilePlan,
   release: ReleaseActions = client,
-): Promise<void> {
+): Promise<ExecuteOutcome> {
   if (plan.autoMerge === 'disarm') {
     await release.disableAutoMerge(target.nodeId);
   }
@@ -80,11 +159,15 @@ export async function executePlan(
     await ensureLabelsExist(client, plan.addLabels);
     await client.addLabels(target.pr, plan.addLabels);
   }
-  if (plan.autoMerge === 'arm') {
-    await armOrMerge(release, target);
+  let outcome: ExecuteOutcome = { autoMerge: plan.autoMerge, deferred: undefined };
+  if (plan.autoMerge === 'arm' || plan.autoMerge === 'merge') {
+    outcome = await armOrMerge(plan.autoMerge, release, target);
   }
-  if (plan.autoMerge === 'merge') {
-    await release.mergePullRequest(target.nodeId, target.headSha);
+  // A PR that just merged, as planned or by falling back from an arm, needs no
+  // update. One whose arm or merge was deferred keeps its update: it moves the
+  // head, which re-triggers the reconcile that arms it.
+  if (outcome.autoMerge === 'merge') {
+    return outcome;
   }
   switch (plan.update) {
     case 'update-branch':
@@ -93,6 +176,7 @@ export async function executePlan(
     case 'none':
       break;
   }
+  return outcome;
 }
 
 async function updateBranch(release: ReleaseActions, target: PlanTarget): Promise<void> {

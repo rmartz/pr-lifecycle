@@ -52,7 +52,7 @@ export {
   isDependabotRebasing,
 } from './github/dependabot-rebase.js';
 export { executePlan } from './github/execute.js';
-export type { PlanTarget } from './github/execute.js';
+export type { ExecuteOutcome, PlanTarget } from './github/execute.js';
 export { gatherFacts } from './github/gather.js';
 export type { GatheredPullRequest } from './github/gather.js';
 export { createHttpClient } from './github/http-client.js';

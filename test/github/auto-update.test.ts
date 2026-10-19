@@ -102,7 +102,10 @@ describe('executePlan — update', () => {
     const client = new FakeGitHubClient();
     client.failNext('updateBranch', new GitHubApiError(422, 'expected head sha did not match'));
 
-    await expect(executePlan(client, TARGET, makePlan('update-branch'))).resolves.toBeUndefined();
+    await expect(executePlan(client, TARGET, makePlan('update-branch'))).resolves.toEqual({
+      autoMerge: 'none',
+      deferred: undefined,
+    });
   });
 
   it('propagates any other update failure', async () => {
