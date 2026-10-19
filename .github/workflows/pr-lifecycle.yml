@@ -104,13 +104,13 @@ jobs:
           client-id: ${{ secrets.MERGE_BOT_CLIENT_ID }}
           private-key: ${{ secrets.MERGE_BOT_PRIVATE_KEY }}
       # The action resolves the PR from the event, including a dispatch's `pr`.
-      - uses: rmartz/pr-lifecycle-action@1916e94c1956f3cef31ac6496a03ffb3d4824f33 # v4.2.1
+      - uses: rmartz/pr-lifecycle-action@dde7cfcc50817551ff06523dff0497609127c027 # v4.2.2
         with:
           arm-auto-merge: true
           # Bring an approved PR current when merge-safety flags `update
-          # required` (a Dependabot PR is asked to rebase instead). The
-          # coordinator parks armed PRs, including its own branch sync, so
-          # nothing else updates them (#11).
+          # required` (never a Dependabot PR: a person or Dependabot itself
+          # rebases it). The coordinator parks armed PRs, including its own
+          # branch sync, so nothing else updates them (#11).
           auto-update: true
           # The App token is used for every read and label, review-request, and
           # comment write (github-token) as well as to arm, merge, disarm, and
