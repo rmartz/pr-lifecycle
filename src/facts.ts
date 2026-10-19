@@ -51,6 +51,14 @@ export interface ReviewFact {
   submittedAt: string;
 }
 
+/** A force-push to the PR's branch, from its issue events. */
+export interface ForcePushFact {
+  /** The commit the push made the head; undefined when GitHub didn't say (fails closed). */
+  headSha: string | undefined;
+  /** ISO-8601 time of the push. */
+  pushedAt: string;
+}
+
 /** Someone removing the `escalation needed` label from the PR. */
 export interface LabelRemovalFact {
   /** Who removed it, with their permission fetched at the edge (as for review authors). */
@@ -99,6 +107,14 @@ export interface PullRequestFacts {
    */
   dependabotRebasing: boolean;
   reviews: readonly ReviewFact[];
+  /**
+   * Every force-push to the PR's branch. GitHub moves an approval's `commit_id`
+   * onto the new head when a force-push leaves the PR's diff unchanged, so a
+   * review submitted before the push that produced its commit never saw that
+   * commit (see `currentVerdict`). Gathered only when some review is a verdict,
+   * so empty otherwise.
+   */
+  forcePushes: readonly ForcePushFact[];
   /**
    * Every removal of the `escalation needed` label, by anyone. A trusted person
    * removing it after an escalation verdict resolves that escalation (see

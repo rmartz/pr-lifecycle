@@ -152,6 +152,12 @@ export function createHttpClient(options: HttpClientOptions): GitHubClient {
           };
         });
     },
+    async listForcePushes(pr) {
+      const events = await paginate<RestIssueEvent>(`${repoPath}/issues/${pr}/events`);
+      return events
+        .filter((event) => event.event === 'head_ref_force_pushed')
+        .map((event) => ({ headSha: event.commit_id ?? undefined, pushedAt: event.created_at }));
+    },
     async getLastReadyForReviewAt(pr) {
       const events = await paginate<RestIssueEvent>(`${repoPath}/issues/${pr}/events`);
       return events.filter((event) => event.event === 'ready_for_review').at(-1)?.created_at;

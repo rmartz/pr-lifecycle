@@ -389,3 +389,76 @@ describe('currentVerdict — escalation resolved by removing its label', () => {
     expect(currentVerdict(facts, {})).toBe('approved');
   });
 });
+
+// GitHub rewrites an approval's commit_id to the new head when a force-push
+// leaves the PR's diff unchanged (rmartz/personal-budget#562), so a native
+// approval with no marker would otherwise survive a rebase onto unreviewed code.
+describe('currentVerdict — reviews GitHub moved onto a force-pushed head', () => {
+  const SUBMITTED_AT = '2026-10-19T16:15:32Z';
+  const nativeApproval = makeReview({ state: 'APPROVED', submittedAt: SUBMITTED_AT });
+
+  it('ignores a native approval submitted before the force-push that produced its commit', () => {
+    const facts = makeFacts({
+      reviews: [nativeApproval],
+      forcePushes: [{ headSha: HEAD_SHA, pushedAt: '2026-10-19T16:21:57Z' }],
+    });
+
+    expect(currentVerdict(facts, {})).toBeUndefined();
+  });
+
+  it('counts a native approval submitted after the force-push that produced its commit', () => {
+    const facts = makeFacts({
+      reviews: [nativeApproval],
+      forcePushes: [{ headSha: HEAD_SHA, pushedAt: '2026-10-19T16:10:00Z' }],
+    });
+
+    expect(currentVerdict(facts, {})).toBe('approved');
+  });
+
+  it('ignores a review submitted in the same instant as the push', () => {
+    const facts = makeFacts({
+      reviews: [nativeApproval],
+      forcePushes: [{ headSha: HEAD_SHA, pushedAt: SUBMITTED_AT }],
+    });
+
+    expect(currentVerdict(facts, {})).toBeUndefined();
+  });
+
+  it('is unaffected by a later force-push to a different commit', () => {
+    const facts = makeFacts({
+      reviews: [nativeApproval],
+      forcePushes: [{ headSha: OLD_SHA, pushedAt: '2026-10-19T16:21:57Z' }],
+    });
+
+    expect(currentVerdict(facts, {})).toBe('approved');
+  });
+
+  it('fails closed on a later force-push GitHub did not name the commit of', () => {
+    const facts = makeFacts({
+      reviews: [nativeApproval],
+      forcePushes: [{ headSha: undefined, pushedAt: '2026-10-19T16:21:57Z' }],
+    });
+
+    expect(currentVerdict(facts, {})).toBeUndefined();
+  });
+
+  it('fails closed when the review has no readable submission time', () => {
+    const facts = makeFacts({
+      reviews: [makeReview({ state: 'APPROVED', submittedAt: '' })],
+      forcePushes: [{ headSha: HEAD_SHA, pushedAt: '2026-10-19T16:10:00Z' }],
+    });
+
+    expect(currentVerdict(facts, {})).toBeUndefined();
+  });
+
+  it('does not carry a rebound review over from a clean ancestor', () => {
+    const review = makeReview({ commitSha: OLD_SHA, state: 'APPROVED', submittedAt: SUBMITTED_AT });
+    const facts = makeFacts({
+      reviews: [review],
+      cleanAncestors: [OLD_SHA],
+      forcePushes: [{ headSha: OLD_SHA, pushedAt: '2026-10-19T16:21:57Z' }],
+    });
+
+    expect(currentVerdict(facts, {})).toBeUndefined();
+  });
+});

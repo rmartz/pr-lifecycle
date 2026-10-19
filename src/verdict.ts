@@ -146,6 +146,24 @@ function countingCommits(facts: PullRequestFacts): ReadonlySet<string> {
 }
 
 /**
+ * Whether GitHub may have moved the review onto its commit after it was
+ * submitted. A force-push that leaves the PR's diff unchanged (a clean rebase)
+ * rewrites an approval's `commit_id` to the new head, so the review reads as bound
+ * to a commit its author never saw, and its `commit_id` alone can't be trusted.
+ * Any force-push to the review's commit at or after the review was submitted
+ * means it was rebound. Fails closed: an unreadable time, or a push GitHub didn't
+ * name the commit of, counts as rebinding.
+ */
+function isReboundByForcePush(review: ReviewFact, facts: PullRequestFacts): boolean {
+  const submittedAt = Date.parse(review.submittedAt);
+  return facts.forcePushes.some(
+    (push) =>
+      (push.headSha === undefined || push.headSha === review.commitSha) &&
+      !(Date.parse(push.pushedAt) < submittedAt),
+  );
+}
+
+/**
  * Whether a trusted person removed `escalation needed` after this escalation was
  * posted. That removal is how people resolve an escalation (they don't post
  * verdicts), so it must outlast the verdict that applied the label. A removal in
@@ -180,6 +198,7 @@ export function currentVerdict(
       parsed !== undefined &&
       isTrustedAuthor(review.author, policy) &&
       countingShas.has(review.commitSha) &&
+      !isReboundByForcePush(review, facts) &&
       // The marker, when present, must name the same commit the review is bound to.
       (parsed.markerHead === undefined || parsed.markerHead === review.commitSha);
     if (counts && (latest === undefined || compareSubmission(review, latest.review) > 0)) {

@@ -43,6 +43,7 @@ export function makeFacts(overrides: Partial<PullRequestFacts> = {}): PullReques
     updater: 'github',
     dependabotRebasing: false,
     reviews: [],
+    forcePushes: [],
     escalationRemovals: [],
     pendingBotReviewers: [],
     ...overrides,

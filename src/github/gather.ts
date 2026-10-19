@@ -17,6 +17,7 @@ import type { GitHubClient, PullRequestData, ReviewData } from './client.js';
 import { isApiStatus } from './client.js';
 import { isDependabotRebasing } from './dependabot-rebase.js';
 import { gatherEscalationRemovals } from './escalation-facts.js';
+import { gatherForcePushes } from './force-push-facts.js';
 import type { Lineage } from './lineage-facts.js';
 import { gatherLineage } from './lineage-facts.js';
 
@@ -161,7 +162,10 @@ export async function gatherFacts(
   options: GatherOptions = {},
 ): Promise<GatheredPullRequest> {
   const [pull, reviews] = await Promise.all([client.getPullRequest(pr), client.listReviews(pr)]);
-  const removals = await gatherEscalationRemovals(client, pr, reviews);
+  const [removals, forcePushes] = await Promise.all([
+    gatherEscalationRemovals(client, pr, reviews),
+    gatherForcePushes(client, pr, reviews),
+  ]);
   // Dependabot rebases its own branches; the author login can't be forged.
   const updater: BranchUpdater = pull.authorLogin === DEPENDABOT_LOGIN ? 'dependabot' : 'github';
   const [permissions, botEligibility, ci, lineage] = await Promise.all([
@@ -191,6 +195,7 @@ export async function gatherFacts(
       updater,
       dependabotRebasing: updater === 'dependabot' && isDependabotRebasing(pull.body),
       reviews: reviews.map((review) => toReviewFact(review, permissions)),
+      forcePushes,
       escalationRemovals: removals.map((removal) => ({
         actor: toAuthor(removal, permissions),
         removedAt: removal.removedAt,

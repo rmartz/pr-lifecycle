@@ -61,6 +61,12 @@ limit, a 5xx, or a network failure, so the CLI can
   (`escalation-facts.ts`; see
   [State](reconciler-design.md#state-in-priority-order)). A removal by a deleted
   account reads as a `Bot`, so it can't be trusted.
+- **Force-pushes** (`forcePushes`) are the `head_ref_force_pushed` issue events,
+  each with the commit it made the head (`commit_id`) and its time. They are read
+  only when some review is a verdict, since they can only stop one from counting
+  (`force-push-facts.ts`; see
+  [Verdicts](reconciler-design.md#verdicts)). An event without a commit reads as
+  unattributed, which fails closed.
 - **Pending bot reviewers** come from the PR's own `requested_reviewers`
   (entries of type `Bot`), so they cost no extra request.
 - **Settle wait.** On the transition into `review-requested`, a PR opened or

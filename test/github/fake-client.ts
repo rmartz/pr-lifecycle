@@ -12,6 +12,7 @@ import type {
   ReviewData,
 } from '../../src/github/client.js';
 import { GitHubApiError } from '../../src/github/client.js';
+import type { ForcePushFact } from '../../src/facts.js';
 import type { ChangedFile } from '../../src/release-diff.js';
 import { HEAD_SHA } from '../fixtures.js';
 
@@ -86,6 +87,8 @@ export class FakeGitHubClient implements GitHubClient {
   readyForReviewAt: string | undefined = undefined;
   /** Label removals by label name, oldest first. */
   labelRemovals = new Map<string, LabelRemovalData[]>();
+  /** Force-pushes to the PR's branch, oldest first. */
+  forcePushes: ForcePushFact[] = [];
   readonly calls: FakeCall[] = [];
   private readonly failures = new Map<keyof GitHubClient, Error>();
 
@@ -115,6 +118,7 @@ export class FakeGitHubClient implements GitHubClient {
       'listIssueComments',
       'getLastReadyForReviewAt',
       'listLabelRemovals',
+      'listForcePushes',
     ]);
     return this.calls.filter((call) => !reads.has(call.method));
   }
@@ -227,6 +231,11 @@ export class FakeGitHubClient implements GitHubClient {
   listLabelRemovals(pr: number, label: string): Promise<LabelRemovalData[]> {
     this.record('listLabelRemovals', pr, label);
     return Promise.resolve([...(this.labelRemovals.get(label) ?? [])]);
+  }
+
+  listForcePushes(pr: number): Promise<ForcePushFact[]> {
+    this.record('listForcePushes', pr);
+    return Promise.resolve([...this.forcePushes]);
   }
 
   getLastReadyForReviewAt(pr: number): Promise<string | undefined> {

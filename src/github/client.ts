@@ -1,4 +1,4 @@
-import type { ActorType, ReviewState } from '../facts.js';
+import type { ActorType, ForcePushFact, ReviewState } from '../facts.js';
 import type { ChangedFile } from '../release-diff.js';
 
 /**
@@ -133,6 +133,8 @@ export interface GitHubClient {
   removeLabel(pr: number, name: string): Promise<void>;
   /** Every removal of `label` from the PR, oldest first. */
   listLabelRemovals(pr: number, label: string): Promise<LabelRemovalData[]>;
+  /** Every force-push to the PR's branch, oldest first. */
+  listForcePushes(pr: number): Promise<ForcePushFact[]>;
   /** When the PR was last marked ready for review (ISO-8601), if ever. */
   getLastReadyForReviewAt(pr: number): Promise<string | undefined>;
   /** Bodies of the PR's conversation comments, oldest first. */
