@@ -47,7 +47,6 @@ export interface ReconcileResult {
  */
 function refuseRelease(client: GitHubClient): ReleaseActions {
   return {
-    createIssueComment: () => Promise.reject(new Error('rebase requests need a release token')),
     disableAutoMerge: (pullRequestNodeId) => client.disableAutoMerge(pullRequestNodeId),
     enableAutoMerge: () => Promise.reject(new Error('arming needs a release token')),
     mergePullRequest: () => Promise.reject(new Error('merging needs a release token')),

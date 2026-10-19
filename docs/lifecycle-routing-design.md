@@ -31,8 +31,9 @@ decisions behind them.
   [Approval carry-over](reconciler-design.md#approval-carry-over).
 - **Approved PRs are auto-updated when merge-safety says it matters.** The
   trigger is merge-safety's selective `update required` label, not GitHub's
-  generic "behind", and it is opt-in (`--auto-update`). Dependabot PRs are only
-  ever asked to rebase themselves, once per head, never updated directly. See
+  generic "behind", and it is opt-in (`--auto-update`). Dependabot PRs are never
+  updated: Dependabot refuses commands from a GitHub App, so a person or
+  Dependabot itself rebases them. See
   [Plan](reconciler-design.md#plan) and
   [Auto-update](github-edge-layer.md#auto-update).
 - **New lifecycle labels** `fix required` and `ci failing` join the fleet roster

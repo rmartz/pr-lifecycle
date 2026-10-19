@@ -16,14 +16,10 @@ describe('planReconcile update', () => {
     expect(planReconcile(flagged(), AUTO_UPDATE).update).toBe('update-branch');
   });
 
-  it('asks Dependabot to rebase its own PR instead', () => {
+  // Dependabot refuses `@dependabot rebase` from a GitHub App, and a foreign commit
+  // would break its own rebasing, so its PR is left to a person or to Dependabot.
+  it('never updates a Dependabot PR', () => {
     const facts = flagged({ updater: 'dependabot' });
-
-    expect(planReconcile(facts, AUTO_UPDATE).update).toBe('dependabot-rebase');
-  });
-
-  it('does not ask Dependabot again while a rebase is pending', () => {
-    const facts = flagged({ updater: 'dependabot', rebasePending: true });
 
     expect(planReconcile(facts, AUTO_UPDATE).update).toBe('none');
   });

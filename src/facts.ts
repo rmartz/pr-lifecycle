@@ -26,7 +26,8 @@ export const PR_STATUSES = ['closed', 'merged', 'open'] as const;
 
 /**
  * Who brings a PR's branch up to date with its base. Dependabot owns its branches
- * and rebases them itself when asked; anything else uses GitHub's update-branch.
+ * and rebases them itself (on its own, or when a person asks), so the reconciler
+ * never updates them; anything else uses GitHub's update-branch.
  */
 export const BRANCH_UPDATERS = ['dependabot', 'github'] as const;
 export type BranchUpdater = (typeof BRANCH_UPDATERS)[number];
@@ -91,16 +92,9 @@ export interface PullRequestFacts {
   /** Who updates the branch (see `BranchUpdater`). */
   updater: BranchUpdater;
   /**
-   * For a Dependabot PR: a rebase is running (the PR body says so) or was already
-   * requested for this head, so asking again would only add noise. A request is
-   * made at most once per head, whether Dependabot then rebases or replies with an
-   * error. Always `false` for other PRs.
-   */
-  rebasePending: boolean;
-  /**
    * For a Dependabot PR: the PR body says Dependabot is rebasing or recreating the
-   * branch right now. Unlike `rebasePending`, our own request doesn't count — only
-   * Dependabot's notice, which it removes when done. Drives the
+   * branch right now (a person asked, or Dependabot rebased on its own). Only
+   * Dependabot's notice counts, which it removes when done. Drives the
    * `dependabot rebasing` label. Always `false` for other PRs.
    */
   dependabotRebasing: boolean;
@@ -129,8 +123,8 @@ export interface ReconcilePolicy {
   /** Arm/disarm native auto-merge from the lifecycle state. Off by default. */
   armAutoMerge?: boolean;
   /**
-   * Bring an approved PR up to date when merge-safety labels it `update required`:
-   * `update-branch` for most PRs, a `@dependabot rebase` request for Dependabot's.
+   * Bring an approved PR up to date with `update-branch` when merge-safety labels
+   * it `update required`. A Dependabot PR is never updated (see `UpdateAction`).
    * Off by default.
    */
   autoUpdate?: boolean;
