@@ -35,6 +35,7 @@ Source: `src/` (`facts.ts`, `verdict.ts`, `state.ts`, `plan.ts`).
 | `updater`              | `dependabot` for a PR opened by `dependabot[bot]` (it rebases its own branch), else `github` (`update-branch`)          |
 | `dependabotRebasing`   | Dependabot PRs only: the PR body carries Dependabot's own rebasing or recreating notice; a rebase request doesn't count |
 | `reviews`              | PR reviews: author login, type (`User`/`Bot`), repo permission, `commit_id`, state, body, submitted time                |
+| `forcePushes`          | `head_ref_force_pushed` issue events: the commit each made the head, and when (read only when some review is a verdict) |
 | `pendingBotReviewers`  | PR `requested_reviewers` entries of type `Bot` (Copilot appears as `Copilot`); users and teams are left out             |
 
 The author's **repo permission** is a fact gathered at the edge (the collaborator
@@ -87,6 +88,18 @@ A verdict **counts** only when all of the following hold:
    the head's [clean ancestors](#approval-carry-over), and if the marker names a
    `pr_head`, it names that same commit. A verdict on any other older commit never
    counts, so a real push after approval un-approves the PR without extra logic.
+   **No force-push to that commit happened at or after the review was
+   submitted.** GitHub moves an `APPROVED` review's `commit_id` onto the new head
+   when a force-push leaves the PR's diff unchanged, for example a clean rebase
+   such as `@dependabot rebase`. A `COMMENTED` review, or a push that changes
+   the diff, keeps its original commit. A moved review reads as bound to a commit
+   its author never saw, so `commit_id` alone can't bind it. A marker's `pr_head`
+   catches this on its own, but a native approval has no marker. Without this
+   rule it would survive the rebase and stay armed on a new combination of code
+   that nobody reviewed, outside the checks [carry-over](#approval-carry-over)
+   applies. The rule fails closed. A push GitHub didn't name the commit of, or a
+   review with no readable submission time, counts as moved. A commit
+   force-pushed away and then back drops the reviews made before it came back.
 
 The **latest** counting verdict (by submitted time, then review id) decides.
 
@@ -381,5 +394,7 @@ label both ways.
   disarm included, does.
 - **Carry-over grants nothing new.** A review on a clean ancestor counts exactly
   as if the same reviewer had posted it on the head.
+- **A moved review is inert.** A review on the head that predates a force-push
+  to the head plans exactly as if it weren't there.
 - **A review request only holds.** A pending bot request can move a PR from
   `review-requested` to `awaiting-bot-review` and changes no other state.

@@ -97,6 +97,13 @@ const factsArb: fc.Arbitrary<PullRequestFacts> = fc.record({
   updater: fc.constantFrom(...BRANCH_UPDATERS),
   dependabotRebasing: fc.boolean(),
   reviews: reviewsArb(),
+  forcePushes: fc.array(
+    fc.record({
+      headSha: fc.constantFrom(HEAD_SHA, OLD_SHA, undefined),
+      pushedAt: fc.constantFrom('2026-09-23T11:00:00Z', '2026-09-23T12:30:00Z'),
+    }),
+    { maxLength: 2 },
+  ),
   escalationRemovals: fc.array(
     fc.record({
       actor: authorArb,
@@ -250,8 +257,11 @@ describe('reconciler properties', () => {
           // Compare like with like: each review's marker (when present) names the
           // commit the review is bound to, on both sides. A review whose marker
           // contradicts its binding is rejected by design on either side.
+          // Force-pushes are left out: they name one commit or the other, so they
+          // would bind the two sides differently.
           const carried = {
             ...facts,
+            forcePushes: [],
             cleanAncestors: [OLD_SHA],
             reviews: reviews.map((review) => ({
               ...review,
@@ -260,6 +270,7 @@ describe('reconciler properties', () => {
           };
           const onHead = {
             ...facts,
+            forcePushes: [],
             reviews: reviews.map((review) => ({
               ...review,
               commitSha: HEAD_SHA,
@@ -270,6 +281,30 @@ describe('reconciler properties', () => {
           expect(computeState(carried, policy)).toBe(computeState(onHead, policy));
         },
       ),
+      SECURITY_RUNS,
+    );
+  });
+
+  // GitHub moves an approval onto a force-pushed head when the diff is unchanged.
+  // A review on the head that predates the push which produced it must count for
+  // nothing: the PR plans exactly as if the review weren't there.
+  it('ignores a review GitHub moved onto a force-pushed head', () => {
+    fc.assert(
+      fc.property(openFactsArb, policyArb, (facts, policy) => {
+        const rebound = {
+          ...facts,
+          forcePushes: [
+            ...facts.forcePushes,
+            { headSha: HEAD_SHA, pushedAt: '2026-09-25T00:00:00Z' },
+          ],
+        };
+        const withoutHeadReviews = {
+          ...rebound,
+          reviews: rebound.reviews.filter((review) => review.commitSha !== HEAD_SHA),
+        };
+
+        expect(planReconcile(rebound, policy)).toEqual(planReconcile(withoutHeadReviews, policy));
+      }),
       SECURITY_RUNS,
     );
   });

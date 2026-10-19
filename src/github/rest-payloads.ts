@@ -40,6 +40,8 @@ export interface RestIssueEvent {
   actor?: { login: string; type: string } | null;
   /** Present on `labeled` / `unlabeled` events. */
   label?: { name: string };
+  /** On `head_ref_force_pushed`, the commit the push made the head. */
+  commit_id?: string | null;
 }
 
 export interface RestPullFile {
