@@ -1,8 +1,9 @@
 import type { BotEligibility } from '../bot-eligibility.js';
 import type { ReconcilePolicy } from '../facts.js';
-import type { ReconcilePlan, UpdateAction } from '../plan.js';
+import type { AutoMergeAction, ReconcilePlan, UpdateAction } from '../plan.js';
 import { planReconcile, withoutReleaseActions } from '../plan.js';
 import type { GitHubClient, ReleaseActions } from './client.js';
+import type { ExecuteOutcome } from './execute.js';
 import { executePlan } from './execute.js';
 import type { GatherOptions } from './gather.js';
 import { gatherFacts } from './gather.js';
@@ -36,6 +37,17 @@ export interface ReconcileResult {
   skippedUpdate: Exclude<UpdateAction, 'none'> | undefined;
   /** How long the run waited for bot review requests before gathering again (ms). */
   settledMs: number;
+  /**
+   * The auto-merge action actually taken: the plan's, or the other of arm/merge
+   * when GitHub's merge state changed mid-run, or `none` when it was deferred.
+   * Equals the plan's on a dry run.
+   */
+  autoMerge: AutoMergeAction;
+  /**
+   * The arm or merge the plan wanted but deferred because both it and its
+   * fallback lost a race with the PR's merge state; the next event converges.
+   */
+  deferredAutoMerge: 'arm' | 'merge' | undefined;
 }
 
 /**
@@ -77,14 +89,26 @@ export async function reconcilePullRequest(
   const planned = planReconcile(facts, policy);
   const unavailable = options.release === 'unavailable';
   const plan = unavailable ? withoutReleaseActions(planned) : planned;
+  // A dry run reports what the plan would do; a real run reports what was done,
+  // which differs when the merge state changed mid-run (see executePlan).
+  let outcome: ExecuteOutcome = { autoMerge: plan.autoMerge, deferred: undefined };
   if (options.dryRun !== true) {
     const release =
       options.release === 'unavailable' ? refuseRelease(client) : (options.release ?? client);
-    await executePlan(client, { pr, nodeId, headSha: facts.headSha }, plan, release);
+    outcome = await executePlan(client, { pr, nodeId, headSha: facts.headSha }, plan, release);
   }
   const wanted = planned.autoMerge;
   const skippedAutoMerge =
     unavailable && (wanted === 'arm' || wanted === 'merge') ? wanted : undefined;
   const skippedUpdate = unavailable && planned.update !== 'none' ? planned.update : undefined;
-  return { plan, botEligibility, lineage, skippedAutoMerge, skippedUpdate, settledMs };
+  return {
+    plan,
+    botEligibility,
+    lineage,
+    skippedAutoMerge,
+    skippedUpdate,
+    settledMs,
+    autoMerge: outcome.autoMerge,
+    deferredAutoMerge: outcome.deferred,
+  };
 }

@@ -38,6 +38,11 @@ export interface ReconcileJson {
   autoMergeSkipped: { action: 'arm' | 'merge'; reason: 'token-missing' } | null;
   /** The branch update performed: `none` or `update-branch`. */
   update: string;
+  /**
+   * An arm or merge deferred because GitHub's merge state changed mid-run and its
+   * fallback lost the same race; `null` otherwise. The next event converges.
+   */
+  autoMergeDeferred: { action: 'arm' | 'merge'; reason: 'merge-state-changed' } | null;
   /** A branch update the plan wanted but skipped; `null` when nothing was skipped. */
   updateSkipped: {
     action: 'update-branch';
@@ -46,7 +51,8 @@ export interface ReconcileJson {
 }
 
 export function toReconcileJson(target: ReconcileTarget, result: ReconcileResult): ReconcileJson {
-  const { plan, botEligibility, lineage, skippedAutoMerge, skippedUpdate } = result;
+  const { plan, botEligibility, lineage, skippedAutoMerge, skippedUpdate, deferredAutoMerge } =
+    result;
   return {
     schemaVersion: SCHEMA_VERSION,
     repo: `${target.owner}/${target.repo}`,
@@ -55,7 +61,7 @@ export function toReconcileJson(target: ReconcileTarget, result: ReconcileResult
     state: plan.state,
     addLabels: plan.addLabels,
     removeLabels: plan.removeLabels,
-    autoMerge: plan.autoMerge,
+    autoMerge: result.autoMerge,
     botEligibility: {
       eligible: botEligibility.eligible,
       reason: botEligibility.reason,
@@ -69,6 +75,10 @@ export function toReconcileJson(target: ReconcileTarget, result: ReconcileResult
     // The CLI makes release actions unavailable only for a missing token.
     autoMergeSkipped:
       skippedAutoMerge === undefined ? null : { action: skippedAutoMerge, reason: 'token-missing' },
+    autoMergeDeferred:
+      deferredAutoMerge === undefined
+        ? null
+        : { action: deferredAutoMerge, reason: 'merge-state-changed' },
     update: plan.update,
     updateSkipped:
       skippedUpdate === undefined ? null : { action: skippedUpdate, reason: 'token-missing' },
@@ -81,7 +91,10 @@ export function formatSummary(target: ReconcileTarget, result: ReconcileResult):
   const changes = [
     ...plan.addLabels.map((label) => `+${label}`),
     ...plan.removeLabels.map((label) => `-${label}`),
-    ...(plan.autoMerge === 'none' ? [] : [`auto-merge ${plan.autoMerge}`]),
+    ...(result.autoMerge === 'none' ? [] : [`auto-merge ${result.autoMerge}`]),
+    ...(result.deferredAutoMerge === undefined
+      ? []
+      : [`auto-merge ${result.deferredAutoMerge} deferred (merge state changed)`]),
     ...(result.skippedAutoMerge === undefined
       ? []
       : [`auto-merge ${result.skippedAutoMerge} skipped (no release token)`]),

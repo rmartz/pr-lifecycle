@@ -119,6 +119,11 @@ export async function runCli(argv: readonly string[], io: CliIo, deps: CliDeps):
         await adviseMissingToken(client, args.pr, result.skippedAutoMerge, io);
       }
     }
+    if (result.deferredAutoMerge !== undefined) {
+      io.stderr(
+        `notice: ${args.owner}/${args.repo}#${args.pr} is approved, but auto-merge ${result.deferredAutoMerge} was deferred: its merge state changed mid-run; the next event retries`,
+      );
+    }
     if (result.skippedUpdate !== undefined) {
       io.stderr(
         `warning: ${args.owner}/${args.repo}#${args.pr} needs an update, but ${result.skippedUpdate} was skipped: PR_LIFECYCLE_TOKEN is not set`,
