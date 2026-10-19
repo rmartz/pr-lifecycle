@@ -156,17 +156,14 @@ export interface GitHubClient {
 /**
  * The writes that must come from a real actor: a merge or branch update made with
  * `GITHUB_TOKEN` triggers no workflows (so no release, and no CI on the new head).
- * Disarming is here too: GitHub
- * refuses `disablePullRequestAutoMerge` from a workflow token without
- * `contents: write`, so the actor that armed the PR disarms it (#77). Kept to these
- * calls so the release token is never used for anything else, reads included.
+ * Disarming is here too: GitHub refuses `disablePullRequestAutoMerge` from a
+ * workflow token without `contents: write`, so the actor that armed the PR disarms
+ * it (#77). Kept to these calls so the release token is never used for anything
+ * else, reads included.
  */
 export type ReleaseActions = Pick<
   GitHubClient,
-  | 'disableAutoMerge'
-  | 'enableAutoMerge'
-  | 'mergePullRequest'
-  | 'updateBranch'
+  'disableAutoMerge' | 'enableAutoMerge' | 'mergePullRequest' | 'updateBranch'
 >;
 
 export class GitHubApiError extends Error {
