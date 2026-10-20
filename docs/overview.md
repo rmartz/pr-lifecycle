@@ -76,9 +76,9 @@ the escalation is resolved and the PR goes back to review.
 
 - **[`pr-policy`](https://github.com/rmartz/pr-policy)** — enforces
   the hard merge gates (CI sign-off, title rules, and UAT sign-off via
-  rmartz/pr-policy#13) as one required `pr-policy` check. Fully independent: the
-  two write disjoint label sets and meet only in the consumer's ruleset, where
-  the CI gate treats a pending `pr-policy` as a hold, not running CI.
+  rmartz/pr-policy#13) as one required `pr-policy` check. The two write disjoint
+  label sets. pr-policy reads the UAT labels this package writes, and the CI gate
+  here treats a pending `pr-policy` as a hold, not running CI.
 - **[`@rmartz/merge-safety`](https://github.com/rmartz/merge-safety)** —
   unchanged; its check-run is one of the consumer's required gates.
 - **[`@rmartz/bot-automerge`](https://github.com/rmartz/bot-automerge)** —
@@ -90,11 +90,14 @@ the escalation is resolved and the PR goes back to review.
 
 ## Decisions
 
-- **UAT is pr-policy's gate, not this package's.** It holds by default and
-  passes on a statically trivial PR, on `no UAT needed` (from the review agent or
-  a person), or on `UAT passed` (from a person). Because a missing label is a
-  hold, an approved PR can be armed at any time without a race; the UAT labels
-  are neither read nor written here (#25, closed in favor of rmartz/pr-policy#13).
+- **This package classifies UAT; pr-policy gates on it.** Every reconcile
+  leaves exactly one UAT label (`no UAT needed`, `UAT pending`, `UAT ready`, or
+  `UAT passed`), cautious by default: a PR that could be user-facing stays
+  `UAT pending` until a trusted person waives it or signs it off, and a sign-off
+  counts only for the head it was applied to (#115; see [UAT labels](uat.md)).
+  pr-policy's UAT gate then requires `no UAT needed` or `UAT passed`. Because a
+  missing label is a hold, an approved PR can still be armed at any time without
+  a race. The per-repo UAT setting lives here (`--uat on|off`).
 
 - **Trust = write permission.** A verdict counts only from a human (`User`, not a
   `Bot`) with write, maintain, or admin permission on the repo, optionally narrowed
@@ -103,14 +106,19 @@ the escalation is resolved and the PR goes back to review.
 - **An agent's approval arms the merge; UAT is the human gate.** Coordinator
   agents post `/review` verdicts with the user's token, so their approval is a
   trusted verdict and arms auto-merge, just as `/merge` merged it before. This is
-  deliberate: review catches mechanical problems, and pr-policy's UAT gate keeps
-  human attention on user-facing behavior. A separate agent identity
+  deliberate: review catches mechanical problems, and the UAT labels (classified
+  here, gated by pr-policy) keep human attention on user-facing behavior. A separate agent identity
   (rmartz/dotfiles#1585) would let the two be told apart, but isn't required.
-- **Labels are output only.** Hand-applied lifecycle labels are reconciled away.
-  A human approves the same way an agent does, by posting a verdict review. The
-  exception is `escalation needed`. An agent escalates and a person removes the
-  label once the problem is addressed, so a trusted removal resolves the
-  escalation verdict and sends the PR back to review (#79).
+- **Labels are output only, with two kinds of exception.** Hand-applied
+  lifecycle labels are reconciled away. A human approves the same way an agent
+  does, by posting a verdict review. The exceptions are labels a person uses to
+  say something only a person can:
+  - `escalation needed`. An agent escalates and a person removes the label once
+    the problem is addressed, so a trusted removal resolves the escalation
+    verdict and sends the PR back to review (#79).
+  - The UAT sign-offs, `no UAT needed` and `UAT passed`, are inputs as well as
+    outputs. One applied by a trusted person is kept while it is current for the
+    head; any other is replaced ([UAT labels](uat.md)).
 - **Arming is opt-in.** One package; auto-merge arming sits behind an
   `arm-auto-merge` input that defaults to off, so consumers can adopt labelling
   before their ruleset gates are ready.

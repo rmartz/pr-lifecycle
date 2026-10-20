@@ -24,8 +24,9 @@ add/remove PR labels, list/post PR comments, find the last ready-for-review time
 enable/disable auto-merge, merge, and update the branch. All decisions live in
 `gather.ts` and `execute.ts`, which are tested against an in-memory fake
 (`test/github/fake-client.ts`). The real implementation, `createHttpClient`
-(`http-client.ts`), only maps requests and responses: REST for reads and labels,
-GraphQL for the auto-merge mutations (REST has none). It uses the runtime's
+(`http-client.ts`, with `http-checks.ts` and `http-history.ts`), only maps
+requests and responses: REST for reads and labels, GraphQL for the auto-merge
+mutations and the force-pushes (REST lacks both). It uses the runtime's
 `fetch`, so it has no dependencies, and failures throw `GitHubApiError` with the
 HTTP status (0 for a network failure) and a `transient` flag: set for a rate
 limit, a 5xx, or a network failure, so the CLI can
@@ -35,8 +36,9 @@ limit, a 5xx, or a network failure, so the CLI can
 
 - **Everything is read before anything is written.** A run never reacts to its own
   writes: its output depends only on the facts read at the start.
-- **Permissions.** Each distinct review author, and each person who removed
-  `escalation needed`, is looked up once via the collaborator-permission API. The fine-grained `role_name` is preferred, since
+- **Permissions** (`permissions.ts`). Each distinct review author, each person
+  who removed `escalation needed`, and each person who applied a UAT sign-off is
+  looked up once via the collaborator-permission API. The fine-grained `role_name` is preferred, since
   it distinguishes `maintain` and `triage`. A custom role falls back to the legacy
   `permission` level, and an unrecognized value maps to `none`. A 404
   (non-collaborator) means `none`; any other error aborts the run.
@@ -61,12 +63,21 @@ limit, a 5xx, or a network failure, so the CLI can
   (`escalation-facts.ts`; see
   [State](reconciler-design.md#state-in-priority-order)). A removal by a deleted
   account reads as a `Bot`, so it can't be trusted.
-- **Force-pushes** (`forcePushes`) are the `head_ref_force_pushed` issue events,
-  each with the commit it made the head (`commit_id`) and its time. They are read
-  only when some review is a verdict, since they can only stop one from counting
-  (`force-push-facts.ts`; see
-  [Verdicts](reconciler-design.md#verdicts)). An event without a commit reads as
-  unattributed, which fails closed.
+- **Force-pushes** (`forcePushes`) are the timeline's `HeadRefForcePushedEvent`s
+  (GraphQL: the REST event names only the new head), each with the commit it
+  made the head, the head it replaced, and its time. They are read only when
+  some review is a verdict or a UAT sign-off label is present, since they can
+  only stop one from counting (`force-push-facts.ts`; see
+  [Verdicts](reconciler-design.md#verdicts) and [UAT labels](uat.md)). A push
+  without a commit reads as unattributed, which fails closed.
+- **UAT facts** (`uat-facts.ts`) are read only when `policy.uat` is set and the
+  PR is open. The changed paths (a rename's old path included) are listed only
+  when the title doesn't already exempt the PR, and a changed `package.json` is
+  read at the merge base and the head only when every other path is exempt. The
+  sign-off history is read only when `no UAT needed` or `UAT passed` is on the
+  PR: the latest `labeled` event of each (its actor's permission looked up like
+  a review author's), the title changes, and the first check suite on the PR's
+  branch for the head and each carried commit. See [UAT labels](uat.md).
 - **Pending bot reviewers** come from the PR's own `requested_reviewers`
   (entries of type `Bot`), so they cost no extra request.
 - **Settle wait.** On the transition into `review-requested`, a PR opened or
@@ -88,6 +99,12 @@ explain it are written, and the update, which moves the head, comes last.
   state is reached. An arm or merge that loses the [merge-state race](#the-merge-state-race)
   twice is deferred, not failed. Every other error propagates. A failed run is safe to retry,
   because the next event recomputes from facts.
+- **UAT labels are written by the real actor.** Adds and removals of the four
+  UAT labels go through `UatLabelWrites` (`options.uatWrites`, the release token
+  in the CLI), so pr-policy sees a person's sign-off and gets a `labeled` run.
+  `uatWrites: 'unavailable'` applies `withoutUatWaiver`: the other UAT labels are
+  written with the main client, `no UAT needed` is never applied, and the skip
+  is reported as `skippedUatWaiver` (see [UAT labels](uat.md#real-actor-token)).
 - **Missing labels.** Before adding labels, the repo's labels are listed once, and
   any owned label the repo lacks is created from the fleet roster definition
   (`label-roster.ts`), so a consumer that hasn't seeded the roster still gets
@@ -109,7 +126,7 @@ explain it are written, and the update, which moves the head, comes last.
   workflows (releases, CI on `main`). So arming, merging, and [updating](#auto-update) go through `ReleaseActions`
   (`enableAutoMerge`, `mergePullRequest`, `updateBranch`),
   a client built from a separate release token that is never used for anything
-  else, reads included. Disarming (`disableAutoMerge`) goes through it too: GitHub
+  else but UAT label writes, reads included. Disarming (`disableAutoMerge`) goes through it too: GitHub
   refuses the disarm from a workflow token with only `contents: read`
   (`Resource not accessible by integration`), so the actor that armed the PR
   disarms it.

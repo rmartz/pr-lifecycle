@@ -19,6 +19,10 @@ relevant to your task before editing code — see
 - [Approval carry-over](approval-carry-over.md) — how a review on an earlier
   commit keeps counting: verified clean base merges, verified clean rebases after
   a force-push, and the fail-closed rules behind both.
+- [UAT labels](uat.md) — how the four UAT labels are reconciled: the six rules,
+  why the exemptions are a title allowlist with a path fallback, binding
+  sign-offs to the head, why `UAT passed` doesn't carry over a rebase, and the
+  real-actor token for UAT label writes.
 - [Lifecycle routing design (v2)](lifecycle-routing-design.md) — the routing
   extension's goals and decisions (CI gate, merge-conflict and base-health
   states, approval carry-over, auto-update).
