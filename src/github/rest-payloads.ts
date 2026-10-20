@@ -58,6 +58,14 @@ export interface RestCheckRun {
   completed_at: string | null;
 }
 
+export interface RestStatus {
+  context: string;
+  state: string;
+  description: string | null;
+  /** `null` when the creator's account was deleted. */
+  creator: { login: string; type: string } | null;
+}
+
 export interface RestRule {
   type: string;
   parameters?: { required_status_checks?: { context: string }[] };

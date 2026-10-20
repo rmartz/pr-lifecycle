@@ -42,6 +42,7 @@ export type {
   ReviewAuthor,
   ReviewFact,
   ReviewState,
+  SignOffStatusFact,
 } from './facts.js';
 export { GitHubApiError, isApiStatus, isTransientError } from './github/client.js';
 export type {
@@ -52,8 +53,10 @@ export type {
   LabelApplicationData,
   LabelDefinition,
   PullRequestData,
+  NewCommitStatus,
   ReleaseActions,
   ReviewData,
+  StatusData,
 } from './github/client.js';
 export {
   DEPENDABOT_REBASING_NOTICE,
@@ -83,6 +86,7 @@ export {
   RELEASE_TOKEN_DOCS_URL,
   TOKEN_ADVISORY_MARKER,
 } from './github/token-advisory.js';
+export type { SkippedForToken } from './github/token-advisory.js';
 export type { GatherOptions } from './github/gather.js';
 export { createGitRunner, parseGitVersion } from './lineage/git.js';
 export type { GitResult, GitRunner } from './lineage/git.js';
@@ -102,13 +106,14 @@ export {
   planReconcile,
   UPDATE_REQUIRED_LABEL,
   withoutReleaseActions,
+  withoutSignOffStatus,
 } from './plan.js';
 export type { AutoMergeAction, LifecycleLabel, ReconcilePlan, UpdateAction } from './plan.js';
 export { computeState, LIFECYCLE_STATES } from './state.js';
 export type { LifecycleState } from './state.js';
 export {
   classifyUat,
-  exemptionOf,
+  waiverState,
   hasApproval,
   NO_UAT_NEEDED_LABEL,
   UAT_LABELS,
@@ -119,6 +124,27 @@ export {
   uatLabelFor,
 } from './uat.js';
 export type { UatLabel, UatOutcome } from './uat.js';
+export {
+  classifySignOff,
+  loosensCi,
+  requirementFor,
+  SIGN_OFF_REASONS,
+  SIGN_OFF_REQUIREMENTS,
+  signOffStatusDescription,
+} from './sign-off.js';
+export type {
+  SignOffClassification,
+  SignOffReason,
+  SignOffRequirement,
+  WaiverState,
+} from './sign-off.js';
+export { planSignOff, SIGN_OFF_STATUS_CONTEXT } from './sign-off-plan.js';
+export type { SignOffPlan, SignOffStatusPlan } from './sign-off-plan.js';
+export { classifyWorkflowChanges, classifyWorkflowFile } from './ci-change/classify.js';
+export type { Classification } from './ci-change/classify.js';
+export { AMBIGUOUS_INDICATORS, LOOSENING_INDICATORS } from './ci-change/indicators.js';
+export type { Indicator, IndicatorKind } from './ci-change/indicators.js';
+export { isWorkflowPath } from './ci-change/workflow-paths.js';
 export { isRetitledSince, isSignOffCurrent } from './uat-binding.js';
 export { isTestPath, LOCKFILES, TRIVIAL_CATEGORIES, trivialCategories } from './uat-paths.js';
 export type { TrivialCategory } from './uat-paths.js';

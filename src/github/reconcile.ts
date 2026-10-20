@@ -1,7 +1,7 @@
 import type { BotEligibility } from '../bot-eligibility.js';
 import type { ReconcilePolicy } from '../facts.js';
 import type { AutoMergeAction, ReconcilePlan, UpdateAction } from '../plan.js';
-import { planReconcile, withoutReleaseActions } from '../plan.js';
+import { planReconcile, withoutReleaseActions, withoutSignOffStatus } from '../plan.js';
 import type { GitHubClient, ReleaseActions } from './client.js';
 import type { ExecuteOutcome } from './execute.js';
 import { executePlan } from './execute.js';
@@ -35,6 +35,11 @@ export interface ReconcileResult {
   skippedAutoMerge: 'arm' | 'merge' | undefined;
   /** The branch update the plan wanted but skipped because `release` was unavailable. */
   skippedUpdate: Exclude<UpdateAction, 'none'> | undefined;
+  /**
+   * The plan wanted to post the sign-off status but skipped it because `release`
+   * was unavailable. Without it, pr-policy holds the PR (fails closed).
+   */
+  skippedSignOffStatus: boolean;
   /** How long the run waited for bot review requests before gathering again (ms). */
   settledMs: number;
   /**
@@ -63,6 +68,8 @@ function refuseRelease(client: GitHubClient): ReleaseActions {
     enableAutoMerge: () => Promise.reject(new Error('arming needs a release token')),
     mergePullRequest: () => Promise.reject(new Error('merging needs a release token')),
     updateBranch: () => Promise.reject(new Error('updating needs a release token')),
+    createCommitStatus: () =>
+      Promise.reject(new Error('the sign-off status needs a release token')),
   };
 }
 
@@ -88,7 +95,7 @@ export async function reconcilePullRequest(
   const { facts, nodeId, botEligibility, lineage } = gathered;
   const planned = planReconcile(facts, policy);
   const unavailable = options.release === 'unavailable';
-  const plan = unavailable ? withoutReleaseActions(planned) : planned;
+  const plan = unavailable ? withoutSignOffStatus(withoutReleaseActions(planned)) : planned;
   // A dry run reports what the plan would do; a real run reports what was done,
   // which differs when the merge state changed mid-run (see executePlan).
   let outcome: ExecuteOutcome = { autoMerge: plan.autoMerge, deferred: undefined };
@@ -107,6 +114,7 @@ export async function reconcilePullRequest(
     lineage,
     skippedAutoMerge,
     skippedUpdate,
+    skippedSignOffStatus: unavailable && planned.signOffStatus?.post === true,
     settledMs,
     autoMerge: outcome.autoMerge,
     deferredAutoMerge: outcome.deferred,

@@ -5,6 +5,15 @@
  */
 
 import type { CiStatus } from './ci.js';
+import type { FileChange, SignOffStatusFact, UatSignOffFact } from './sign-off-facts.js';
+
+export { UAT_SIGN_OFF_LABELS } from './sign-off-facts.js';
+export type {
+  FileChange,
+  SignOffStatusFact,
+  UatSignOffFact,
+  UatSignOffLabel,
+} from './sign-off-facts.js';
 
 export const REPO_PERMISSIONS = ['admin', 'maintain', 'none', 'read', 'triage', 'write'] as const;
 export type RepoPermission = (typeof REPO_PERMISSIONS)[number];
@@ -62,30 +71,6 @@ export interface ForcePushFact {
   beforeSha?: string | undefined;
   /** ISO-8601 time of the push. */
   pushedAt: string;
-}
-
-/**
- * A changed file's text on each side, for rules that judge a file by content.
- * An absent side means the PR added (no `baseText`) or deleted (no `headText`)
- * the file, or that it couldn't be read.
- */
-export interface FileChange {
-  path: string;
-  baseText?: string;
-  headText?: string;
-}
-
-/** The UAT labels a person (or the review agent) applies as a sign-off. */
-export const UAT_SIGN_OFF_LABELS = ['no UAT needed', 'UAT passed'] as const;
-export type UatSignOffLabel = (typeof UAT_SIGN_OFF_LABELS)[number];
-
-/** The latest application of a UAT sign-off label, from the PR's issue events. */
-export interface UatSignOffFact {
-  label: UatSignOffLabel;
-  /** Who applied it, with their permission fetched at the edge (as for review authors). */
-  actor: ReviewAuthor;
-  /** ISO-8601 time it was applied. */
-  appliedAt: string;
 }
 
 /** Someone removing the `escalation needed` label from the PR. */
@@ -187,6 +172,17 @@ export interface PullRequestFacts {
   commitArrivals?: Readonly<Record<string, string>>;
   /** When the PR's title was changed (ISO-8601), from its issue events; read with the sign-offs. */
   titleChanges?: readonly string[];
+  /**
+   * Merge-base and head text of each changed `.github/workflows/**` file, for
+   * the CI loosening rules. A changed workflow with no entry counts as a
+   * loosening (src/sign-off.ts).
+   */
+  workflowChanges?: readonly FileChange[];
+  /**
+   * The latest `pr-lifecycle/sign-off` status on the head, if any, so an
+   * unchanged one isn't posted again.
+   */
+  signOffStatus?: SignOffStatusFact;
 }
 
 export interface ReconcilePolicy {
