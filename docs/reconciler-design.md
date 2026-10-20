@@ -292,10 +292,8 @@ properties are on their own page: [Approval carry-over](approval-carry-over.md).
   empty.
 - **UAT (`policy.uat`, `on` or `off`; absent, UAT labels aren't owned).** The
   plan's `uat` names the [rule](uat.md#rules) that picked the PR's one UAT label,
-  and the label changes are in `addLabels` / `removeLabels`.
-  **`withoutUatWaiver(plan)`** drops an add of `no UAT needed` and keeps
-  everything else; the edge layer applies it when no real-actor token is
-  available to write UAT labels.
+  and the label changes are in `addLabels` / `removeLabels`, written with the
+  workflow token like every other label.
 - **Auto-merge (opt-in via `policy.armAutoMerge`, default off).** When the state
   is `approved` and auto-merge is off, the core plans `merge` if the PR is
   `immediatelyMergeable` (GitHub refuses to arm a PR that is already mergeable;

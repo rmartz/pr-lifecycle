@@ -2,7 +2,7 @@ import type { BranchUpdater, PullRequestFacts, ReconcilePolicy } from './facts.j
 import type { LifecycleState } from './state.js';
 import { computeState } from './state.js';
 import type { UatOutcome } from './uat.js';
-import { classifyUat, NO_UAT_NEEDED_LABEL, UAT_LABELS, uatLabelFor } from './uat.js';
+import { classifyUat, UAT_LABELS, uatLabelFor } from './uat.js';
 
 /**
  * The reconcile plan: the minimal label and auto-merge changes that converge a PR
@@ -159,17 +159,6 @@ export function planReconcile(facts: PullRequestFacts, policy: ReconcilePolicy):
     update: planUpdate(facts, policy, state, autoMerge),
     uat,
   };
-}
-
-/**
- * The plan without granting `no UAT needed`, for when no real-actor token is
- * available to apply it (docs/uat.md §Real-actor token). pr-policy only trusts
- * a waiver a person applied, so one applied with the workflow token could never
- * pass its gate. Everything else stays, the other UAT labels included: none of
- * them passes the gate. Pure, like the planner.
- */
-export function withoutUatWaiver(plan: ReconcilePlan): ReconcilePlan {
-  return { ...plan, addLabels: plan.addLabels.filter((name) => name !== NO_UAT_NEEDED_LABEL) };
 }
 
 /**

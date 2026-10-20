@@ -58,8 +58,6 @@ export interface ReconcileJson {
    * (docs/uat.md); `null` when UAT labels aren't reconciled or the PR is closed.
    */
   uat: { outcome: string; label: string } | null;
-  /** `no UAT needed` was wanted but not applied; `null` when nothing was skipped. */
-  uatWaiverSkipped: { reason: 'token-missing' } | null;
 }
 
 export function toReconcileJson(target: ReconcileTarget, result: ReconcileResult): ReconcileJson {
@@ -99,7 +97,6 @@ export function toReconcileJson(target: ReconcileTarget, result: ReconcileResult
     updateSkipped:
       skippedUpdate === undefined ? null : { action: skippedUpdate, reason: 'token-missing' },
     uat: plan.uat === undefined ? null : { outcome: plan.uat, label: uatLabelFor(plan.uat) },
-    uatWaiverSkipped: result.skippedUatWaiver ? { reason: 'token-missing' } : null,
   };
 }
 
@@ -120,7 +117,6 @@ export function formatSummary(target: ReconcileTarget, result: ReconcileResult):
     ...(result.skippedUpdate === undefined
       ? []
       : [`update ${result.skippedUpdate} skipped (no release token)`]),
-    ...(result.skippedUatWaiver ? ["'no UAT needed' skipped (no release token)"] : []),
   ];
   const prefix = target.dryRun ? '[dry-run] ' : '';
   const body = changes.length === 0 ? 'no changes' : changes.join(', ');

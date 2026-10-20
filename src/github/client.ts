@@ -185,20 +185,13 @@ export interface GitHubClient {
  * `GITHUB_TOKEN` triggers no workflows (so no release, and no CI on the new head).
  * Disarming is here too: GitHub refuses `disablePullRequestAutoMerge` from a
  * workflow token without `contents: write`, so the actor that armed the PR disarms
- * it (#77). Kept to these calls (and `UatLabelWrites`) so the release token is
- * never used for anything else, reads included.
+ * it (#77). Kept to these calls so the release token is never used for anything
+ * else, reads included.
  */
 export type ReleaseActions = Pick<
   GitHubClient,
   'disableAutoMerge' | 'enableAutoMerge' | 'mergePullRequest' | 'updateBranch'
 >;
-
-/**
- * The UAT label writes, which also come from a real actor: pr-policy only trusts
- * a sign-off label a person applied, and a label written with `GITHUB_TOKEN`
- * fires no `labeled` run for pr-policy to re-evaluate on (docs/uat.md).
- */
-export type UatLabelWrites = Pick<GitHubClient, 'addLabels' | 'removeLabel'>;
 
 export class GitHubApiError extends Error {
   /** The HTTP status; 0 when the request never got a response (a network failure). */

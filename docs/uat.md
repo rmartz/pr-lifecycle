@@ -1,7 +1,7 @@
 ---
 type: Design
 title: UAT labels
-description: How pr-lifecycle reconciles the four UAT labels on every event — the six rules, the title-first exemption with a path fallback, binding sign-offs to the head with unforgeable push times, and why UAT label writes need the real-actor token.
+description: How pr-lifecycle reconciles the four UAT labels on every event — the six rules, the title-first exemption with a path fallback, binding sign-offs to the head with unforgeable push times, and why the labels are for people and written with the workflow token.
 resource: src/uat.ts
 tags: [reconciler, uat, labels, sign-off, security]
 ---
@@ -10,8 +10,10 @@ tags: [reconciler, uat, labels, sign-off, security]
 
 pr-lifecycle owns a PR's UAT classification. On every reconcile it leaves
 **exactly one** of `no UAT needed`, `UAT pending`, `UAT ready`, or `UAT passed`
-on an open PR, so the label never goes stale between reviews. pr-policy's UAT
-gate then only has to require `no UAT needed` or `UAT passed`.
+on an open PR, so the label never goes stale between reviews. The labels are
+for people: pr-policy, the gate, never reads them. The decision reaches it
+through a commit status on the head (`pr-lifecycle/sign-off`, #119), and
+pr-policy reads only that and the people's own sign-off labels.
 
 Source: `src/uat.ts` (the classifier), `src/uat-title.ts`, `src/uat-paths.ts`,
 `src/uat-binding.ts`; the facts are gathered in `src/github/uat-facts.ts`.
@@ -144,33 +146,20 @@ should look again. The cost, a re-test after a conflict rebase, is rare at that
 stage. pr-policy enforces the binding too (rmartz/pr-policy#85), so the window
 before this reconciler replaces a stale label can't let a merge through.
 
-## Real-actor token
+## Labels are for people
 
-UAT label writes, adds and removals, go through `PR_LIFECYCLE_TOKEN`, the
-[release token](cli.md#release-token), not `GITHUB_TOKEN`:
+Every UAT label write, adds and removals alike, uses `github-token`, like the
+other lifecycle labels. Nothing about the labels needs a real actor:
 
-- pr-policy rejects a sign-off label applied by `github-actions[bot]`, so a
-  waiver written with the workflow token would never pass the gate;
-- a label written with `GITHUB_TOKEN` fires no `labeled` workflow run, so
-  pr-policy wouldn't re-evaluate.
+- pr-policy never trusts a label this package wrote. Its gate reads the
+  `pr-lifecycle/sign-off` status (#119), which is posted with
+  `PR_LIFECYCLE_TOKEN`, and the sign-off labels people apply themselves.
+- pr-policy re-runs when that status arrives, so a label edit doesn't need to
+  fire a `labeled` run to wake it.
 
-The release token is used for UAT labels and the release actions, and nothing
-else (`UatLabelWrites` in `src/github/client.ts`).
-
-**The waiver needs a person's token.** pr-policy trusts a sign-off only from a
-`User`, so a `no UAT needed` applied with a GitHub App installation token (the
-release token this repo recommends for merging) reads as a `Bot` and doesn't
-pass its gate. pr-lifecycle's own classification doesn't depend on it, since it
-recomputes rules 1 and 2 every run, but the gate does. Until pr-policy accepts
-the lifecycle's own identity, a repo that relies on pr-lifecycle's waiver needs
-a fine-grained PAT as the release token.
-
-**Fails closed.** Without the token, pr-lifecycle never applies
-`no UAT needed` (`withoutUatWaiver`). It still applies `UAT pending` or
-`UAT ready`, and removes a stale sign-off, with `GITHUB_TOKEN`: none of those
-passes the gate. An exempt PR then carries no UAT label. The skip is reported
-like the arming skip: a stderr warning, `uatWaiverSkipped` in the JSON, and the
-one-time [token advisory](cli.md#release-token) comment.
+So a missing `PR_LIFECYCLE_TOKEN` changes nothing here: every UAT label,
+including this package's own `no UAT needed`, is still written. The missing
+token holds the gate instead, because no status is posted (#119).
 
 ## Guaranteed properties (tested)
 
@@ -182,4 +171,3 @@ one-time [token advisory](cli.md#release-token) comment.
 - **Untrusted sign-offs are inert.** A sign-off label from a bot or a
   non-writer is never kept, except where this package's own exemption picks the
   same label.
-- **`withoutUatWaiver` removes the waiver and nothing else.**

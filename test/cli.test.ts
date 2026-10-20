@@ -224,7 +224,6 @@ describe('runCli — --json contract (schemaVersion 1)', () => {
         update: 'none',
         updateSkipped: null,
         uat: { outcome: 'ready', label: 'UAT ready' },
-        uatWaiverSkipped: null,
       },
     ]);
   });

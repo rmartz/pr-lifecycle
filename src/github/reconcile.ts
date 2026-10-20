@@ -1,8 +1,8 @@
 import type { BotEligibility } from '../bot-eligibility.js';
 import type { ReconcilePolicy } from '../facts.js';
 import type { AutoMergeAction, ReconcilePlan, UpdateAction } from '../plan.js';
-import { planReconcile, withoutReleaseActions, withoutUatWaiver } from '../plan.js';
-import type { GitHubClient, ReleaseActions, UatLabelWrites } from './client.js';
+import { planReconcile, withoutReleaseActions } from '../plan.js';
+import type { GitHubClient, ReleaseActions } from './client.js';
 import type { ExecuteOutcome } from './execute.js';
 import { executePlan } from './execute.js';
 import type { GatherOptions } from './gather.js';
@@ -23,12 +23,6 @@ export interface ReconcileOptions extends GatherOptions {
    * and merges trigger no workflows; a disarm falls back to `client`.
    */
   release?: ReleaseActions | 'unavailable';
-  /**
-   * Who writes the UAT labels. Defaults to `client`, right when its token is a
-   * real actor. `'unavailable'` writes them with `client` but never grants
-   * `no UAT needed`, which only counts from a person (docs/uat.md).
-   */
-  uatWrites?: UatLabelWrites | 'unavailable';
 }
 
 export interface ReconcileResult {
@@ -54,8 +48,6 @@ export interface ReconcileResult {
    * fallback lost a race with the PR's merge state; the next event converges.
    */
   deferredAutoMerge: 'arm' | 'merge' | undefined;
-  /** The plan wanted to grant `no UAT needed`, but skipped it because `uatWrites` was unavailable. */
-  skippedUatWaiver: boolean;
 }
 
 /**
@@ -96,18 +88,14 @@ export async function reconcilePullRequest(
   const { facts, nodeId, botEligibility, lineage } = gathered;
   const planned = planReconcile(facts, policy);
   const unavailable = options.release === 'unavailable';
-  const noUatWriter = options.uatWrites === 'unavailable';
-  const withoutRelease = unavailable ? withoutReleaseActions(planned) : planned;
-  const plan = noUatWriter ? withoutUatWaiver(withoutRelease) : withoutRelease;
+  const plan = unavailable ? withoutReleaseActions(planned) : planned;
   // A dry run reports what the plan would do; a real run reports what was done,
   // which differs when the merge state changed mid-run (see executePlan).
   let outcome: ExecuteOutcome = { autoMerge: plan.autoMerge, deferred: undefined };
   if (options.dryRun !== true) {
     const release =
       options.release === 'unavailable' ? refuseRelease(client) : (options.release ?? client);
-    const uatWrites = options.uatWrites === 'unavailable' ? client : (options.uatWrites ?? client);
-    const target = { pr, nodeId, headSha: facts.headSha };
-    outcome = await executePlan(client, target, plan, release, uatWrites);
+    outcome = await executePlan(client, { pr, nodeId, headSha: facts.headSha }, plan, release);
   }
   const wanted = planned.autoMerge;
   const skippedAutoMerge =
@@ -122,6 +110,5 @@ export async function reconcilePullRequest(
     settledMs,
     autoMerge: outcome.autoMerge,
     deferredAutoMerge: outcome.deferred,
-    skippedUatWaiver: plan.addLabels.length < withoutRelease.addLabels.length,
   };
 }

@@ -38,17 +38,17 @@ pr-lifecycle reconcile --repo <owner/repo> --pr <n>
 | `--uat <on\|off>`         | The repo's UAT setting (`policy.uat`, default `on`). `on` keeps exactly one [UAT label](uat.md) on the PR, `UAT pending` until it is signed off; `off` labels every PR `no UAT needed`. UAT label writes need a [release token](#release-token).             |
 | `--dry-run`               | Gather and plan, but write nothing.                                                                                                                                                                                                                          |
 | `--json`                  | Print the result as one JSON object (below) instead of a summary line.                                                                                                                                                                                       |
-| `--no-token-advisory`     | Don't post the [advisory comment](#release-token) when arming or `no UAT needed` is skipped for want of a release token.                                                                                                                                     |
+| `--no-token-advisory`     | Don't post the [advisory comment](#release-token) when arming is skipped for want of a release token.                                                                                                                                                        |
 
 The policy options are described in the [core design](reconciler-design.md).
 
 ## Environment
 
-| Variable             | Use                                                                                                                      |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| `GITHUB_TOKEN`       | Token for all reads and writes (required; missing → exit 2).                                                             |
-| `PR_LIFECYCLE_TOKEN` | Real-actor token used **only** to disarm, arm, merge, update, and write UAT labels. See [Release token](#release-token). |
-| `GITHUB_API_URL`     | API base URL for GitHub Enterprise Server (defaults to github.com).                                                      |
+| Variable             | Use                                                                                                    |
+| -------------------- | ------------------------------------------------------------------------------------------------------ |
+| `GITHUB_TOKEN`       | Token for all reads and writes (required; missing → exit 2).                                           |
+| `PR_LIFECYCLE_TOKEN` | Real-actor token used **only** to disarm, arm, merge, and update. See [Release token](#release-token). |
+| `GITHUB_API_URL`     | API base URL for GitHub Enterprise Server (defaults to github.com).                                    |
 
 **Token permissions.** `pull-requests: write` (PR, reviews, labels, comments),
 `contents: read` (branch rules, the base branch head, commits),
@@ -73,11 +73,8 @@ consumer's release pipeline never runs. A branch update pushed with
 merging, and updating therefore use `PR_LIFECYCLE_TOKEN`.
 **Disarming** does too: GitHub refuses `disablePullRequestAutoMerge` from a
 workflow token that has only `contents: read`, so the actor that armed the PR
-disarms it. **UAT label writes** use it as well: pr-policy trusts a UAT sign-off
-only from a person, and a label written with `GITHUB_TOKEN` fires no `labeled`
-run for pr-policy to re-evaluate on (see [UAT labels](uat.md#real-actor-token);
-a GitHub App token reads as a bot there). Nothing else uses the token (no reads,
-no lifecycle labels).
+disarms it. Nothing else uses the token (no reads, no labels: the
+[UAT labels](uat.md#labels-are-for-people) use `GITHUB_TOKEN` too).
 
 - **Which PRs.** Every PR the lifecycle arms or merges, not only release PRs:
   every merge to `main` should fire its `on: push` workflows. This departs from
@@ -99,9 +96,7 @@ no lifecycle labels).
   attempted with `GITHUB_TOKEN`, but the arm or merge is **skipped**, never done
   with `GITHUB_TOKEN`. The skip
   goes to stderr as a warning and to `autoMergeSkipped` in the JSON. A wanted
-  update is skipped the same way (a warning and `updateSkipped`), and so is a
-  wanted `no UAT needed` (a warning and `uatWaiverSkipped`); the other UAT labels
-  are still written, with `GITHUB_TOKEN`. Outside
+  update is skipped the same way (a warning and `updateSkipped`). Outside
   `--dry-run`, an advisory comment explaining the fix is posted on the PR once
   (found again by its marker), since a job-log warning goes unread. Pass
   `--no-token-advisory` to suppress it. A failure to post the comment only warns.
@@ -165,8 +160,7 @@ never omitted:
   "autoMergeDeferred": null,
   "update": "none",
   "updateSkipped": null,
-  "uat": { "outcome": "ready", "label": "UAT ready" },
-  "uatWaiverSkipped": null
+  "uat": { "outcome": "ready", "label": "UAT ready" }
 }
 ```
 
@@ -192,9 +186,7 @@ automatic merge`). `rebases` lists each [clean-rebase check](approval-carry-over
 as `{ "source", "carried", "reason" }`. It is `null` when carry-over didn't run (a closed PR); a walk that failed reports `verification failed: …` and carries nothing.
 `uat` is `{ "outcome", "label" }`: the PR's one [UAT label](uat.md) and the rule
 that picked it (`off`, `exempt-title`, `exempt-paths`, `passed`, `waived`,
-`ready`, or `pending`); `null` for a closed PR. `uatWaiverSkipped` is
-`{ "reason": "token-missing" }` when `no UAT needed` was wanted but not applied
-(see [Release token](#release-token)), else `null`. Both were added to
+`ready`, or `pending`); `null` for a closed PR. It was added to
 `schemaVersion` 1.
 
 ## Versioning

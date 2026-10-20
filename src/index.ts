@@ -54,7 +54,6 @@ export type {
   PullRequestData,
   ReleaseActions,
   ReviewData,
-  UatLabelWrites,
 } from './github/client.js';
 export {
   DEPENDABOT_REBASING_NOTICE,
@@ -84,7 +83,6 @@ export {
   RELEASE_TOKEN_DOCS_URL,
   TOKEN_ADVISORY_MARKER,
 } from './github/token-advisory.js';
-export type { SkippedForToken } from './github/token-advisory.js';
 export type { GatherOptions } from './github/gather.js';
 export { createGitRunner, parseGitVersion } from './lineage/git.js';
 export type { GitResult, GitRunner } from './lineage/git.js';
@@ -104,7 +102,6 @@ export {
   planReconcile,
   UPDATE_REQUIRED_LABEL,
   withoutReleaseActions,
-  withoutUatWaiver,
 } from './plan.js';
 export type { AutoMergeAction, LifecycleLabel, ReconcilePlan, UpdateAction } from './plan.js';
 export { computeState, LIFECYCLE_STATES } from './state.js';

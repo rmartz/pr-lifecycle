@@ -99,12 +99,9 @@ explain it are written, and the update, which moves the head, comes last.
   state is reached. An arm or merge that loses the [merge-state race](#the-merge-state-race)
   twice is deferred, not failed. Every other error propagates. A failed run is safe to retry,
   because the next event recomputes from facts.
-- **UAT labels are written by the real actor.** Adds and removals of the four
-  UAT labels go through `UatLabelWrites` (`options.uatWrites`, the release token
-  in the CLI), so pr-policy sees a person's sign-off and gets a `labeled` run.
-  `uatWrites: 'unavailable'` applies `withoutUatWaiver`: the other UAT labels are
-  written with the main client, `no UAT needed` is never applied, and the skip
-  is reported as `skippedUatWaiver` (see [UAT labels](uat.md#real-actor-token)).
+- **UAT labels use the workflow token** like every other label: they are for
+  people, and pr-policy gates on the sign-off status instead (see
+  [UAT labels](uat.md#labels-are-for-people)).
 - **Missing labels.** Before adding labels, the repo's labels are listed once, and
   any owned label the repo lacks is created from the fleet roster definition
   (`label-roster.ts`), so a consumer that hasn't seeded the roster still gets
@@ -126,7 +123,7 @@ explain it are written, and the update, which moves the head, comes last.
   workflows (releases, CI on `main`). So arming, merging, and [updating](#auto-update) go through `ReleaseActions`
   (`enableAutoMerge`, `mergePullRequest`, `updateBranch`),
   a client built from a separate release token that is never used for anything
-  else but UAT label writes, reads included. Disarming (`disableAutoMerge`) goes through it too: GitHub
+  else, reads included. Disarming (`disableAutoMerge`) goes through it too: GitHub
   refuses the disarm from a workflow token with only `contents: read`
   (`Resource not accessible by integration`), so the actor that armed the PR
   disarms it.

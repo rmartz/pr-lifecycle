@@ -21,39 +21,36 @@ function makeTokenDeps(main: FakeGitHubClient, release: FakeGitHubClient): CliDe
 }
 
 describe('runCli — release token', () => {
-  it('arms and writes the UAT label with the release token, and uses it for nothing else', async () => {
+  it('arms with the release token and uses it for nothing else', async () => {
     const main = makeApprovedClient();
     const release = new FakeGitHubClient();
 
     await runCli(ARM, makeIo().io, makeTokenDeps(main, release));
 
-    expect([release.calls, main.calls.some((call) => call.method === 'enableAutoMerge')]).toEqual([
-      [
-        { method: 'addLabels', args: [7, ['UAT ready']] },
-        { method: 'enableAutoMerge', args: ['PR_node', main.pull.headSha] },
-      ],
-      false,
-    ]);
+    expect([
+      release.calls.map((call) => call.method),
+      main.calls.some((call) => call.method === 'enableAutoMerge'),
+    ]).toEqual([['enableAutoMerge'], false]);
   });
 
-  it('writes the lifecycle labels with GITHUB_TOKEN', async () => {
+  it('writes the lifecycle and UAT labels with GITHUB_TOKEN', async () => {
     const main = makeApprovedClient();
     const release = new FakeGitHubClient();
 
     await runCli(ARM, makeIo().io, makeTokenDeps(main, release));
 
     expect(main.writes.filter((call) => call.method === 'addLabels')).toEqual([
-      { method: 'addLabels', args: [7, ['approved', 'auto-merge enabled']] },
+      { method: 'addLabels', args: [7, ['approved', 'auto-merge enabled', 'UAT ready']] },
     ]);
   });
 
-  it('uses the release token only for the UAT label without --arm-auto-merge', async () => {
+  it('never uses the release token without --arm-auto-merge', async () => {
     const main = makeApprovedClient();
     const release = new FakeGitHubClient();
 
     await runCli(RECONCILE, makeIo().io, makeTokenDeps(main, release));
 
-    expect(release.calls.map((call) => call.method)).toEqual(['addLabels']);
+    expect(release.calls).toEqual([]);
   });
 });
 
@@ -72,7 +69,7 @@ describe('runCli — auto-update', () => {
 
     await runCli(UPDATE, makeIo().io, makeTokenDeps(main, release));
 
-    expect(release.calls.map((call) => call.method)).toEqual(['addLabels', 'updateBranch']);
+    expect(release.calls.map((call) => call.method)).toEqual(['updateBranch']);
   });
 
   it('reports the update in the summary', async () => {
