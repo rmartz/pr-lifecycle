@@ -40,6 +40,8 @@ and the UAT classifier in `uat*.ts`).
 | `forcePushes`          | the timeline's force-pushes: the heads each replaced and made, and when (read only for a verdict or a UAT sign-off)                           |
 | `pendingBotReviewers`  | PR `requested_reviewers` entries of type `Bot` (Copilot appears as `Copilot`); users and teams are left out                                   |
 | `changedPaths`, …      | the [UAT facts](uat.md): changed paths and manifests, the latest application of each UAT sign-off, commit arrivals, title changes             |
+| `workflowChanges`      | merge-base and head text of each changed workflow, for [CI loosening](ci-loosening.md)                                                        |
+| `signOffStatus`        | the head's latest `pr-lifecycle/sign-off` status (state, description, creator type)                                                           |
 
 The author's **repo permission** is a fact gathered at the edge (the collaborator
 permission API), so trust evaluation stays pure.
@@ -290,10 +292,13 @@ properties are on their own page: [Approval carry-over](approval-carry-over.md).
   hand-applied `approved` with no verdict behind it is removed. Labels the core
   doesn't own are never touched. When the labels already match, the plan is
   empty.
-- **UAT (`policy.uat`, `on` or `off`; absent, UAT labels aren't owned).** The
-  plan's `uat` names the [rule](uat.md#rules) that picked the PR's one UAT label,
-  and the label changes are in `addLabels` / `removeLabels`, written with the
-  workflow token like every other label.
+- **Sign-offs (`policy.uat`, `on` or `off`; absent, UAT labels aren't owned).**
+  The plan's `signOff` is the head's [sign-off classification](sign-off-status.md),
+  `signOffStatus` the status description and whether to post it, and `uat` the
+  [rule](uat.md#rules) that picked the PR's UAT label (none for `requirement=ci`).
+  The label changes are in `addLabels` / `removeLabels`, written with the
+  workflow token like every other label. **`withoutSignOffStatus(plan)`** turns
+  off the post; the edge layer applies it when no real-actor token is available.
 - **Auto-merge (opt-in via `policy.armAutoMerge`, default off).** When the state
   is `approved` and auto-merge is off, the core plans `merge` if the PR is
   `immediatelyMergeable` (GitHub refuses to arm a PR that is already mergeable;
