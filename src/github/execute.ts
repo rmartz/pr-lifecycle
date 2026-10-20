@@ -40,8 +40,7 @@ export interface ExecuteOutcome {
  */
 function isMergeableStatusError(error: unknown): boolean {
   return (
-    error instanceof GitHubApiError &&
-    /(?:clean|unstable|has_hooks) status/i.test(error.message)
+    error instanceof GitHubApiError && /(?:clean|unstable|has_hooks) status/i.test(error.message)
   );
 }
 
