@@ -18,6 +18,7 @@ export interface HttpClientOptions {
 export const PAGE_SIZE = 100;
 
 interface GraphQlResponse {
+  data?: unknown;
   errors?: { message: string; type?: string }[];
 }
 
@@ -45,6 +46,10 @@ export interface HttpTransport {
   /** Every page of a list endpoint that returns a bare array. */
   paginate: <T>(path: string) => Promise<T[]>;
   graphql: (query: string, variables: Record<string, string>) => Promise<void>;
+  /** A GraphQL query's `data`, for reads REST can't answer. */
+  graphqlData: (query: string, variables: Record<string, unknown>) => Promise<unknown>;
+  owner: string;
+  repo: string;
 }
 
 export function createTransport(options: HttpClientOptions): HttpTransport {
@@ -98,7 +103,7 @@ export function createTransport(options: HttpClientOptions): HttpTransport {
     }
   }
 
-  async function graphql(query: string, variables: Record<string, string>): Promise<void> {
+  async function graphqlData(query: string, variables: Record<string, unknown>): Promise<unknown> {
     const result = (await request('POST', '/graphql', { query, variables })) as GraphQlResponse;
     if (result.errors !== undefined && result.errors.length > 0) {
       const messages = result.errors.map((error) => error.message).join('; ');
@@ -107,7 +112,13 @@ export function createTransport(options: HttpClientOptions): HttpTransport {
         transient: result.errors.some((error) => error.type === 'RATE_LIMITED'),
       });
     }
+    return result.data;
   }
 
-  return { repoPath, request, paginate, graphql };
+  async function graphql(query: string, variables: Record<string, string>): Promise<void> {
+    await graphqlData(query, variables);
+  }
+
+  const { owner, repo } = options;
+  return { repoPath, request, paginate, graphql, graphqlData, owner, repo };
 }

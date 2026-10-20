@@ -22,43 +22,70 @@ function makeApprovedClient() {
   return client;
 }
 
-describe('listForcePushes', () => {
-  it('maps only the force-push events, with the commit each one made the head', async () => {
-    const { client, requests } = makeTransport([
-      {
-        json: [
-          {
-            event: 'head_ref_force_pushed',
-            created_at: PUSHED_AFTER,
-            actor: { login: 'dependabot[bot]', type: 'Bot' },
-            commit_id: HEAD_SHA,
+/** One page of the timeline's force-push events, as GraphQL returns it. */
+function forcePushPage(
+  nodes: { createdAt: string; beforeCommit: unknown; afterCommit: unknown }[],
+  endCursor: string | null = null,
+) {
+  return {
+    json: {
+      data: {
+        repository: {
+          pullRequest: {
+            timelineItems: { pageInfo: { hasNextPage: endCursor !== null, endCursor }, nodes },
           },
-          {
-            event: 'unlabeled',
-            created_at: '2026-10-19T16:22:00Z',
-            actor: { login: 'rmartz', type: 'User' },
-            label: { name: 'approved' },
-          },
-        ],
+        },
       },
+    },
+  };
+}
+
+describe('listForcePushes', () => {
+  it('maps each force-push to the heads it replaced and made', async () => {
+    const { client, requests } = makeTransport([
+      forcePushPage([
+        { createdAt: PUSHED_AFTER, beforeCommit: { oid: OLD_SHA }, afterCommit: { oid: HEAD_SHA } },
+      ]),
     ]);
 
     const pushes = await client.listForcePushes(7);
 
-    expect([requests[0]?.url, pushes]).toEqual([
-      'https://api.github.com/repos/rmartz/demo/issues/7/events?per_page=100&page=1',
-      [{ headSha: HEAD_SHA, pushedAt: PUSHED_AFTER }],
+    expect([requests[0]?.url, requests[0]?.body, pushes]).toEqual([
+      'https://api.github.com/graphql',
+      expect.objectContaining({
+        variables: { owner: 'rmartz', repo: 'demo', pr: 7, cursor: null },
+      }),
+      [{ headSha: HEAD_SHA, beforeSha: OLD_SHA, pushedAt: PUSHED_AFTER }],
     ]);
   });
 
-  it('reads a force-push without a commit as unattributed', async () => {
+  it('reads a force-push without commits as unattributed', async () => {
     const { client } = makeTransport([
-      { json: [{ event: 'head_ref_force_pushed', created_at: PUSHED_AFTER, commit_id: null }] },
+      forcePushPage([{ createdAt: PUSHED_AFTER, beforeCommit: null, afterCommit: null }]),
     ]);
 
     expect(await client.listForcePushes(7)).toEqual([
-      { headSha: undefined, pushedAt: PUSHED_AFTER },
+      { headSha: undefined, beforeSha: undefined, pushedAt: PUSHED_AFTER },
     ]);
+  });
+
+  it('follows the cursor to the next page', async () => {
+    const node = { createdAt: PUSHED_AFTER, beforeCommit: null, afterCommit: { oid: HEAD_SHA } };
+    const { client, requests } = makeTransport([
+      forcePushPage([node], 'cursor-1'),
+      forcePushPage([node]),
+    ]);
+
+    const pushes = await client.listForcePushes(7);
+    const second = requests[1]?.body as { variables: { cursor: unknown } } | undefined;
+
+    expect([pushes.length, second?.variables.cursor]).toEqual([2, 'cursor-1']);
+  });
+
+  it('fails when the pull request is missing', async () => {
+    const { client } = makeTransport([{ json: { data: { repository: { pullRequest: null } } } }]);
+
+    await expect(client.listForcePushes(7)).rejects.toThrow('pull request #7 not found');
   });
 });
 

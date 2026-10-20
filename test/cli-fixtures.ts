@@ -1,6 +1,6 @@
 import type { CliDeps } from '../src/cli.js';
 import type { HttpClientOptions } from '../src/github/http-client.js';
-import { COPILOT_REVIEWER_LOGIN, makeVerdictBody } from './fixtures.js';
+import { COPILOT_REVIEWER_LOGIN, makeChangedFile, makeVerdictBody } from './fixtures.js';
 import { FakeGitHubClient, makePullRequestData, makeReviewData } from './github/fake-client.js';
 
 /** Shared setup for the CLI tests (cli.test.ts, cli-release-token.test.ts). */
@@ -17,8 +17,19 @@ export function makeIo() {
   };
 }
 
+/**
+ * A client whose PR changes one source file, so UAT (on by default in the CLI)
+ * holds it at `UAT pending` / `UAT ready`, as a real feature PR.
+ */
+export function makeSourceClient(...args: ConstructorParameters<typeof FakeGitHubClient>) {
+  const client = new FakeGitHubClient(...args);
+  client.files = [makeChangedFile({ filename: 'src/thing.ts' })];
+  client.pull.changedFileCount = 1;
+  return client;
+}
+
 export function makeApprovedClient() {
-  const client = new FakeGitHubClient(makePullRequestData(), [
+  const client = makeSourceClient(makePullRequestData(), [
     makeReviewData({ id: 1, login: COPILOT_REVIEWER_LOGIN, type: 'Bot' }),
     makeReviewData({ id: 2, body: makeVerdictBody('approved') }),
   ]);

@@ -1,4 +1,5 @@
-import type { ReconcilePolicy } from '../facts.js';
+import type { ReconcilePolicy, UatSetting } from '../facts.js';
+import { UAT_SETTINGS } from '../facts.js';
 
 /**
  * Argument parsing for `pr-lifecycle`. Pure: argv in, a parsed command or a
@@ -24,7 +25,17 @@ export type ParsedArgs =
   ReconcileArgs | { command: 'help' } | { command: 'error'; message: string };
 
 type ValueOption =
-  '--hold-checks' | '--ignore-checks' | '--pr' | '--prose-paths' | '--repo' | '--trusted-authors';
+  | '--hold-checks'
+  | '--ignore-checks'
+  | '--pr'
+  | '--prose-paths'
+  | '--repo'
+  | '--trusted-authors'
+  | '--uat';
+
+function isUatSetting(value: string): value is UatSetting {
+  return UAT_SETTINGS.some((setting) => setting === value);
+}
 
 const REPO_PATTERN = /^([A-Za-z0-9-]+)\/([A-Za-z0-9._-]+)$/;
 const PR_PATTERN = /^[1-9][0-9]*$/;
@@ -76,7 +87,8 @@ function parseReconcile(args: readonly string[]): ParsedArgs {
       case '--trusted-authors':
       case '--hold-checks':
       case '--ignore-checks':
-      case '--prose-paths': {
+      case '--prose-paths':
+      case '--uat': {
         const value = args[index + 1];
         if (value === undefined || value.startsWith('--')) {
           return usageError(`${arg} requires a value`);
@@ -110,6 +122,11 @@ function parseReconcile(args: readonly string[]): ParsedArgs {
   const ignoredChecks = listOption(values['--ignore-checks']);
   // Likewise, `--prose-paths ''` turns the prose-overlap check off.
   const prosePatterns = listOption(values['--prose-paths']);
+  // UAT is on unless the repo turns it off.
+  const uat = values['--uat'] ?? 'on';
+  if (!isUatSetting(uat)) {
+    return usageError(`--uat must be on or off, not ${uat}`);
+  }
 
   return {
     command: 'reconcile',
@@ -120,6 +137,7 @@ function parseReconcile(args: readonly string[]): ParsedArgs {
       armAutoMerge,
       autoUpdate,
       skipCopilotReview,
+      uat,
       ...(trustedAuthors === undefined ? {} : { trustedAuthors }),
       ...(holdChecks === undefined ? {} : { holdChecks }),
       ...(ignoredChecks === undefined ? {} : { ignoredChecks }),

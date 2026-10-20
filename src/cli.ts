@@ -5,6 +5,7 @@ import { isTransientError } from './github/client.js';
 import type { HttpClientOptions } from './github/http-client.js';
 import { createHttpClient } from './github/http-client.js';
 import { reconcilePullRequest } from './github/reconcile.js';
+import type { SkippedForToken } from './github/token-advisory.js';
 import { postTokenAdvisory } from './github/token-advisory.js';
 import type { GitRunner } from './lineage/git.js';
 import { createGitRunner } from './lineage/git.js';
@@ -54,6 +55,8 @@ reconcile options:
   --ignore-checks <a,b>     Required checks CI never counts (default: merge-safety)
   --prose-paths <a,b>       Basename patterns whose overlapping edits in a base merge
                             need a new review (default: *.md,!index.md)
+  --uat <on|off>            The repo's UAT setting; off labels every PR 'no UAT needed'
+                            (default: on)
   --dry-run                 Compute the plan without writing anything
   --json                    Print one JSON object (schemaVersion 1) on stdout
   --no-token-advisory       Don't comment on the PR when arming lacks a release token
@@ -61,8 +64,9 @@ reconcile options:
 Environment:
   GITHUB_TOKEN              Token for reads and writes (required)
   PR_LIFECYCLE_TOKEN
-                            Real-actor token for arming, merging, and updating;
-                            without it, labels are kept but those are skipped
+                            Real-actor token for arming, merging, updating, and
+                            UAT labels; without it, labels are kept but those are
+                            skipped, and 'no UAT needed' is never applied
   GITHUB_API_URL            API base URL (GitHub Enterprise Server)`;
 
 export async function runCli(argv: readonly string[], io: CliIo, deps: CliDeps): Promise<number> {
@@ -99,6 +103,7 @@ export async function runCli(argv: readonly string[], io: CliIo, deps: CliDeps):
   const target = { owner: args.owner, repo: args.repo, pr: args.pr, dryRun: args.dryRun };
 
   try {
+    const releaseClient = hasReleaseToken ? clientFor(releaseToken) : 'unavailable';
     const result = await reconcilePullRequest(client, args.pr, args.policy, {
       dryRun: args.dryRun,
       lineage: {
@@ -106,18 +111,27 @@ export async function runCli(argv: readonly string[], io: CliIo, deps: CliDeps):
         token,
         ...(args.prosePatterns === undefined ? {} : { prosePatterns: args.prosePatterns }),
       },
-      // Only disarming, arming, merging, and updating use the release token (never
-      // reads). Without one, arming, merging, and updating are skipped rather than
-      // done with GITHUB_TOKEN, and a disarm falls back to it; see docs/cli.md.
-      release: hasReleaseToken ? clientFor(releaseToken) : 'unavailable',
+      // Only disarming, arming, merging, updating, and UAT label writes use the
+      // release token (never reads). Without one, arming, merging, and updating
+      // are skipped rather than done with GITHUB_TOKEN, a disarm falls back to it,
+      // and `no UAT needed` is never applied; see docs/cli.md.
+      release: releaseClient,
+      uatWrites: releaseClient,
     });
     if (result.skippedAutoMerge !== undefined) {
       io.stderr(
         `warning: ${args.owner}/${args.repo}#${args.pr} is approved, but auto-merge ${result.skippedAutoMerge} was skipped: PR_LIFECYCLE_TOKEN is not set`,
       );
-      if (args.tokenAdvisory && !args.dryRun) {
-        await adviseMissingToken(client, args.pr, result.skippedAutoMerge, io);
-      }
+    }
+    if (result.skippedUatWaiver) {
+      io.stderr(
+        `warning: ${args.owner}/${args.repo}#${args.pr} needs no UAT, but 'no UAT needed' was not applied: PR_LIFECYCLE_TOKEN is not set`,
+      );
+    }
+    const advisory =
+      result.skippedAutoMerge ?? (result.skippedUatWaiver ? ('uat-waiver' as const) : undefined);
+    if (advisory !== undefined && args.tokenAdvisory && !args.dryRun) {
+      await adviseMissingToken(client, args.pr, advisory, io);
     }
     if (result.deferredAutoMerge !== undefined) {
       io.stderr(
@@ -152,7 +166,7 @@ export async function runCli(argv: readonly string[], io: CliIo, deps: CliDeps):
 async function adviseMissingToken(
   client: GitHubClient,
   pr: number,
-  skipped: 'arm' | 'merge',
+  skipped: SkippedForToken,
   io: CliIo,
 ): Promise<void> {
   try {

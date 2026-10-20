@@ -1,25 +1,28 @@
 import type { BotEligibility } from '../bot-eligibility.js';
 import { DEPENDABOT_LOGIN } from '../bot-eligibility.js';
 import type {
-  ActorType,
   BranchUpdater,
   PullRequestFacts,
   ReconcilePolicy,
   RepoPermission,
-  ReviewAuthor,
   ReviewFact,
 } from '../facts.js';
-import { REPO_PERMISSIONS } from '../facts.js';
 import type { GitRunner } from '../lineage/git.js';
 import { gatherBotEligibility } from './bot-facts.js';
 import { gatherCiFacts } from './ci-facts.js';
 import type { GitHubClient, PullRequestData, ReviewData } from './client.js';
-import { isApiStatus } from './client.js';
 import { isDependabotRebasing } from './dependabot-rebase.js';
 import { gatherEscalationRemovals } from './escalation-facts.js';
 import { gatherForcePushes } from './force-push-facts.js';
 import type { Lineage } from './lineage-facts.js';
 import { gatherLineage } from './lineage-facts.js';
+import { lookupPermissions, toAuthor } from './permissions.js';
+import {
+  gatherCommitArrivals,
+  gatherPathFacts,
+  gatherSignOffApplications,
+  presentSignOffs,
+} from './uat-facts.js';
 
 /**
  * Gathers a PR's facts from GitHub for the pure core. Everything is read before
@@ -46,63 +49,6 @@ export interface GatherOptions {
    * earlier-commit verdicts simply don't count).
    */
   lineage?: { git: GitRunner; token?: string; prosePatterns?: readonly string[] };
-}
-
-function isRepoPermission(value: string): value is RepoPermission {
-  return REPO_PERMISSIONS.some((permission) => permission === value);
-}
-
-/**
- * The author's permission, preferring the fine-grained role (which distinguishes
- * maintain and triage) and falling back to the legacy level for custom roles.
- * A non-collaborator (404) has no permission.
- */
-async function lookupPermission(client: GitHubClient, login: string): Promise<RepoPermission> {
-  try {
-    const { permission, roleName } = await client.getCollaboratorPermission(login);
-    if (isRepoPermission(roleName)) {
-      return roleName;
-    }
-    return isRepoPermission(permission) ? permission : 'none';
-  } catch (error) {
-    if (isApiStatus(error, 404)) {
-      return 'none';
-    }
-    throw error;
-  }
-}
-
-/** A review author or a label remover: someone whose act counts only if trusted. */
-interface ActorData {
-  /** Undefined when the account was deleted (a "ghost"). */
-  login: string | undefined;
-  type: ActorType;
-}
-
-/**
- * Permissions for every actor who could possibly be trusted. Bots and deleted
- * ("ghost") accounts can never be trusted, so they skip the lookup.
- */
-async function lookupPermissions(
-  client: GitHubClient,
-  actors: readonly ActorData[],
-): Promise<Map<string, RepoPermission>> {
-  const logins = new Set<string>();
-  for (const actor of actors) {
-    if (actor.login !== undefined && actor.type === 'User') {
-      logins.add(actor.login);
-    }
-  }
-  const entries = await Promise.all(
-    [...logins].map(async (login) => [login, await lookupPermission(client, login)] as const),
-  );
-  return new Map(entries);
-}
-
-function toAuthor(actor: ActorData, permissions: Map<string, RepoPermission>): ReviewAuthor {
-  // Only looked-up Users have an entry; bots and ghosts get no permission.
-  const permission = actor.login === undefined ? undefined : permissions.get(actor.login);
-  return { login: actor.login ?? 'ghost', type: actor.type, permission: permission ?? 'none' };
 }
 
 function toReviewFact(review: ReviewData, permissions: Map<string, RepoPermission>): ReviewFact {
@@ -162,18 +108,35 @@ export async function gatherFacts(
   options: GatherOptions = {},
 ): Promise<GatheredPullRequest> {
   const [pull, reviews] = await Promise.all([client.getPullRequest(pr), client.listReviews(pr)]);
-  const [removals, forcePushes] = await Promise.all([
+  const signOffLabels = presentSignOffs(policy, pull);
+  const hasSignOff = signOffLabels.length > 0;
+  const [removals, forcePushes, signOffs, titleChanges] = await Promise.all([
     gatherEscalationRemovals(client, pr, reviews),
-    gatherForcePushes(client, pr, reviews),
+    gatherForcePushes(client, pr, reviews, hasSignOff),
+    gatherSignOffApplications(client, pr, signOffLabels),
+    hasSignOff ? client.listTitleChanges(pr) : [],
   ]);
   // Dependabot rebases its own branches; the author login can't be forged.
   const updater: BranchUpdater = pull.authorLogin === DEPENDABOT_LOGIN ? 'dependabot' : 'github';
-  const [permissions, botEligibility, ci, lineage] = await Promise.all([
-    lookupPermissions(client, [...reviews, ...removals]),
+  const signOffActors = signOffs.map(({ application }) => application);
+  const [permissions, botEligibility, ci, lineage, pathFacts] = await Promise.all([
+    lookupPermissions(client, [...reviews, ...removals, ...signOffActors]),
     gatherBotEligibility(client, pr, pull),
     gatherCiFacts(client, pull, policy),
     gatherLineageFor(client, pull, reviews, options),
+    gatherPathFacts(client, pr, pull, policy),
   ]);
+  const cleanAncestors = lineage?.cleanAncestors ?? [];
+  const cleanRebaseSources =
+    lineage?.rebases.filter((check) => check.carried).map((check) => check.source) ?? [];
+  // A sign-off binds to the head or a carried commit, so only their arrivals matter.
+  const commitArrivals = hasSignOff
+    ? await gatherCommitArrivals(client, pull, [
+        pull.headSha,
+        ...cleanAncestors,
+        ...cleanRebaseSources,
+      ])
+    : {};
   return {
     nodeId: pull.nodeId,
     botEligibility,
@@ -191,9 +154,8 @@ export async function gatherFacts(
       immediatelyMergeable: IMMEDIATE_MERGE_STATES.has(pull.mergeState ?? ''),
       ciStatus: ci.ciStatus,
       baseCiFailing: ci.baseCiFailing,
-      cleanAncestors: lineage?.cleanAncestors ?? [],
-      cleanRebaseSources:
-        lineage?.rebases.filter((check) => check.carried).map((check) => check.source) ?? [],
+      cleanAncestors,
+      cleanRebaseSources,
       updater,
       dependabotRebasing: updater === 'dependabot' && isDependabotRebasing(pull.body),
       reviews: reviews.map((review) => toReviewFact(review, permissions)),
@@ -203,6 +165,18 @@ export async function gatherFacts(
         removedAt: removal.removedAt,
       })),
       pendingBotReviewers: pull.requestedBotReviewers,
+      ...pathFacts,
+      ...(hasSignOff
+        ? {
+            uatSignOffs: signOffs.map(({ label, application }) => ({
+              label,
+              actor: toAuthor(application, permissions),
+              appliedAt: application.appliedAt,
+            })),
+            commitArrivals,
+            titleChanges,
+          }
+        : {}),
     },
   };
 }

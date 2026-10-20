@@ -8,6 +8,7 @@ import type {
   PullRequestData,
 } from './client.js';
 import { createCheckMethods } from './http-checks.js';
+import { createHistoryMethods } from './http-history.js';
 import type { HttpClientOptions } from './http-transport.js';
 import { createTransport } from './http-transport.js';
 import type {
@@ -46,6 +47,7 @@ export function createHttpClient(options: HttpClientOptions): GitHubClient {
 
   return {
     ...createCheckMethods(transport),
+    ...createHistoryMethods(transport),
     async getPullRequest(pr): Promise<PullRequestData> {
       const pull = (await request('GET', `${repoPath}/pulls/${pr}`)) as RestPull;
       return {
@@ -105,6 +107,9 @@ export function createHttpClient(options: HttpClientOptions): GitHubClient {
         filename: file.filename,
         status: file.status,
         patch: file.patch,
+        ...(file.previous_filename === undefined
+          ? {}
+          : { previousFilename: file.previous_filename }),
       }));
     },
     async listCommits(pr): Promise<CommitData[]> {
@@ -151,12 +156,6 @@ export function createHttpClient(options: HttpClientOptions): GitHubClient {
             removedAt: event.created_at,
           };
         });
-    },
-    async listForcePushes(pr) {
-      const events = await paginate<RestIssueEvent>(`${repoPath}/issues/${pr}/events`);
-      return events
-        .filter((event) => event.event === 'head_ref_force_pushed')
-        .map((event) => ({ headSha: event.commit_id ?? undefined, pushedAt: event.created_at }));
     },
     async getLastReadyForReviewAt(pr) {
       const events = await paginate<RestIssueEvent>(`${repoPath}/issues/${pr}/events`);

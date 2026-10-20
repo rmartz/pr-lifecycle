@@ -27,10 +27,31 @@ describe('parseArgs — reconcile', () => {
       owner: 'rmartz',
       repo: 'demo',
       pr: 7,
-      policy: { armAutoMerge: false, autoUpdate: false, skipCopilotReview: false },
+      policy: { armAutoMerge: false, autoUpdate: false, skipCopilotReview: false, uat: 'on' },
       dryRun: false,
       json: false,
       tokenAdvisory: true,
+    });
+  });
+
+  it.each([
+    ['on', 'on'],
+    ['off', 'off'],
+  ])('parses --uat %s', (value, uat) => {
+    expect(parseArgs([...BASE, '--uat', value])).toMatchObject({ policy: { uat } });
+  });
+
+  it('rejects a --uat value other than on or off', () => {
+    expect(parseArgs([...BASE, '--uat', 'maybe'])).toEqual({
+      command: 'error',
+      message: '--uat must be on or off, not maybe',
+    });
+  });
+
+  it('requires a value for --uat', () => {
+    expect(parseArgs([...BASE, '--uat'])).toEqual({
+      command: 'error',
+      message: '--uat requires a value',
     });
   });
 

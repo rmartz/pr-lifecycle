@@ -1,6 +1,13 @@
 import type { LabelDefinition } from './client.js';
 import { AUTO_MERGE_LABEL, DEPENDABOT_REBASING_LABEL } from '../plan.js';
 import type { LifecycleLabel } from '../plan.js';
+import type { UatLabel } from '../uat.js';
+import {
+  NO_UAT_NEEDED_LABEL,
+  UAT_PASSED_LABEL,
+  UAT_PENDING_LABEL,
+  UAT_READY_LABEL,
+} from '../uat.js';
 
 /**
  * Canonical definitions for the labels the reconciler owns, mirroring the fleet
@@ -9,9 +16,29 @@ import type { LifecycleLabel } from '../plan.js';
  * changed.
  */
 export const OWNED_LABEL_DEFINITIONS: Record<
-  LifecycleLabel | typeof AUTO_MERGE_LABEL | typeof DEPENDABOT_REBASING_LABEL,
+  LifecycleLabel | UatLabel | typeof AUTO_MERGE_LABEL | typeof DEPENDABOT_REBASING_LABEL,
   LabelDefinition
 > = {
+  'no UAT needed': {
+    name: NO_UAT_NEEDED_LABEL,
+    color: '64748B',
+    description: 'UAT-exempt: no human testing required before merge.',
+  },
+  'UAT passed': {
+    name: UAT_PASSED_LABEL,
+    color: '0E7490',
+    description: 'UAT complete — manually verified by PR author.',
+  },
+  'UAT pending': {
+    name: UAT_PENDING_LABEL,
+    color: '0891B2',
+    description: 'UAT required but PR has outstanding issues blocking testing.',
+  },
+  'UAT ready': {
+    name: UAT_READY_LABEL,
+    color: '22D3EE',
+    description: 'Functionally complete — ready for human testing.',
+  },
   approved: {
     name: 'approved',
     color: '2DA44E',
