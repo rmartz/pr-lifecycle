@@ -95,8 +95,10 @@ the escalation is resolved and the PR goes back to review.
   every reconcile it decides which human sign-off the head needs (`none`, `ci`,
   or `uat`; [the sign-off status](sign-off-status.md)) and posts it as the
   `pr-lifecycle/sign-off` commit status. pr-policy gates on that status, never
-  on a label this package writes, and this package is to become the only label
-  writer (#118 moves `CI approval needed` here). The CI loosening rules moved here
+  on a label this package writes, and this package is the only writer of the
+  labels people see, `CI approval needed` included (#118). pr-policy still
+  writes that label until rmartz/pr-policy#85 removes its copy; both compute it
+  from the same rule, so they agree. The CI loosening rules moved here
   from pr-policy for the same reason ([CI loosening](ci-loosening.md)).
 - **UAT labels follow the classification.** Every reconcile
   leaves exactly one UAT label (`no UAT needed`, `UAT pending`, `UAT ready`, or
@@ -128,6 +130,11 @@ the escalation is resolved and the PR goes back to review.
   - The UAT sign-offs, `no UAT needed` and `UAT passed`, are inputs as well as
     outputs. One applied by a trusted person is kept while it is current for the
     head; any other is replaced ([UAT labels](uat.md)).
+  - `CI approval needed` is written from the sign-off classification and read
+    once more: it is never removed after a trusted person applies
+    `CI change approved`, which it then records. `CI change approved` itself is
+    a person's sign-off, read and never written
+    ([the sign-off status](sign-off-status.md#ci-approval-needed)).
 - **Arming is opt-in.** One package; auto-merge arming sits behind an
   `arm-auto-merge` input that defaults to off, so consumers can adopt labelling
   before their ruleset gates are ready.

@@ -21,9 +21,16 @@ export interface FileChange {
 export const UAT_SIGN_OFF_LABELS = ['no UAT needed', 'UAT passed'] as const;
 export type UatSignOffLabel = (typeof UAT_SIGN_OFF_LABELS)[number];
 
-/** The latest application of a UAT sign-off label, from the PR's issue events. */
+/** A person's sign-off on a CI loosening. Read, never written. */
+export const CI_CHANGE_APPROVED_LABEL = 'CI change approved';
+
+/** Every sign-off label whose applier is read: the UAT ones and the CI one. */
+export const SIGN_OFF_LABELS = [...UAT_SIGN_OFF_LABELS, CI_CHANGE_APPROVED_LABEL] as const;
+export type SignOffLabel = (typeof SIGN_OFF_LABELS)[number];
+
+/** The latest application of a sign-off label, from the PR's issue events. */
 export interface UatSignOffFact {
-  label: UatSignOffLabel;
+  label: SignOffLabel;
   /** Who applied it, with their permission fetched at the edge (as for review authors). */
   actor: ReviewAuthor;
   /** ISO-8601 time it was applied. */

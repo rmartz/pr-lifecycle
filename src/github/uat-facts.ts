@@ -1,5 +1,5 @@
-import type { FileChange, ReconcilePolicy, UatSignOffLabel } from '../facts.js';
-import { UAT_SIGN_OFF_LABELS } from '../facts.js';
+import type { FileChange, ReconcilePolicy, SignOffLabel } from '../facts.js';
+import { SIGN_OFF_LABELS } from '../facts.js';
 import type { ChangedFile } from '../release-diff.js';
 import { isPackageManifest, trivialCategories } from '../uat-paths.js';
 import { listAllChangedFiles, touchedPaths } from './changed-files.js';
@@ -27,18 +27,18 @@ export function uatActive(policy: ReconcilePolicy, pull: Pick<PullRequestData, '
   return policy.uat !== undefined && pull.state === 'open';
 }
 
-/** The UAT sign-off labels on the PR, when they can count. */
+/** The sign-off labels on the PR (UAT and CI), when they can count. */
 export function presentSignOffs(
   policy: ReconcilePolicy,
   pull: Pick<PullRequestData, 'labels' | 'state'>,
-): UatSignOffLabel[] {
+): SignOffLabel[] {
   return uatActive(policy, pull)
-    ? UAT_SIGN_OFF_LABELS.filter((label) => pull.labels.includes(label))
+    ? SIGN_OFF_LABELS.filter((label) => pull.labels.includes(label))
     : [];
 }
 
 export interface SignOffApplication {
-  label: UatSignOffLabel;
+  label: SignOffLabel;
   application: LabelApplicationData;
 }
 
@@ -50,7 +50,7 @@ export interface SignOffApplication {
 export async function gatherSignOffApplications(
   client: Pick<GitHubClient, 'listLabelApplications'>,
   pr: number,
-  labels: readonly UatSignOffLabel[],
+  labels: readonly SignOffLabel[],
 ): Promise<SignOffApplication[]> {
   const found = await Promise.all(
     labels.map(async (label) => {

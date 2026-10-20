@@ -1,6 +1,7 @@
 import type { LabelDefinition } from './client.js';
 import { AUTO_MERGE_LABEL, DEPENDABOT_REBASING_LABEL } from '../plan.js';
 import type { LifecycleLabel } from '../plan.js';
+import { CI_APPROVAL_NEEDED_LABEL } from '../sign-off-plan.js';
 import type { UatLabel } from '../uat.js';
 import {
   NO_UAT_NEEDED_LABEL,
@@ -16,7 +17,11 @@ import {
  * changed.
  */
 export const OWNED_LABEL_DEFINITIONS: Record<
-  LifecycleLabel | UatLabel | typeof AUTO_MERGE_LABEL | typeof DEPENDABOT_REBASING_LABEL,
+  | LifecycleLabel
+  | UatLabel
+  | typeof AUTO_MERGE_LABEL
+  | typeof CI_APPROVAL_NEEDED_LABEL
+  | typeof DEPENDABOT_REBASING_LABEL,
   LabelDefinition
 > = {
   'no UAT needed': {
@@ -43,6 +48,12 @@ export const OWNED_LABEL_DEFINITIONS: Record<
     name: 'approved',
     color: '2DA44E',
     description: 'Code review passed — safe to merge pending UAT.',
+  },
+  'CI approval needed': {
+    name: CI_APPROVAL_NEEDED_LABEL,
+    color: 'F59E0B',
+    description:
+      'CI-loosening change awaiting human sign-off; merge-gated until `CI change approved`.',
   },
   'auto-merge enabled': {
     name: AUTO_MERGE_LABEL,

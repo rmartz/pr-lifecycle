@@ -287,7 +287,8 @@ properties are on their own page: [Approval carry-over](approval-carry-over.md).
   lifecycle labels (`approved`, `blocked`, `changes requested`,
   `escalation needed`, `fix required`, `ci failing`, `review requested`),
   [`dependabot rebasing`](#dependabot-rebasing-label), in arming mode
-  `auto-merge enabled`, and, when `policy.uat` is set, the four UAT labels. It
+  `auto-merge enabled`, and, when `policy.uat` is set, the four UAT labels and
+  [`CI approval needed`](sign-off-status.md#ci-approval-needed). It
   adds the desired ones and removes every other owned label present, so a
   hand-applied `approved` with no verdict behind it is removed. Labels the core
   doesn't own are never touched. When the labels already match, the plan is
