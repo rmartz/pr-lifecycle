@@ -7,13 +7,14 @@ describe('isUatExemptTitle', () => {
     'docs: explain the UAT rules',
     'test: cover the classifier',
     'refactor: extract the binding',
-    'chore(deps): Bump left-pad from 1.0.0 to 1.0.1',
     'ci: pin the setup action',
   ])('exempts %j by title', (title) => {
     expect(isUatExemptTitle(title)).toBe(true);
   });
 
   it.each([
+    'chore(deps): Bump left-pad from 1.0.0 to 1.0.1',
+    'chore: tidy up',
     'feat: add a thing',
     'fix: stop the crash',
     'perf: cache the lookup',

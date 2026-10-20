@@ -9,8 +9,8 @@ import type { FileChange } from './facts.js';
  *
  * One deliberate narrowing: workflow and composite-action files are never
  * exempt here. pr-policy tells a repo's own CI from a shipped reusable workflow
- * by parsing the YAML; this package doesn't, and a `ci:` or `chore:` title
- * already exempts the routine CI change.
+ * by parsing the YAML; this package doesn't, and a `ci:` title already exempts
+ * the routine CI change.
  *
  * Separate from any "safe to approve without review" predicate on purpose: a
  * change can need review and not UAT, and the two questions must not share an

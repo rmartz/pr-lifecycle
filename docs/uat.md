@@ -60,15 +60,20 @@ don't erase a `UAT passed`. A dismissed approval, or a later
 
 The title type is checked first; the changed paths are only a fallback.
 
-- **Exempt by title: `docs`, `test`, `refactor`, `chore`, `ci`.** The title is
-  parsed with pr-policy's Conventional-Commit grammar, so the two agree on its
-  type. pr-policy's title check holds `docs` to Markdown, `test` to tests, and
-  `refactor` to leaving tests alone, so a false promise can't merge.
+- **Exempt by title: `docs`, `test`, `refactor`, `ci`.** The title is parsed
+  with pr-policy's Conventional-Commit grammar, so the two agree on its type.
+  A type is listed only when pr-policy's title check holds it to its paths:
+  `docs` to Markdown, `test` to tests, `refactor` to leaving tests alone, and
+  `ci` to CI files. A false promise can't merge.
 - **Every other type needs UAT by default**: `feat`, `fix`, `perf`, `revert`,
-  `build`, `style`, and a title that doesn't parse. This is an allowlist on
-  purpose: an opt-in list of "UAT types" would let any unlisted type carry a
-  user-facing change past UAT on the strength of a title its author chose.
-  `revert` and `perf` change behavior in their own right.
+  `chore`, `build`, `style`, and a title that doesn't parse. This is an
+  allowlist on purpose: an opt-in list of "UAT types" would let any unlisted type
+  carry a user-facing change past UAT on the strength of a title its author
+  chose. `revert` and `perf` change behavior in their own right. `chore` is out
+  because "no behavior change" can't be checked by a path rule, so pr-policy
+  doesn't enforce its paths and the title is an unchecked claim. A `chore:` PR
+  the paths don't exempt is left to `/review`, which applies `no UAT needed`
+  when it fits.
 - **Path fallback, for those types only.** pr-policy's trivial-path rules,
   ported: Markdown and `docs/`, tests (including Storybook stories), lockfiles
   and `requirements*.txt`, a `package.json` that changes only dependency
@@ -80,8 +85,7 @@ The title type is checked first; the changed paths are only a fallback.
   - **One deliberate narrowing:** workflow and composite-action files
     (`.github/workflows/`, `.github/actions/`) never exempt. pr-policy tells a
     repo's own CI from a shipped reusable workflow by parsing the YAML; this
-    package doesn't, and a `ci:` or `chore:` title already exempts the routine
-    CI change.
+    package doesn't, and a `ci:` title already exempts the routine CI change.
   - **Fails closed.** An incomplete file listing (GitHub lists at most 3,000), or
     more than 10 changed manifests, exempts nothing.
 

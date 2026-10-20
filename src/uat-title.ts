@@ -24,14 +24,15 @@ export type CommitType = (typeof COMMIT_TYPES)[number];
 /**
  * The types that exempt a PR from UAT by title alone. An allowlist on purpose:
  * every other type, and a title that doesn't parse, needs UAT unless its paths
- * exempt it. pr-policy's title check holds `docs`, `test`, and `refactor` to their
- * paths, so a false promise can't merge.
+ * exempt it. Each listed type is one pr-policy's title check holds to its paths
+ * (`docs`, `test`, `refactor`, `ci`), so a false promise can't merge. `chore` is
+ * left out: "no behavior change" can't be checked by a path rule, so a `chore:`
+ * title is an unchecked claim.
  */
 export const UAT_EXEMPT_TYPES = [
   'docs',
   'test',
   'refactor',
-  'chore',
   'ci',
 ] as const satisfies readonly CommitType[];
 

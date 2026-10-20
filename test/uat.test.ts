@@ -26,14 +26,11 @@ describe('classifyUat — rule 1: UAT off', () => {
 });
 
 describe('classifyUat — rule 2: can not be user-facing', () => {
-  it.each(['docs: a', 'test: a', 'refactor: a', 'chore: a', 'ci: a'])(
-    'exempts the title %j',
-    (title) => {
-      expect(outcome(makeUatFacts({ title }))).toBe('exempt-title');
-    },
-  );
+  it.each(['docs: a', 'test: a', 'refactor: a', 'ci: a'])('exempts the title %j', (title) => {
+    expect(outcome(makeUatFacts({ title }))).toBe('exempt-title');
+  });
 
-  it.each(['feat: a', 'fix: a', 'perf: a', 'revert: a', 'chore no colon'])(
+  it.each(['feat: a', 'fix: a', 'perf: a', 'revert: a', 'chore: a', 'chore no colon'])(
     'does not exempt the title %j',
     (title) => {
       expect(outcome(makeUatFacts({ title }))).toBe('pending');
@@ -41,14 +38,14 @@ describe('classifyUat — rule 2: can not be user-facing', () => {
   );
 
   it('exempts a chore PR touching only lockfiles by its paths', () => {
-    const facts = makeUatFacts({ title: 'build(deps): bump a', changedPaths: ['pnpm-lock.yaml'] });
+    const facts = makeUatFacts({ title: 'chore(deps): bump a', changedPaths: ['pnpm-lock.yaml'] });
 
     expect(outcome(facts)).toBe('exempt-paths');
   });
 
-  it('does not exempt a PR touching source', () => {
+  it('does not exempt a chore PR touching source', () => {
     const facts = makeUatFacts({
-      title: 'build: bump a',
+      title: 'chore: tidy up',
       changedPaths: ['pnpm-lock.yaml', 'src/a.ts'],
     });
 
