@@ -18,6 +18,8 @@ export interface ChangedFile {
   status: string;
   /** The unified-diff hunk text; undefined when GitHub omits it (e.g. a large diff). */
   patch: string | undefined;
+  /** A renamed file's old path. */
+  previousFilename?: string | undefined;
 }
 
 export type ReleaseDiffVerdict = { release: true } | { release: false; reason: string };

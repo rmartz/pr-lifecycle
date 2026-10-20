@@ -96,6 +96,23 @@ export interface LabelRemovalData {
   removedAt: string;
 }
 
+/** An application of a label to the PR, from its issue events. */
+export interface LabelApplicationData {
+  /** Undefined when the actor's account was deleted. */
+  login: string | undefined;
+  type: ActorType;
+  /** ISO-8601 time the label was applied. */
+  appliedAt: string;
+}
+
+/** A check suite on a commit: which branch it ran for, and when it was created. */
+export interface CheckSuiteData {
+  /** Undefined when GitHub didn't record a branch. */
+  headBranch: string | undefined;
+  /** ISO-8601 creation time. */
+  createdAt: string;
+}
+
 /** The collaborator-permission API's answer: the legacy level and the role. */
 export interface CollaboratorPermission {
   /** Legacy level: admin, write, read, or none (maintain → write, triage → read). */
@@ -133,8 +150,16 @@ export interface GitHubClient {
   removeLabel(pr: number, name: string): Promise<void>;
   /** Every removal of `label` from the PR, oldest first. */
   listLabelRemovals(pr: number, label: string): Promise<LabelRemovalData[]>;
-  /** Every force-push to the PR's branch, oldest first. */
+  /** Every application of `label` to the PR, oldest first. */
+  listLabelApplications(pr: number, label: string): Promise<LabelApplicationData[]>;
+  /** When the PR's title was changed (ISO-8601), oldest first. */
+  listTitleChanges(pr: number): Promise<string[]>;
+  /** Every force-push to the PR's branch, with the heads it replaced and made, oldest first. */
   listForcePushes(pr: number): Promise<ForcePushFact[]>;
+  /** The check suites on a commit. */
+  listCheckSuites(sha: string): Promise<CheckSuiteData[]>;
+  /** A file's text at `ref`, or undefined when it doesn't exist there (404). */
+  getFileText(path: string, ref: string): Promise<string | undefined>;
   /** When the PR was last marked ready for review (ISO-8601), if ever. */
   getLastReadyForReviewAt(pr: number): Promise<string | undefined>;
   /** Bodies of the PR's conversation comments, oldest first. */
@@ -160,13 +185,20 @@ export interface GitHubClient {
  * `GITHUB_TOKEN` triggers no workflows (so no release, and no CI on the new head).
  * Disarming is here too: GitHub refuses `disablePullRequestAutoMerge` from a
  * workflow token without `contents: write`, so the actor that armed the PR disarms
- * it (#77). Kept to these calls so the release token is never used for anything
- * else, reads included.
+ * it (#77). Kept to these calls (and `UatLabelWrites`) so the release token is
+ * never used for anything else, reads included.
  */
 export type ReleaseActions = Pick<
   GitHubClient,
   'disableAutoMerge' | 'enableAutoMerge' | 'mergePullRequest' | 'updateBranch'
 >;
+
+/**
+ * The UAT label writes, which also come from a real actor: pr-policy only trusts
+ * a sign-off label a person applied, and a label written with `GITHUB_TOKEN`
+ * fires no `labeled` run for pr-policy to re-evaluate on (docs/uat.md).
+ */
+export type UatLabelWrites = Pick<GitHubClient, 'addLabels' | 'removeLabel'>;
 
 export class GitHubApiError extends Error {
   /** The HTTP status; 0 when the request never got a response (a network failure). */

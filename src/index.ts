@@ -24,10 +24,17 @@ export {
   PR_STATUSES,
   REPO_PERMISSIONS,
   REVIEW_STATES,
+  UAT_SETTINGS,
+  UAT_SIGN_OFF_LABELS,
 } from './facts.js';
 export type {
   ActorType,
   BranchUpdater,
+  FileChange,
+  ForcePushFact,
+  UatSetting,
+  UatSignOffFact,
+  UatSignOffLabel,
   PullRequestFacts,
   PullRequestStatus,
   ReconcilePolicy,
@@ -38,13 +45,16 @@ export type {
 } from './facts.js';
 export { GitHubApiError, isApiStatus, isTransientError } from './github/client.js';
 export type {
+  CheckSuiteData,
   CollaboratorPermission,
   CommitData,
   GitHubClient,
+  LabelApplicationData,
   LabelDefinition,
   PullRequestData,
   ReleaseActions,
   ReviewData,
+  UatLabelWrites,
 } from './github/client.js';
 export {
   DEPENDABOT_REBASING_NOTICE,
@@ -74,6 +84,7 @@ export {
   RELEASE_TOKEN_DOCS_URL,
   TOKEN_ADVISORY_MARKER,
 } from './github/token-advisory.js';
+export type { SkippedForToken } from './github/token-advisory.js';
 export type { GatherOptions } from './github/gather.js';
 export { createGitRunner, parseGitVersion } from './lineage/git.js';
 export type { GitResult, GitRunner } from './lineage/git.js';
@@ -93,9 +104,28 @@ export {
   planReconcile,
   UPDATE_REQUIRED_LABEL,
   withoutReleaseActions,
+  withoutUatWaiver,
 } from './plan.js';
 export type { AutoMergeAction, LifecycleLabel, ReconcilePlan, UpdateAction } from './plan.js';
 export { computeState, LIFECYCLE_STATES } from './state.js';
 export type { LifecycleState } from './state.js';
+export {
+  classifyUat,
+  exemptionOf,
+  hasApproval,
+  NO_UAT_NEEDED_LABEL,
+  UAT_LABELS,
+  UAT_OUTCOMES,
+  UAT_PASSED_LABEL,
+  UAT_PENDING_LABEL,
+  UAT_READY_LABEL,
+  uatLabelFor,
+} from './uat.js';
+export type { UatLabel, UatOutcome } from './uat.js';
+export { isRetitledSince, isSignOffCurrent } from './uat-binding.js';
+export { isTestPath, LOCKFILES, TRIVIAL_CATEGORIES, trivialCategories } from './uat-paths.js';
+export type { TrivialCategory } from './uat-paths.js';
+export { COMMIT_TYPES, isUatExemptTitle, titleType, UAT_EXEMPT_TYPES } from './uat-title.js';
+export type { CommitType } from './uat-title.js';
 export { currentVerdict, isTrustedAuthor, parseVerdict, VERDICTS } from './verdict.js';
 export type { ParsedVerdict, Verdict } from './verdict.js';

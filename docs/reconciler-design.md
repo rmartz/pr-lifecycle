@@ -15,7 +15,8 @@ the plan. Because the output depends only on current facts, never on the event
 that triggered the run, replaying, reordering or dropping events cannot drive a PR
 into a wrong state.
 
-Source: `src/` (`facts.ts`, `verdict.ts`, `head-binding.ts`, `state.ts`, `plan.ts`).
+Source: `src/` (`facts.ts`, `verdict.ts`, `head-binding.ts`, `state.ts`, `plan.ts`,
+and the UAT classifier in `uat*.ts`).
 
 ## Facts
 
@@ -36,8 +37,9 @@ Source: `src/` (`facts.ts`, `verdict.ts`, `head-binding.ts`, `state.ts`, `plan.t
 | `updater`              | `dependabot` for a PR opened by `dependabot[bot]` (it rebases its own branch), else `github` (`update-branch`)                                |
 | `dependabotRebasing`   | Dependabot PRs only: the PR body carries Dependabot's own rebasing or recreating notice; a rebase request doesn't count                       |
 | `reviews`              | PR reviews: author login, type (`User`/`Bot`), repo permission, `commit_id`, state, body, submitted time                                      |
-| `forcePushes`          | `head_ref_force_pushed` issue events: the commit each made the head, and when (read only when some review is a verdict)                       |
+| `forcePushes`          | the timeline's force-pushes: the heads each replaced and made, and when (read only for a verdict or a UAT sign-off)                           |
 | `pendingBotReviewers`  | PR `requested_reviewers` entries of type `Bot` (Copilot appears as `Copilot`); users and teams are left out                                   |
+| `changedPaths`, …      | the [UAT facts](uat.md): changed paths and manifests, the latest application of each UAT sign-off, commit arrivals, title changes             |
 
 The author's **repo permission** is a fact gathered at the edge (the collaborator
 permission API), so trust evaluation stays pure.
@@ -190,7 +192,7 @@ removes `review requested` and puts it back once CI on the new head is green, a
 flicker of a few seconds on a fast CI. That is intended: a label is only ever
 present for a state the current head has reached, so no lifecycle label is left
 describing a head that is still being evaluated. Don't "fix" it by keeping a
-label through pending CI; that would make labels an input, as only
+label through pending CI; that would make a lifecycle label an input, as only
 `escalation needed` is.
 
 ### CI gate
@@ -275,15 +277,25 @@ properties are on their own page: [Approval carry-over](approval-carry-over.md).
 
 ## Plan
 
-- **Labels are output only**, with one exception: `escalation needed` is also an
-  input. The core never removes a present one, and a trusted person
-  removing it resolves an escalation verdict (see [State](#state-in-priority-order)). The core owns the seven lifecycle labels
-  (`approved`, `blocked`, `changes requested`, `escalation needed`,
-  `fix required`, `ci failing`, `review requested`), [`dependabot rebasing`](#dependabot-rebasing-label),
-  and, in arming mode, `auto-merge enabled`. It adds the desired ones and removes every
-  other owned label present, so a hand-applied `approved` with no verdict behind
-  it is removed. Labels the core doesn't own are never touched. When the labels
-  already match, the plan is empty.
+- **Labels are output only**, with two exceptions. `escalation needed` is also
+  an input: the core never removes a present one, and a trusted person removing
+  it resolves an escalation verdict (see [State](#state-in-priority-order)). The
+  UAT sign-offs `no UAT needed` and `UAT passed` are inputs too: a trusted,
+  current one is kept (see [UAT labels](uat.md)). The core owns the seven
+  lifecycle labels (`approved`, `blocked`, `changes requested`,
+  `escalation needed`, `fix required`, `ci failing`, `review requested`),
+  [`dependabot rebasing`](#dependabot-rebasing-label), in arming mode
+  `auto-merge enabled`, and, when `policy.uat` is set, the four UAT labels. It
+  adds the desired ones and removes every other owned label present, so a
+  hand-applied `approved` with no verdict behind it is removed. Labels the core
+  doesn't own are never touched. When the labels already match, the plan is
+  empty.
+- **UAT (`policy.uat`, `on` or `off`; absent, UAT labels aren't owned).** The
+  plan's `uat` names the [rule](uat.md#rules) that picked the PR's one UAT label,
+  and the label changes are in `addLabels` / `removeLabels`.
+  **`withoutUatWaiver(plan)`** drops an add of `no UAT needed` and keeps
+  everything else; the edge layer applies it when no real-actor token is
+  available to write UAT labels.
 - **Auto-merge (opt-in via `policy.armAutoMerge`, default off).** When the state
   is `approved` and auto-merge is off, the core plans `merge` if the PR is
   `immediatelyMergeable` (GitHub refuses to arm a PR that is already mergeable;

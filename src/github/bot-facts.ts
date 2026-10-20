@@ -5,7 +5,7 @@ import {
   parseDependabotUpdateType,
   RELEASE_PLEASE_BRANCH_PREFIX,
 } from '../bot-eligibility.js';
-import type { ChangedFile } from '../release-diff.js';
+import { listAllChangedFiles } from './changed-files.js';
 import type { GitHubClient, PullRequestData } from './client.js';
 
 /**
@@ -14,19 +14,6 @@ import type { GitHubClient, PullRequestData } from './client.js';
  * commit has no explicit update type), or a same-repo release-please branch's
  * changed files. See docs/bot-eligibility.md.
  */
-
-/**
- * The PR's changed files, or undefined when the list is incomplete: GitHub lists
- * at most 3,000, so a count short of `changed_files` fails closed.
- */
-async function listAllChangedFiles(
-  client: GitHubClient,
-  pr: number,
-  pull: PullRequestData,
-): Promise<ChangedFile[] | undefined> {
-  const files = await client.listPullRequestFiles(pr);
-  return files.length === pull.changedFileCount ? files : undefined;
-}
 
 export async function gatherBotEligibility(
   client: GitHubClient,

@@ -51,12 +51,41 @@ export interface ReviewFact {
   submittedAt: string;
 }
 
-/** A force-push to the PR's branch, from its issue events. */
+/** A force-push to the PR's branch, from its timeline. */
 export interface ForcePushFact {
   /** The commit the push made the head; undefined when GitHub didn't say (fails closed). */
   headSha: string | undefined;
+  /**
+   * The head the push replaced; undefined when GitHub didn't say (fails closed).
+   * Only UAT sign-off binding reads it (see src/uat-binding.ts).
+   */
+  beforeSha?: string | undefined;
   /** ISO-8601 time of the push. */
   pushedAt: string;
+}
+
+/**
+ * A changed file's text on each side, for rules that judge a file by content.
+ * An absent side means the PR added (no `baseText`) or deleted (no `headText`)
+ * the file, or that it couldn't be read.
+ */
+export interface FileChange {
+  path: string;
+  baseText?: string;
+  headText?: string;
+}
+
+/** The UAT labels a person (or the review agent) applies as a sign-off. */
+export const UAT_SIGN_OFF_LABELS = ['no UAT needed', 'UAT passed'] as const;
+export type UatSignOffLabel = (typeof UAT_SIGN_OFF_LABELS)[number];
+
+/** The latest application of a UAT sign-off label, from the PR's issue events. */
+export interface UatSignOffFact {
+  label: UatSignOffLabel;
+  /** Who applied it, with their permission fetched at the edge (as for review authors). */
+  actor: ReviewAuthor;
+  /** ISO-8601 time it was applied. */
+  appliedAt: string;
 }
 
 /** Someone removing the `escalation needed` label from the PR. */
@@ -134,6 +163,30 @@ export interface PullRequestFacts {
    * submitted. Users and teams are left out: the lifecycle never waits on people.
    */
   pendingBotReviewers: readonly string[];
+  /**
+   * Every path the PR touches, a rename's old path included. Absent when not
+   * gathered or when the listing was incomplete: then no path rule can exempt the
+   * PR from UAT (fails closed). Gathered only when UAT is on and the title alone
+   * doesn't exempt the PR.
+   */
+  changedPaths?: readonly string[];
+  /** Base (merge base) and head text of each changed `package.json`, for the UAT path rules. */
+  manifestChanges?: readonly FileChange[];
+  /**
+   * The latest application of each UAT sign-off label present on the PR.
+   * Gathered only when UAT is on and one is present; absent means none.
+   */
+  uatSignOffs?: readonly UatSignOffFact[];
+  /**
+   * When each commit a sign-off could be bound to (the head, and the commits
+   * carry-over verified) first had a check suite on the PR's branch (ISO-8601).
+   * With the force-pushes, this is when a commit became the head: a time the
+   * author can't forge, unlike a commit date. A commit with no entry has no known
+   * arrival, so no sign-off binds to it.
+   */
+  commitArrivals?: Readonly<Record<string, string>>;
+  /** When the PR's title was changed (ISO-8601), from its issue events; read with the sign-offs. */
+  titleChanges?: readonly string[];
 }
 
 export interface ReconcilePolicy {
@@ -165,4 +218,14 @@ export interface ReconcilePolicy {
   holdChecks?: readonly string[];
   /** Required checks the CI gate never counts. Defaults to `DEFAULT_IGNORED_CHECKS`. */
   ignoredChecks?: readonly string[];
+  /**
+   * The repo's UAT setting, which also turns on reconciling the UAT labels
+   * (docs/uat.md): `on` holds a PR that could be user-facing at `UAT pending`
+   * until it is signed off, and `off` gives every PR `no UAT needed`. Absent, the
+   * UAT labels are neither read nor written. The CLI passes `on` unless `--uat off`.
+   */
+  uat?: UatSetting;
 }
+
+export const UAT_SETTINGS = ['off', 'on'] as const;
+export type UatSetting = (typeof UAT_SETTINGS)[number];

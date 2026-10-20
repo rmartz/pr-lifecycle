@@ -1,4 +1,5 @@
 import type {
+  CheckSuiteData,
   CollaboratorPermission,
   CheckRunData,
   CommitComparison,
@@ -6,6 +7,7 @@ import type {
   CommitObject,
   CommitStatusData,
   GitHubClient,
+  LabelApplicationData,
   LabelDefinition,
   LabelRemovalData,
   PullRequestData,
@@ -89,6 +91,14 @@ export class FakeGitHubClient implements GitHubClient {
   labelRemovals = new Map<string, LabelRemovalData[]>();
   /** Force-pushes to the PR's branch, oldest first. */
   forcePushes: ForcePushFact[] = [];
+  /** Label applications by label name, oldest first. */
+  labelApplications = new Map<string, LabelApplicationData[]>();
+  /** When the PR's title was changed, oldest first. */
+  titleChanges: string[] = [];
+  /** Check suites by commit sha. */
+  checkSuites = new Map<string, CheckSuiteData[]>();
+  /** File texts keyed by `ref:path`; an absent key doesn't exist there. */
+  fileTexts = new Map<string, string>();
   readonly calls: FakeCall[] = [];
   private readonly failures = new Map<keyof GitHubClient, Error>();
 
@@ -119,6 +129,10 @@ export class FakeGitHubClient implements GitHubClient {
       'getLastReadyForReviewAt',
       'listLabelRemovals',
       'listForcePushes',
+      'listLabelApplications',
+      'listTitleChanges',
+      'listCheckSuites',
+      'getFileText',
     ]);
     return this.calls.filter((call) => !reads.has(call.method));
   }
@@ -236,6 +250,26 @@ export class FakeGitHubClient implements GitHubClient {
   listForcePushes(pr: number): Promise<ForcePushFact[]> {
     this.record('listForcePushes', pr);
     return Promise.resolve([...this.forcePushes]);
+  }
+
+  listLabelApplications(pr: number, label: string): Promise<LabelApplicationData[]> {
+    this.record('listLabelApplications', pr, label);
+    return Promise.resolve([...(this.labelApplications.get(label) ?? [])]);
+  }
+
+  listTitleChanges(pr: number): Promise<string[]> {
+    this.record('listTitleChanges', pr);
+    return Promise.resolve([...this.titleChanges]);
+  }
+
+  listCheckSuites(sha: string): Promise<CheckSuiteData[]> {
+    this.record('listCheckSuites', sha);
+    return Promise.resolve([...(this.checkSuites.get(sha) ?? [])]);
+  }
+
+  getFileText(path: string, ref: string): Promise<string | undefined> {
+    this.record('getFileText', path, ref);
+    return Promise.resolve(this.fileTexts.get(`${ref}:${path}`));
   }
 
   getLastReadyForReviewAt(pr: number): Promise<string | undefined> {

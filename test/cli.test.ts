@@ -2,7 +2,13 @@ import { describe, expect, it } from 'vitest';
 
 import { EXIT_TRANSIENT, runCli, USAGE } from '../src/cli.js';
 import { GitHubApiError } from '../src/github/client.js';
-import { makeApprovedClient, makeDeps, makeIo, RECONCILE } from './cli-fixtures.js';
+import {
+  makeApprovedClient,
+  makeDeps,
+  makeIo,
+  makeSourceClient,
+  RECONCILE,
+} from './cli-fixtures.js';
 import { FakeGitHubClient, makePullRequestData } from './github/fake-client.js';
 
 describe('runCli — help and usage', () => {
@@ -68,7 +74,7 @@ describe('runCli — reconcile', () => {
 
     expect([code, client.pull.labels, client.pull.autoMergeEnabled]).toEqual([
       0,
-      ['approved', 'auto-merge enabled'],
+      ['approved', 'auto-merge enabled', 'UAT ready'],
       true,
     ]);
   });
@@ -82,15 +88,15 @@ describe('runCli — reconcile', () => {
       makeDeps(client).deps,
     );
 
-    expect(client.pull.labels).toEqual(['review requested']);
+    expect(client.pull.labels).toEqual(['review requested', 'UAT pending']);
   });
 
   it('passes --skip-copilot-review through to the policy', async () => {
-    const client = new FakeGitHubClient();
+    const client = makeSourceClient();
 
     await runCli([...RECONCILE, '--skip-copilot-review'], makeIo().io, makeDeps(client).deps);
 
-    expect(client.pull.labels).toEqual(['review requested']);
+    expect(client.pull.labels).toEqual(['review requested', 'UAT pending']);
   });
 
   it('writes nothing with --dry-run', async () => {
@@ -111,14 +117,14 @@ describe('runCli — reconcile', () => {
     await runCli([...RECONCILE, '--arm-auto-merge'], io, makeDeps(makeApprovedClient()).deps);
 
     expect(out).toEqual([
-      'rmartz/demo#7 → approved: +approved, +auto-merge enabled, auto-merge arm (bot: not a recognized bot PR)',
+      'rmartz/demo#7 → approved: +approved, +auto-merge enabled, +UAT ready, auto-merge arm (bot: not a recognized bot PR)',
     ]);
   });
 
   it('lists removed labels and a disarm in the summary', async () => {
-    const client = new FakeGitHubClient(
+    const client = makeSourceClient(
       makePullRequestData({
-        labels: ['approved', 'auto-merge enabled'],
+        labels: ['approved', 'auto-merge enabled', 'UAT pending'],
         autoMergeEnabled: true,
         requestedBotReviewers: ['Copilot'],
       }),
@@ -135,8 +141,8 @@ describe('runCli — reconcile', () => {
   it('marks a dry-run summary', async () => {
     const { out, io } = makeIo();
 
-    const client = new FakeGitHubClient(
-      makePullRequestData({ requestedBotReviewers: ['Copilot'] }),
+    const client = makeSourceClient(
+      makePullRequestData({ labels: ['UAT pending'], requestedBotReviewers: ['Copilot'] }),
     );
 
     await runCli([...RECONCILE, '--dry-run'], io, makeDeps(client).deps);
@@ -199,7 +205,7 @@ describe('runCli — --json contract (schemaVersion 1)', () => {
         pr: 7,
         dryRun: false,
         state: 'approved',
-        addLabels: ['approved', 'auto-merge enabled'],
+        addLabels: ['approved', 'auto-merge enabled', 'UAT ready'],
         removeLabels: [],
         autoMerge: 'arm',
         botEligibility: {
@@ -217,6 +223,8 @@ describe('runCli — --json contract (schemaVersion 1)', () => {
         autoMergeDeferred: null,
         update: 'none',
         updateSkipped: null,
+        uat: { outcome: 'ready', label: 'UAT ready' },
+        uatWaiverSkipped: null,
       },
     ]);
   });
