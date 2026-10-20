@@ -33,11 +33,16 @@ export interface ExecuteOutcome {
 }
 
 /**
- * GitHub's refusal to arm a PR that is already mergeable ("clean status"). The PR
- * became mergeable between the read and the arm, so it is merged instead.
+ * GitHub's refusal to arm a PR that is already mergeable: "…is in clean status",
+ * or "unstable" (only non-required checks failing or pending) or "has_hooks" —
+ * the same states `gather` plans as a merge. The PR became mergeable between the
+ * read and the arm, so it is merged instead.
  */
-function isCleanStatusError(error: unknown): boolean {
-  return error instanceof GitHubApiError && /clean status/i.test(error.message);
+function isMergeableStatusError(error: unknown): boolean {
+  return (
+    error instanceof GitHubApiError &&
+    /(?:clean|unstable|has_hooks) status/i.test(error.message)
+  );
 }
 
 /**
@@ -79,7 +84,7 @@ async function attempt(
 function lostRace(action: ArmOrMerge, error: unknown): boolean {
   switch (action) {
     case 'arm':
-      return isCleanStatusError(error);
+      return isMergeableStatusError(error);
     case 'merge':
       return isPendingCheckError(error);
   }
