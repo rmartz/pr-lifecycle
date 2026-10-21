@@ -86,17 +86,12 @@ describe('runCli — UAT labels', () => {
     expect(client.pull.labels).toEqual(['review requested', 'no UAT needed']);
   });
 
-  it('applies no UAT needed without a release token, and warns about nothing', async () => {
+  it('applies no UAT needed without a release token', async () => {
     const client = makeDocsClient();
-    const { err, io } = makeIo();
 
-    await runCli(RECONCILE, io, makeDeps(client, NO_RELEASE_TOKEN).deps);
+    await runCli(RECONCILE, makeIo().io, makeDeps(client, NO_RELEASE_TOKEN).deps);
 
-    expect([client.pull.labels, err, client.comments]).toEqual([
-      ['review requested', 'no UAT needed'],
-      [],
-      [],
-    ]);
+    expect(client.pull.labels).toEqual(['review requested', 'no UAT needed']);
   });
 
   it('never uses the release token for a UAT label, adding or removing', async () => {
@@ -105,7 +100,10 @@ describe('runCli — UAT labels', () => {
 
     await runCli(RECONCILE, makeIo().io, makeTokenDeps(main, release));
 
-    expect([release.calls, main.pull.labels]).toEqual([[], ['review requested', 'UAT pending']]);
+    expect([
+      release.calls.filter((call) => call.method !== 'createCommitStatus'),
+      main.pull.labels,
+    ]).toEqual([[], ['review requested', 'UAT pending']]);
   });
 
   it('reports the UAT outcome in --json', async () => {

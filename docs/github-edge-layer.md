@@ -71,9 +71,12 @@ limit, a 5xx, or a network failure, so the CLI can
   [Verdicts](reconciler-design.md#verdicts) and [UAT labels](uat.md)). A push
   without a commit reads as unattributed, which fails closed.
 - **UAT facts** (`uat-facts.ts`) are read only when `policy.uat` is set and the
-  PR is open. The changed paths (a rename's old path included) are listed only
-  when the title doesn't already exempt the PR, and a changed `package.json` is
-  read at the merge base and the head only when every other path is exempt. The
+  PR is open. The changed paths (a rename's old path included) are always
+  listed then, since a [CI loosening](ci-loosening.md) is reported whatever the
+  title. Each changed workflow is read at the merge base and the head
+  (`sign-off-facts.ts`), and a changed `package.json` only when every other
+  non-workflow path is exempt. So is the head's latest `pr-lifecycle/sign-off`
+  status, so an unchanged one isn't reposted. The
   sign-off history is read only when `no UAT needed` or `UAT passed` is on the
   PR: the latest `labeled` event of each (its actor's permission looked up like
   a review author's), the title changes, and the first check suite on the PR's
@@ -90,7 +93,7 @@ limit, a 5xx, or a network failure, so the CLI can
 ## Execute
 
 Writes happen in a **fail-safe order**: disarm auto-merge → remove labels → add
-labels → arm (or merge) → update. If a run dies partway, auto-merge is never
+labels → [sign-off status](sign-off-status.md) → arm (or merge) → update. If a run dies partway, auto-merge is never
 left armed on a PR that isn't approved, arming happens only after the labels that
 explain it are written, and the update, which moves the head, comes last.
 
@@ -99,6 +102,9 @@ explain it are written, and the update, which moves the head, comes last.
   state is reached. An arm or merge that loses the [merge-state race](#the-merge-state-race)
   twice is deferred, not failed. Every other error propagates. A failed run is safe to retry,
   because the next event recomputes from facts.
+- **The sign-off status** is posted on the planned head with the release token,
+  unless the head already has the same one from a person; without the token it
+  is skipped (`skippedSignOffStatus`), never posted with `GITHUB_TOKEN`.
 - **UAT labels use the workflow token** like every other label: they are for
   people, and pr-policy gates on the sign-off status instead (see
   [UAT labels](uat.md#labels-are-for-people)).

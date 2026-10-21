@@ -22,7 +22,9 @@ import {
   gatherPathFacts,
   gatherSignOffApplications,
   presentSignOffs,
+  uatActive,
 } from './uat-facts.js';
+import { gatherSignOffStatus } from './sign-off-facts.js';
 
 /**
  * Gathers a PR's facts from GitHub for the pure core. Everything is read before
@@ -119,12 +121,13 @@ export async function gatherFacts(
   // Dependabot rebases its own branches; the author login can't be forged.
   const updater: BranchUpdater = pull.authorLogin === DEPENDABOT_LOGIN ? 'dependabot' : 'github';
   const signOffActors = signOffs.map(({ application }) => application);
-  const [permissions, botEligibility, ci, lineage, pathFacts] = await Promise.all([
+  const [permissions, botEligibility, ci, lineage, pathFacts, signOffStatus] = await Promise.all([
     lookupPermissions(client, [...reviews, ...removals, ...signOffActors]),
     gatherBotEligibility(client, pr, pull),
     gatherCiFacts(client, pull, policy),
     gatherLineageFor(client, pull, reviews, options),
     gatherPathFacts(client, pr, pull, policy),
+    uatActive(policy, pull) ? gatherSignOffStatus(client, pull.headSha) : undefined,
   ]);
   const cleanAncestors = lineage?.cleanAncestors ?? [];
   const cleanRebaseSources =
@@ -166,6 +169,7 @@ export async function gatherFacts(
       })),
       pendingBotReviewers: pull.requestedBotReviewers,
       ...pathFacts,
+      ...(signOffStatus === undefined ? {} : { signOffStatus }),
       ...(hasSignOff
         ? {
             uatSignOffs: signOffs.map(({ label, application }) => ({

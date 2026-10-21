@@ -1,11 +1,12 @@
 import type { AutoMergeAction, ReconcilePlan } from '../plan.js';
+import { SIGN_OFF_STATUS_CONTEXT } from '../sign-off-plan.js';
 import type { GitHubClient, ReleaseActions } from './client.js';
 import { GitHubApiError, isApiStatus } from './client.js';
 import { labelDefinition } from './label-roster.js';
 
 /**
  * Executes a reconcile plan against GitHub. Writes happen in a fail-safe order —
- * disarm, remove labels, add labels, arm, update — so a run that dies midway never
+ * disarm, remove labels, add labels, sign-off status, arm, update — so a run that dies midway never
  * leaves auto-merge armed on a PR that is not approved, and an update (which moves
  * the head) comes last. Disarming, arming, merging, and updating go through
  * `release` (a real-actor token); arming and merging are bound to the planned
@@ -158,6 +159,15 @@ export async function executePlan(
   if (plan.addLabels.length > 0) {
     await ensureLabelsExist(client, plan.addLabels);
     await client.addLabels(target.pr, plan.addLabels);
+  }
+  // The sign-off status tells pr-policy which sign-off this head needs; a person
+  // (the real actor) posts it, on exactly the head the plan was computed for.
+  if (plan.signOffStatus?.post === true) {
+    await release.createCommitStatus(target.headSha, {
+      state: 'success',
+      context: SIGN_OFF_STATUS_CONTEXT,
+      description: plan.signOffStatus.description,
+    });
   }
   let outcome: ExecuteOutcome = { autoMerge: plan.autoMerge, deferred: undefined };
   if (plan.autoMerge === 'arm' || plan.autoMerge === 'merge') {

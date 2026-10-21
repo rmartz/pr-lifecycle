@@ -1,4 +1,5 @@
 import type { ReconcileResult } from '../github/reconcile.js';
+import type { UatOutcome } from '../uat.js';
 import { uatLabelFor } from '../uat.js';
 
 /**
@@ -55,9 +56,30 @@ export interface ReconcileJson {
   } | null;
   /**
    * The UAT classification: the label the PR carries and the rule that chose it
-   * (docs/uat.md); `null` when UAT labels aren't reconciled or the PR is closed.
+   * (docs/uat.md); `null` when UAT labels aren't reconciled, the PR is closed,
+   * or it needs the CI sign-off instead (see `signOff`).
    */
   uat: { outcome: string; label: string } | null;
+  /**
+   * Which sign-off the head needs and the `pr-lifecycle/sign-off` status that
+   * says so (docs/sign-off-status.md); `null` when not reconciled or closed.
+   * `statusPosted` is whether the status was posted this run (on a dry run,
+   * whether it would be); an unchanged status isn't reposted.
+   */
+  signOff: {
+    requirement: string;
+    reason: string;
+    loosening: boolean;
+    status: string;
+    statusPosted: boolean;
+  } | null;
+  /** The status the plan wanted but skipped; `null` when nothing was skipped. */
+  signOffStatusSkipped: { reason: 'token-missing' } | null;
+}
+
+function uatJson(outcome: UatOutcome | undefined): ReconcileJson['uat'] {
+  const label = outcome === undefined ? undefined : uatLabelFor(outcome);
+  return outcome === undefined || label === undefined ? null : { outcome, label };
 }
 
 export function toReconcileJson(target: ReconcileTarget, result: ReconcileResult): ReconcileJson {
@@ -96,7 +118,18 @@ export function toReconcileJson(target: ReconcileTarget, result: ReconcileResult
     update: plan.update,
     updateSkipped:
       skippedUpdate === undefined ? null : { action: skippedUpdate, reason: 'token-missing' },
-    uat: plan.uat === undefined ? null : { outcome: plan.uat, label: uatLabelFor(plan.uat) },
+    uat: uatJson(plan.uat),
+    signOff:
+      plan.signOff === undefined || plan.signOffStatus === undefined
+        ? null
+        : {
+            requirement: plan.signOff.requirement,
+            reason: plan.signOff.reason,
+            loosening: plan.signOff.loosening,
+            status: plan.signOffStatus.description,
+            statusPosted: plan.signOffStatus.post,
+          },
+    signOffStatusSkipped: result.skippedSignOffStatus ? { reason: 'token-missing' } : null,
   };
 }
 
@@ -117,6 +150,7 @@ export function formatSummary(target: ReconcileTarget, result: ReconcileResult):
     ...(result.skippedUpdate === undefined
       ? []
       : [`update ${result.skippedUpdate} skipped (no release token)`]),
+    ...(result.skippedSignOffStatus ? ['sign-off status skipped (no release token)'] : []),
   ];
   const prefix = target.dryRun ? '[dry-run] ' : '';
   const body = changes.length === 0 ? 'no changes' : changes.join(', ');

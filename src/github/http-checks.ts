@@ -1,7 +1,8 @@
-import type { CheckRunData, CommitStatusData, GitHubClient } from './client.js';
+import type { CheckRunData, CommitStatusData, GitHubClient, StatusData } from './client.js';
 import type { HttpTransport } from './http-transport.js';
 import { PAGE_SIZE } from './http-transport.js';
-import type { RestCheckRun, RestRule } from './rest-payloads.js';
+import type { RestCheckRun, RestRule, RestStatus } from './rest-payloads.js';
+import { toActorType } from './rest-payloads.js';
 
 /**
  * The real GitHubClient's check and status reads: the required checks, and the
@@ -10,7 +11,11 @@ import type { RestCheckRun, RestRule } from './rest-payloads.js';
 
 export type CheckMethods = Pick<
   GitHubClient,
-  'getRequiredStatusChecks' | 'listCheckRuns' | 'listCommitStatuses'
+  | 'createCommitStatus'
+  | 'getRequiredStatusChecks'
+  | 'listCheckRuns'
+  | 'listCommitStatuses'
+  | 'listStatuses'
 >;
 
 export function createCheckMethods({ repoPath, request, paginate }: HttpTransport): CheckMethods {
@@ -47,6 +52,18 @@ export function createCheckMethods({ repoPath, request, paginate }: HttpTranspor
         conclusion: run.conclusion,
         completedAt: run.completed_at,
       }));
+    },
+    async listStatuses(sha): Promise<StatusData[]> {
+      const statuses = await paginate<RestStatus>(`${repoPath}/commits/${sha}/statuses`);
+      return statuses.map((status) => ({
+        context: status.context,
+        state: status.state,
+        description: status.description ?? '',
+        creatorType: status.creator === null ? 'Bot' : toActorType(status.creator.type),
+      }));
+    },
+    async createCommitStatus(sha, status) {
+      await request('POST', `${repoPath}/statuses/${sha}`, status);
     },
     async listCommitStatuses(sha): Promise<CommitStatusData[]> {
       // The combined status holds the latest status per context.

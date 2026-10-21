@@ -10,8 +10,10 @@ import type {
   LabelApplicationData,
   LabelDefinition,
   LabelRemovalData,
+  NewCommitStatus,
   PullRequestData,
   ReviewData,
+  StatusData,
 } from '../../src/github/client.js';
 import { GitHubApiError } from '../../src/github/client.js';
 import type { ForcePushFact } from '../../src/facts.js';
@@ -97,6 +99,8 @@ export class FakeGitHubClient implements GitHubClient {
   titleChanges: string[] = [];
   /** Check suites by commit sha. */
   checkSuites = new Map<string, CheckSuiteData[]>();
+  /** Commit statuses by sha, newest first, with description and creator. */
+  statuses = new Map<string, StatusData[]>();
   /** File texts keyed by `ref:path`; an absent key doesn't exist there. */
   fileTexts = new Map<string, string>();
   readonly calls: FakeCall[] = [];
@@ -133,6 +137,7 @@ export class FakeGitHubClient implements GitHubClient {
       'listTitleChanges',
       'listCheckSuites',
       'getFileText',
+      'listStatuses',
     ]);
     return this.calls.filter((call) => !reads.has(call.method));
   }
@@ -185,6 +190,23 @@ export class FakeGitHubClient implements GitHubClient {
         mergeBaseSha: '0'.repeat(40),
       },
     );
+  }
+
+  listStatuses(sha: string): Promise<StatusData[]> {
+    this.record('listStatuses', sha);
+    return Promise.resolve([...(this.statuses.get(sha) ?? [])]);
+  }
+
+  /** The creator type of statuses this fake posts (as its token's actor). */
+  statusCreatorType: StatusData['creatorType'] = 'User';
+
+  createCommitStatus(sha: string, status: NewCommitStatus): Promise<void> {
+    this.record('createCommitStatus', sha, status);
+    this.statuses.set(sha, [
+      { ...status, creatorType: this.statusCreatorType },
+      ...(this.statuses.get(sha) ?? []),
+    ]);
+    return Promise.resolve();
   }
 
   listCommitStatuses(sha: string): Promise<CommitStatusData[]> {

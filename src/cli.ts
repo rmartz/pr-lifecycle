@@ -5,6 +5,7 @@ import { isTransientError } from './github/client.js';
 import type { HttpClientOptions } from './github/http-client.js';
 import { createHttpClient } from './github/http-client.js';
 import { reconcilePullRequest } from './github/reconcile.js';
+import type { SkippedForToken } from './github/token-advisory.js';
 import { postTokenAdvisory } from './github/token-advisory.js';
 import type { GitRunner } from './lineage/git.js';
 import { createGitRunner } from './lineage/git.js';
@@ -63,8 +64,9 @@ reconcile options:
 Environment:
   GITHUB_TOKEN              Token for reads and writes (required)
   PR_LIFECYCLE_TOKEN
-                            Real-actor token for arming, merging, and updating;
-                            without it, labels are kept but those are skipped
+                            Real-actor token for arming, merging, updating, and
+                            the sign-off status; without it, labels are kept but
+                            those are skipped
   GITHUB_API_URL            API base URL (GitHub Enterprise Server)`;
 
 export async function runCli(argv: readonly string[], io: CliIo, deps: CliDeps): Promise<number> {
@@ -117,9 +119,17 @@ export async function runCli(argv: readonly string[], io: CliIo, deps: CliDeps):
       io.stderr(
         `warning: ${args.owner}/${args.repo}#${args.pr} is approved, but auto-merge ${result.skippedAutoMerge} was skipped: PR_LIFECYCLE_TOKEN is not set`,
       );
-      if (args.tokenAdvisory && !args.dryRun) {
-        await adviseMissingToken(client, args.pr, result.skippedAutoMerge, io);
-      }
+    }
+    if (result.skippedSignOffStatus) {
+      io.stderr(
+        `warning: ${args.owner}/${args.repo}#${args.pr}: the sign-off status was not posted, so pr-policy holds the PR: PR_LIFECYCLE_TOKEN is not set`,
+      );
+    }
+    const advisory =
+      result.skippedAutoMerge ??
+      (result.skippedSignOffStatus ? ('sign-off-status' as const) : undefined);
+    if (advisory !== undefined && args.tokenAdvisory && !args.dryRun) {
+      await adviseMissingToken(client, args.pr, advisory, io);
     }
     if (result.deferredAutoMerge !== undefined) {
       io.stderr(
@@ -154,7 +164,7 @@ export async function runCli(argv: readonly string[], io: CliIo, deps: CliDeps):
 async function adviseMissingToken(
   client: GitHubClient,
   pr: number,
-  skipped: 'arm' | 'merge',
+  skipped: SkippedForToken,
   io: CliIo,
 ): Promise<void> {
   try {

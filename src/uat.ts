@@ -1,8 +1,7 @@
 import type { PullRequestFacts, ReconcilePolicy, UatSignOffLabel } from './facts.js';
 import { carriedCommits } from './head-binding.js';
 import { isRetitledSince, isSignOffCurrent } from './uat-binding.js';
-import { trivialCategories } from './uat-paths.js';
-import { isUatExemptTitle } from './uat-title.js';
+import type { SignOffClassification, WaiverState } from './sign-off.js';
 import { currentVerdict, isTrustedAuthor } from './verdict.js';
 
 /**
@@ -25,13 +24,15 @@ export type UatLabel = (typeof UAT_LABELS)[number];
 
 /**
  * Why the PR carries its UAT label, one per rule, in rule order:
- * `off` and the two exemptions are this package's own waiver; `passed` and
- * `waived` keep a trusted sign-off; `ready` and `pending` are the default.
+ * `off` and the two exemptions are this package's own `no UAT needed`; `ci`
+ * means the CI sign-off instead, so no UAT label; `passed` and `waived` keep a
+ * trusted sign-off; `ready` and `pending` are the default.
  */
 export const UAT_OUTCOMES = [
   'off',
   'exempt-title',
   'exempt-paths',
+  'ci',
   'passed',
   'waived',
   'ready',
@@ -39,8 +40,11 @@ export const UAT_OUTCOMES = [
 ] as const;
 export type UatOutcome = (typeof UAT_OUTCOMES)[number];
 
-export function uatLabelFor(outcome: UatOutcome): UatLabel {
+/** The UAT label an outcome shows; none for a PR that needs the CI sign-off instead. */
+export function uatLabelFor(outcome: UatOutcome): UatLabel | undefined {
   switch (outcome) {
+    case 'ci':
+      return undefined;
     case 'off':
     case 'exempt-title':
     case 'exempt-paths':
@@ -53,16 +57,6 @@ export function uatLabelFor(outcome: UatOutcome): UatLabel {
     case 'pending':
       return UAT_PENDING_LABEL;
   }
-}
-
-/** Whether the PR can't be user-facing: its title type, or failing that its paths. */
-export function exemptionOf(facts: PullRequestFacts): 'exempt-paths' | 'exempt-title' | undefined {
-  if (isUatExemptTitle(facts.title)) {
-    return 'exempt-title';
-  }
-  return trivialCategories(facts.changedPaths, facts.manifestChanges) === undefined
-    ? undefined
-    : 'exempt-paths';
 }
 
 /**
@@ -104,18 +98,42 @@ function holdsSignOff(
   }
 }
 
-/** The UAT rules, in order (docs/uat.md §Rules). */
+/**
+ * Whether a trusted `no UAT needed` counts for the head, as the sign-off status
+ * reports it: `current`, `stale` (trusted but for an earlier head, or before a
+ * retitle), or `absent` (none on the PR, or not from a trusted person).
+ */
+export function waiverState(facts: PullRequestFacts, policy: ReconcilePolicy): WaiverState {
+  const label = 'no UAT needed';
+  const signOff = facts.uatSignOffs?.find((candidate) => candidate.label === label);
+  if (
+    !facts.labels.includes(label) ||
+    signOff === undefined ||
+    !isTrustedAuthor(signOff.actor, policy)
+  ) {
+    return 'absent';
+  }
+  return holdsSignOff(label, facts, policy) ? 'current' : 'stale';
+}
+
+/** The UAT rules, in order (docs/uat.md §Rules), from the sign-off classification. */
 export function classifyUat(
   facts: PullRequestFacts,
   policy: ReconcilePolicy,
-  setting: 'off' | 'on',
+  classification: SignOffClassification,
 ): UatOutcome {
-  if (setting === 'off') {
-    return 'off';
-  }
-  const exemption = exemptionOf(facts);
-  if (exemption !== undefined) {
-    return exemption;
+  switch (classification.reason) {
+    case 'uat-off':
+      return 'off';
+    case 'safe-title':
+      return 'exempt-title';
+    case 'trivial-paths':
+      return 'exempt-paths';
+    case 'ci-loosening':
+    case 'ci-paths':
+      return 'ci';
+    case 'needs-uat':
+      break;
   }
   const approved = hasApproval(facts, policy);
   if (approved && holdsSignOff('UAT passed', facts, policy)) {
