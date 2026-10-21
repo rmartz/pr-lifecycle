@@ -1,17 +1,17 @@
 import type { AutoMergeAction, ReconcilePlan } from '../plan.js';
-import { UAT_LABELS } from '../uat.js';
-import type { GitHubClient, ReleaseActions, UatLabelWrites } from './client.js';
+import { SIGN_OFF_STATUS_CONTEXT } from '../sign-off-plan.js';
+import type { GitHubClient, ReleaseActions } from './client.js';
 import { GitHubApiError, isApiStatus } from './client.js';
 import { labelDefinition } from './label-roster.js';
 
 /**
  * Executes a reconcile plan against GitHub. Writes happen in a fail-safe order —
- * disarm, remove labels, add labels, arm, update — so a run that dies midway never
+ * disarm, remove labels, add labels, sign-off status, arm, update — so a run that dies midway never
  * leaves auto-merge armed on a PR that is not approved, and an update (which moves
  * the head) comes last. Disarming, arming, merging, and updating go through
  * `release` (a real-actor token); arming and merging are bound to the planned
- * head. UAT label writes go through `uatWrites`, the same real actor when one is
- * configured (docs/uat.md). See docs/github-edge-layer.md.
+ * head. See
+ * docs/github-edge-layer.md.
  */
 
 export interface PlanTarget {
@@ -141,24 +141,18 @@ async function ensureLabelsExist(client: GitHubClient, names: readonly string[])
   }
 }
 
-function isUatLabel(name: string): boolean {
-  return UAT_LABELS.some((label) => label === name);
-}
-
 export async function executePlan(
   client: GitHubClient,
   target: PlanTarget,
   plan: ReconcilePlan,
   release: ReleaseActions = client,
-  uatWrites: UatLabelWrites = client,
 ): Promise<ExecuteOutcome> {
   if (plan.autoMerge === 'disarm') {
     await release.disableAutoMerge(target.nodeId);
   }
   for (const name of plan.removeLabels) {
-    const writer = isUatLabel(name) ? uatWrites : client;
     try {
-      await writer.removeLabel(target.pr, name);
+      await client.removeLabel(target.pr, name);
     } catch (error) {
       // 404: already gone (e.g. removed by a concurrent run) — the goal state.
       if (!isApiStatus(error, 404)) {
@@ -168,15 +162,16 @@ export async function executePlan(
   }
   if (plan.addLabels.length > 0) {
     await ensureLabelsExist(client, plan.addLabels);
-    const uat = plan.addLabels.filter(isUatLabel);
-    const lifecycle = plan.addLabels.filter((name) => !isUatLabel(name));
-    if (lifecycle.length > 0) {
-      await client.addLabels(target.pr, lifecycle);
-    }
-    // A UAT label is written by the real actor, whose label events fire workflows.
-    if (uat.length > 0) {
-      await uatWrites.addLabels(target.pr, uat);
-    }
+    await client.addLabels(target.pr, plan.addLabels);
+  }
+  // The sign-off status tells pr-policy which sign-off this head needs; a person
+  // (the real actor) posts it, on exactly the head the plan was computed for.
+  if (plan.signOffStatus?.post === true) {
+    await release.createCommitStatus(target.headSha, {
+      state: 'success',
+      context: SIGN_OFF_STATUS_CONTEXT,
+      description: plan.signOffStatus.description,
+    });
   }
   let outcome: ExecuteOutcome = { autoMerge: plan.autoMerge, deferred: undefined };
   if (plan.autoMerge === 'arm' || plan.autoMerge === 'merge') {

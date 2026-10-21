@@ -77,8 +77,9 @@ the escalation is resolved and the PR goes back to review.
 - **[`pr-policy`](https://github.com/rmartz/pr-policy)** — enforces
   the hard merge gates (CI sign-off, title rules, and UAT sign-off via
   rmartz/pr-policy#13) as one required `pr-policy` check. The two write disjoint
-  label sets. pr-policy reads the UAT labels this package writes, and the CI gate
-  here treats a pending `pr-policy` as a hold, not running CI.
+  label sets. pr-policy never reads this package's labels: it gates on the
+  [`pr-lifecycle/sign-off` status](sign-off-status.md) and on the sign-off labels people apply.
+  The CI gate here treats a pending `pr-policy` as a hold, not running CI.
 - **[`@rmartz/merge-safety`](https://github.com/rmartz/merge-safety)** —
   unchanged; its check-run is one of the consumer's required gates.
 - **[`@rmartz/bot-automerge`](https://github.com/rmartz/bot-automerge)** —
@@ -90,14 +91,22 @@ the escalation is resolved and the PR goes back to review.
 
 ## Decisions
 
-- **This package classifies UAT; pr-policy gates on it.** Every reconcile
+- **This package classifies the sign-off; pr-policy gates on the status.** On
+  every reconcile it decides which human sign-off the head needs (`none`, `ci`,
+  or `uat`; [the sign-off status](sign-off-status.md)) and posts it as the
+  `pr-lifecycle/sign-off` commit status. pr-policy gates on that status, never
+  on a label this package writes, and this package is to become the only label
+  writer (#118 moves `CI approval needed` here). The CI loosening rules moved here
+  from pr-policy for the same reason ([CI loosening](ci-loosening.md)).
+- **UAT labels follow the classification.** Every reconcile
   leaves exactly one UAT label (`no UAT needed`, `UAT pending`, `UAT ready`, or
   `UAT passed`), cautious by default: a PR that could be user-facing stays
   `UAT pending` until a trusted person waives it or signs it off, and a sign-off
   counts only for the head it was applied to (#115; see [UAT labels](uat.md)).
-  pr-policy's UAT gate then requires `no UAT needed` or `UAT passed`. Because a
-  missing label is a hold, an approved PR can still be armed at any time without
-  a race. The per-repo UAT setting lives here (`--uat on|off`).
+  The labels are for people and use `github-token`. pr-policy gates on the
+  decision through the [`pr-lifecycle/sign-off` commit status](sign-off-status.md) instead, so a
+  missing sign-off is a hold and an approved PR can still be armed at any time
+  without a race. The per-repo UAT setting lives here (`--uat on|off`).
 
 - **Trust = write permission.** A verdict counts only from a human (`User`, not a
   `Bot`) with write, maintain, or admin permission on the repo, optionally narrowed

@@ -21,8 +21,14 @@ relevant to your task before editing code — see
   a force-push, and the fail-closed rules behind both.
 - [UAT labels](uat.md) — how the four UAT labels are reconciled: the six rules,
   why the exemptions are a title allowlist with a path fallback, binding
-  sign-offs to the head, why `UAT passed` doesn't carry over a rebase, and the
-  real-actor token for UAT label writes.
+  sign-offs to the head, why `UAT passed` doesn't carry over a rebase, and why
+  the labels are for people only.
+- [The sign-off status](sign-off-status.md) — the `pr-lifecycle/sign-off`
+  commit status: a versioned contract with pr-policy saying which sign-off a
+  head needs (`none`, `ci`, `uat`), the waiver state, and any CI loosening.
+- [CI loosening](ci-loosening.md) — how a workflow diff is classified as
+  tightening or loosening: the indicators, the containment backstop, and fail-closed
+  reads.
 - [Lifecycle routing design (v2)](lifecycle-routing-design.md) — the routing
   extension's goals and decisions (CI gate, merge-conflict and base-health
   states, approval carry-over, auto-update).

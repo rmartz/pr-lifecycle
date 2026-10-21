@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { PullRequestFacts, ReconcilePolicy } from '../src/facts.js';
 import { planReconcile } from '../src/plan.js';
+import { classifySignOff } from '../src/sign-off.js';
 import { classifyUat, uatLabelFor } from '../src/uat.js';
 import { HEAD_SHA, makeAuthor, makeReview, OLD_SHA } from './fixtures.js';
 import {
@@ -16,7 +17,7 @@ import {
 const ON: ReconcilePolicy = { uat: 'on' };
 
 function outcome(facts: PullRequestFacts, policy: ReconcilePolicy = ON) {
-  return classifyUat(facts, policy, policy.uat ?? 'on');
+  return classifyUat(facts, policy, classifySignOff(facts, policy.uat ?? 'on'));
 }
 
 describe('classifyUat — rule 1: UAT off', () => {
@@ -26,8 +27,12 @@ describe('classifyUat — rule 1: UAT off', () => {
 });
 
 describe('classifyUat — rule 2: can not be user-facing', () => {
-  it.each(['docs: a', 'test: a', 'refactor: a', 'ci: a'])('exempts the title %j', (title) => {
+  it.each(['docs: a', 'test: a', 'refactor: a'])('exempts the title %j', (title) => {
     expect(outcome(makeUatFacts({ title }))).toBe('exempt-title');
+  });
+
+  it('gives a ci PR touching source the CI sign-off instead of UAT', () => {
+    expect(outcome(makeUatFacts({ title: 'ci: a' }))).toBe('ci');
   });
 
   it.each(['feat: a', 'fix: a', 'perf: a', 'revert: a', 'chore: a', 'chore no colon'])(
@@ -265,6 +270,7 @@ describe('uatLabelFor', () => {
     ['off', 'no UAT needed'],
     ['exempt-title', 'no UAT needed'],
     ['exempt-paths', 'no UAT needed'],
+    ['ci', undefined],
     ['waived', 'no UAT needed'],
     ['passed', 'UAT passed'],
     ['ready', 'UAT ready'],

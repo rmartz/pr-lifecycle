@@ -36,12 +36,12 @@ describe('gatherFacts — changed paths for UAT', () => {
     ]);
   });
 
-  it('skips the paths when the title already exempts the PR', async () => {
+  it('reads the paths even when the title exempts the PR, for the loosening check', async () => {
     const client = makeFilesClient(['src/a.ts'], 'docs: a');
 
-    await gatherFacts(client, 7, ON);
+    const { facts } = await gatherFacts(client, 7, ON);
 
-    expect(called(client, 'listPullRequestFiles')).toBe(false);
+    expect(facts.changedPaths).toEqual(['src/a.ts']);
   });
 
   it('reads the paths, a rename’s old path included', async () => {

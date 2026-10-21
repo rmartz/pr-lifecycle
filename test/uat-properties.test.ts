@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { PullRequestFacts, ReconcilePolicy, UatSignOffFact } from '../src/facts.js';
 import { REPO_PERMISSIONS, UAT_SETTINGS, UAT_SIGN_OFF_LABELS } from '../src/facts.js';
-import { planReconcile, withoutUatWaiver } from '../src/plan.js';
+import { planReconcile } from '../src/plan.js';
 import { UAT_LABELS } from '../src/uat.js';
 import { applyPlan, HEAD_SHA, makeReview, makeVerdictBody, OLD_SHA } from './fixtures.js';
 import { makeUatFacts } from './uat-fixtures.js';
@@ -129,19 +129,6 @@ describe('UAT label properties', () => {
             expect.fail(`kept ${signOff.label} from ${signOff.actor.login}`);
           }
         }
-      }),
-    );
-  });
-
-  it('withoutUatWaiver never adds no UAT needed and changes nothing else', () => {
-    fc.assert(
-      fc.property(factsArb, policyArb, (facts, policy) => {
-        const plan = planReconcile(facts, policy);
-        const stripped = withoutUatWaiver(plan);
-        expect(stripped).toEqual({
-          ...plan,
-          addLabels: plan.addLabels.filter((name) => name !== 'no UAT needed'),
-        });
       }),
     );
   });

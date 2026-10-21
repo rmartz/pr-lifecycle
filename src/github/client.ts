@@ -1,5 +1,20 @@
 import type { ActorType, ForcePushFact, ReviewState } from '../facts.js';
 import type { ChangedFile } from '../release-diff.js';
+import type {
+  CheckRunData,
+  CheckSuiteData,
+  CommitStatusData,
+  NewCommitStatus,
+  StatusData,
+} from './check-data.js';
+
+export type {
+  CheckRunData,
+  CheckSuiteData,
+  CommitStatusData,
+  NewCommitStatus,
+  StatusData,
+} from './check-data.js';
 
 /**
  * The narrow GitHub surface the edge layer needs, shaped around the domain rather
@@ -40,20 +55,6 @@ export interface PullRequestData {
   createdAt: string;
   /** Logins of requested reviewers that are bots (users and teams left out). */
   requestedBotReviewers: string[];
-}
-
-/** A check-run on a commit (the latest run per name). */
-export interface CheckRunData {
-  name: string;
-  status: string;
-  conclusion: string | null;
-  completedAt: string | null;
-}
-
-/** A commit status (the latest per context) — the channel some CI uses instead of checks. */
-export interface CommitStatusData {
-  context: string;
-  state: string;
 }
 
 /** A git commit's structure: its tree and parents (for carry-over verification). */
@@ -105,14 +106,6 @@ export interface LabelApplicationData {
   appliedAt: string;
 }
 
-/** A check suite on a commit: which branch it ran for, and when it was created. */
-export interface CheckSuiteData {
-  /** Undefined when GitHub didn't record a branch. */
-  headBranch: string | undefined;
-  /** ISO-8601 creation time. */
-  createdAt: string;
-}
-
 /** The collaborator-permission API's answer: the legacy level and the role. */
 export interface CollaboratorPermission {
   /** Legacy level: admin, write, read, or none (maintain → write, triage → read). */
@@ -138,6 +131,10 @@ export interface GitHubClient {
   getBranchHeadSha(branch: string): Promise<string>;
   listCheckRuns(sha: string): Promise<CheckRunData[]>;
   listCommitStatuses(sha: string): Promise<CommitStatusData[]>;
+  /** Every status on a commit, newest first, with its description and creator. */
+  listStatuses(sha: string): Promise<StatusData[]>;
+  /** Create a commit status on `sha`. */
+  createCommitStatus(sha: string, status: NewCommitStatus): Promise<void>;
   getCommit(sha: string): Promise<CommitObject>;
   compareCommits(base: string, head: string): Promise<CommitComparison>;
   /** Throws a GitHubApiError with status 404 when the user is not a collaborator. */
@@ -186,20 +183,19 @@ export interface GitHubClient {
  * `GITHUB_TOKEN` triggers no workflows (so no release, and no CI on the new head).
  * Disarming is here too: GitHub refuses `disablePullRequestAutoMerge` from a
  * workflow token without `contents: write`, so the actor that armed the PR disarms
- * it (#77). Kept to these calls (and `UatLabelWrites`) so the release token is
- * never used for anything else, reads included.
+ * it (#77). The sign-off status is too: pr-policy trusts it only from a person,
+ * and a status created with `GITHUB_TOKEN` triggers no workflow
+ * (docs/sign-off-status.md). Kept to these calls so the release token is never
+ * used for anything else, reads included.
  */
 export type ReleaseActions = Pick<
   GitHubClient,
-  'disableAutoMerge' | 'enableAutoMerge' | 'mergePullRequest' | 'updateBranch'
+  | 'createCommitStatus'
+  | 'disableAutoMerge'
+  | 'enableAutoMerge'
+  | 'mergePullRequest'
+  | 'updateBranch'
 >;
-
-/**
- * The UAT label writes, which also come from a real actor: pr-policy only trusts
- * a sign-off label a person applied, and a label written with `GITHUB_TOKEN`
- * fires no `labeled` run for pr-policy to re-evaluate on (docs/uat.md).
- */
-export type UatLabelWrites = Pick<GitHubClient, 'addLabels' | 'removeLabel'>;
 
 export class GitHubApiError extends Error {
   /** The HTTP status; 0 when the request never got a response (a network failure). */

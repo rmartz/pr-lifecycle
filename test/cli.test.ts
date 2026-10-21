@@ -224,7 +224,14 @@ describe('runCli — --json contract (schemaVersion 1)', () => {
         update: 'none',
         updateSkipped: null,
         uat: { outcome: 'ready', label: 'UAT ready' },
-        uatWaiverSkipped: null,
+        signOff: {
+          requirement: 'uat',
+          reason: 'needs-uat',
+          loosening: false,
+          status: 'v1 requirement=uat waiver=absent',
+          statusPosted: true,
+        },
+        signOffStatusSkipped: null,
       },
     ]);
   });

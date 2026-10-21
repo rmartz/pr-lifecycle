@@ -2,7 +2,10 @@ import type { BranchUpdater, PullRequestFacts, ReconcilePolicy } from './facts.j
 import type { LifecycleState } from './state.js';
 import { computeState } from './state.js';
 import type { UatOutcome } from './uat.js';
-import { classifyUat, NO_UAT_NEEDED_LABEL, UAT_LABELS, uatLabelFor } from './uat.js';
+import type { SignOffClassification } from './sign-off.js';
+import type { SignOffStatusPlan } from './sign-off-plan.js';
+import { planSignOff } from './sign-off-plan.js';
+import { UAT_LABELS, uatLabelFor } from './uat.js';
 
 /**
  * The reconcile plan: the minimal label and auto-merge changes that converge a PR
@@ -61,6 +64,12 @@ export interface ReconcilePlan {
    * themselves are in `addLabels` / `removeLabels`.
    */
   uat?: UatOutcome | undefined;
+  /**
+   * Which sign-off the head needs, and the `pr-lifecycle/sign-off` status that
+   * tells pr-policy (docs/sign-off-status.md); undefined when not reconciled.
+   */
+  signOff?: SignOffClassification | undefined;
+  signOffStatus?: SignOffStatusPlan | undefined;
 }
 
 /** The lifecycle labels a state shows: the state label, plus a reason label for CI. */
@@ -143,11 +152,15 @@ export function planReconcile(facts: PullRequestFacts, policy: ReconcilePolicy):
       desired.add(AUTO_MERGE_LABEL);
     }
   }
-  // Exactly one UAT label: the classifier's. The sign-off labels are inputs too.
-  const uat = policy.uat === undefined ? undefined : classifyUat(facts, policy, policy.uat);
-  if (uat !== undefined) {
+  // At most one UAT label: the classifier's (none when the CI sign-off is needed
+  // instead). The sign-off labels are inputs too.
+  const signOff = planSignOff(facts, policy);
+  if (signOff !== undefined) {
     owned.push(...UAT_LABELS);
-    desired.add(uatLabelFor(uat));
+    const label = uatLabelFor(signOff.uat);
+    if (label !== undefined) {
+      desired.add(label);
+    }
   }
 
   const present = new Set(facts.labels);
@@ -157,19 +170,10 @@ export function planReconcile(facts: PullRequestFacts, policy: ReconcilePolicy):
     removeLabels: owned.filter((name) => present.has(name) && !desired.has(name)),
     autoMerge,
     update: planUpdate(facts, policy, state, autoMerge),
-    uat,
+    uat: signOff?.uat,
+    signOff: signOff?.classification,
+    signOffStatus: signOff?.status,
   };
-}
-
-/**
- * The plan without granting `no UAT needed`, for when no real-actor token is
- * available to apply it (docs/uat.md §Real-actor token). pr-policy only trusts
- * a waiver a person applied, so one applied with the workflow token could never
- * pass its gate. Everything else stays, the other UAT labels included: none of
- * them passes the gate. Pure, like the planner.
- */
-export function withoutUatWaiver(plan: ReconcilePlan): ReconcilePlan {
-  return { ...plan, addLabels: plan.addLabels.filter((name) => name !== NO_UAT_NEEDED_LABEL) };
 }
 
 /**
@@ -186,4 +190,16 @@ export function withoutReleaseActions(plan: ReconcilePlan): ReconcilePlan {
     autoMerge: arming ? 'none' : plan.autoMerge,
     update: 'none',
   };
+}
+
+/**
+ * The plan without posting the sign-off status, for when no real-actor token is
+ * available: pr-policy trusts the status only from a person, and one created
+ * with `GITHUB_TOKEN` triggers no workflow (docs/sign-off-status.md). With no
+ * status, the gate holds. Pure, like the planner.
+ */
+export function withoutSignOffStatus(plan: ReconcilePlan): ReconcilePlan {
+  return plan.signOffStatus === undefined
+    ? plan
+    : { ...plan, signOffStatus: { ...plan.signOffStatus, post: false } };
 }

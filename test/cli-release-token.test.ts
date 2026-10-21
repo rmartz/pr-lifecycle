@@ -21,39 +21,36 @@ function makeTokenDeps(main: FakeGitHubClient, release: FakeGitHubClient): CliDe
 }
 
 describe('runCli — release token', () => {
-  it('arms and writes the UAT label with the release token, and uses it for nothing else', async () => {
+  it('arms and posts the sign-off status with the release token, and uses it for nothing else', async () => {
     const main = makeApprovedClient();
     const release = new FakeGitHubClient();
 
     await runCli(ARM, makeIo().io, makeTokenDeps(main, release));
 
-    expect([release.calls, main.calls.some((call) => call.method === 'enableAutoMerge')]).toEqual([
-      [
-        { method: 'addLabels', args: [7, ['UAT ready']] },
-        { method: 'enableAutoMerge', args: ['PR_node', main.pull.headSha] },
-      ],
-      false,
-    ]);
+    expect([
+      release.calls.map((call) => call.method),
+      main.calls.some((call) => call.method === 'enableAutoMerge'),
+    ]).toEqual([['createCommitStatus', 'enableAutoMerge'], false]);
   });
 
-  it('writes the lifecycle labels with GITHUB_TOKEN', async () => {
+  it('writes the lifecycle and UAT labels with GITHUB_TOKEN', async () => {
     const main = makeApprovedClient();
     const release = new FakeGitHubClient();
 
     await runCli(ARM, makeIo().io, makeTokenDeps(main, release));
 
     expect(main.writes.filter((call) => call.method === 'addLabels')).toEqual([
-      { method: 'addLabels', args: [7, ['approved', 'auto-merge enabled']] },
+      { method: 'addLabels', args: [7, ['approved', 'auto-merge enabled', 'UAT ready']] },
     ]);
   });
 
-  it('uses the release token only for the UAT label without --arm-auto-merge', async () => {
+  it('uses the release token only for the sign-off status without --arm-auto-merge', async () => {
     const main = makeApprovedClient();
     const release = new FakeGitHubClient();
 
     await runCli(RECONCILE, makeIo().io, makeTokenDeps(main, release));
 
-    expect(release.calls.map((call) => call.method)).toEqual(['addLabels']);
+    expect(release.calls.map((call) => call.method)).toEqual(['createCommitStatus']);
   });
 });
 
@@ -72,7 +69,10 @@ describe('runCli — auto-update', () => {
 
     await runCli(UPDATE, makeIo().io, makeTokenDeps(main, release));
 
-    expect(release.calls.map((call) => call.method)).toEqual(['addLabels', 'updateBranch']);
+    expect(release.calls.map((call) => call.method)).toEqual([
+      'createCommitStatus',
+      'updateBranch',
+    ]);
   });
 
   it('reports the update in the summary', async () => {
@@ -96,9 +96,9 @@ describe('runCli — auto-update', () => {
 
     await runCli(UPDATE, io, makeDeps(makeFlaggedClient(), NO_RELEASE_TOKEN).deps);
 
-    expect(err).toEqual([
+    expect(err).toContain(
       'warning: rmartz/demo#7 needs an update, but update-branch was skipped: PR_LIFECYCLE_TOKEN is not set',
-    ]);
+    );
   });
 
   it('reports the skipped update in --json', async () => {
@@ -131,9 +131,9 @@ describe('runCli — release token missing', () => {
 
     await runCli(ARM, io, makeDeps(makeApprovedClient(), NO_RELEASE_TOKEN).deps);
 
-    expect(err).toEqual([
+    expect(err).toContain(
       'warning: rmartz/demo#7 is approved, but auto-merge arm was skipped: PR_LIFECYCLE_TOKEN is not set',
-    ]);
+    );
   });
 
   it('posts the advisory comment once', async () => {
@@ -182,7 +182,7 @@ describe('runCli — release token missing', () => {
 
     const code = await runCli(ARM, io, makeDeps(client, NO_RELEASE_TOKEN).deps);
 
-    expect([code, err[1]]).toEqual([
+    expect([code, err.at(-1)]).toEqual([
       0,
       'warning: could not post the missing-token advisory: forbidden',
     ]);
@@ -206,7 +206,7 @@ describe('runCli — release token missing', () => {
     await runCli(ARM, io, makeDeps(makeApprovedClient(), NO_RELEASE_TOKEN).deps);
 
     expect(out).toEqual([
-      'rmartz/demo#7 → approved: +approved, +UAT ready, auto-merge arm skipped (no release token) (bot: not a recognized bot PR)',
+      'rmartz/demo#7 → approved: +approved, +UAT ready, auto-merge arm skipped (no release token), sign-off status skipped (no release token) (bot: not a recognized bot PR)',
     ]);
   });
 });

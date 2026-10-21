@@ -2,24 +2,29 @@ import type { FileChange, ReconcilePolicy, UatSignOffLabel } from '../facts.js';
 import { UAT_SIGN_OFF_LABELS } from '../facts.js';
 import type { ChangedFile } from '../release-diff.js';
 import { isPackageManifest, trivialCategories } from '../uat-paths.js';
-import { isUatExemptTitle } from '../uat-title.js';
 import { listAllChangedFiles, touchedPaths } from './changed-files.js';
+import { gatherWorkflowChanges } from './sign-off-facts.js';
+import { isWorkflowPath } from '../ci-change/workflow-paths.js';
 import type { GitHubClient, LabelApplicationData, PullRequestData } from './client.js';
 
 /**
- * Gathers the facts the UAT classifier needs (docs/uat.md), reading only what
- * can change its answer: nothing when UAT isn't reconciled or the PR is closed;
- * the changed paths only when the title doesn't already exempt the PR; and the
- * sign-off history only when a sign-off label is on the PR. Trust and head
- * binding are decided later, in the core.
+ * Gathers the facts the sign-off classifier needs (docs/uat.md), reading only
+ * what can change its answer: nothing when sign-offs aren't reconciled or the PR
+ * is closed, and the sign-off history only when a sign-off label is on the PR.
+ * The changed paths are always read then, since a workflow loosening is
+ * reported whatever the title. Trust and head binding are decided in the core.
  */
 
 /** More changed manifests than this aren't read: such a PR isn't exempt by its paths. */
 export const MAX_MANIFEST_READS = 10;
 
-/** Whether the UAT facts matter at all for this PR. */
+/**
+ * Whether the sign-off facts matter at all for this PR: on an open PR whenever
+ * sign-offs are reconciled. UAT off still classifies, since a `ci:` PR can need
+ * the CI sign-off whatever the UAT setting.
+ */
 export function uatActive(policy: ReconcilePolicy, pull: Pick<PullRequestData, 'state'>): boolean {
-  return policy.uat === 'on' && pull.state === 'open';
+  return policy.uat !== undefined && pull.state === 'open';
 }
 
 /** The UAT sign-off labels on the PR, when they can count. */
@@ -95,7 +100,10 @@ async function gatherManifestChanges(
       isPackageManifest(file.filename) ||
       (file.previousFilename !== undefined && isPackageManifest(file.previousFilename)),
   );
-  const others = touchedPaths(files.filter((file) => !manifests.includes(file)));
+  // Workflows are judged by the loosening rules, not the path rules.
+  const others = touchedPaths(files.filter((file) => !manifests.includes(file))).filter(
+    (path) => !isWorkflowPath(path),
+  );
   if (
     manifests.length === 0 ||
     manifests.length > MAX_MANIFEST_READS ||
@@ -126,12 +134,12 @@ async function gatherManifestChanges(
 export interface PathFacts {
   changedPaths?: string[];
   manifestChanges?: FileChange[];
+  workflowChanges?: FileChange[];
 }
 
 /**
- * The changed paths for the path fallback, gathered only when UAT is on and the
- * title doesn't exempt the PR. An incomplete listing leaves `changedPaths`
- * absent, which exempts nothing.
+ * The changed paths, manifests, and workflows. An incomplete listing leaves
+ * `changedPaths` absent, which exempts nothing and counts as a loosening.
  */
 export async function gatherPathFacts(
   client: Pick<GitHubClient, 'compareCommits' | 'getFileText' | 'listPullRequestFiles'>,
@@ -139,15 +147,16 @@ export async function gatherPathFacts(
   pull: PullRequestData,
   policy: ReconcilePolicy,
 ): Promise<PathFacts> {
-  if (!uatActive(policy, pull) || isUatExemptTitle(pull.title)) {
+  if (!uatActive(policy, pull)) {
     return {};
   }
   const files = await listAllChangedFiles(client, pr, pull);
   if (files === undefined) {
     return {};
   }
-  return {
-    changedPaths: touchedPaths(files),
-    manifestChanges: await gatherManifestChanges(client, pull, files),
-  };
+  const [manifestChanges, workflowChanges] = await Promise.all([
+    gatherManifestChanges(client, pull, files),
+    gatherWorkflowChanges(client, pull, files),
+  ]);
+  return { changedPaths: touchedPaths(files), manifestChanges, workflowChanges };
 }
