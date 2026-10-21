@@ -217,12 +217,32 @@ describe('reconcilePullRequest — the sign-off status', () => {
     expect(postedStatuses(client)).toEqual([]);
   });
 
-  it('gives a ci PR no UAT label', async () => {
+  it('gives a ci PR no UAT label, and CI approval needed instead', async () => {
     const client = makeSourceClient(makePullRequestData({ title: 'ci: add a lint script' }));
 
     await reconcilePullRequest(client, 7, ON);
 
-    expect(client.pull.labels).toEqual(['review requested']);
+    expect(client.pull.labels).toEqual(['review requested', 'CI approval needed']);
+  });
+});
+
+describe('reconcilePullRequest — CI approval needed', () => {
+  it('keeps the label on a signed-off PR, reading the approval but no push history', async () => {
+    const client = makeSourceClient(
+      makePullRequestData({ labels: ['CI approval needed', 'CI change approved'] }),
+    );
+    client.permissions.set('rmartz', { permission: 'admin', roleName: 'admin' });
+    client.labelApplications.set('CI change approved', [
+      { login: 'rmartz', type: 'User', appliedAt: '2026-10-19T11:00:00Z' },
+    ]);
+
+    await reconcilePullRequest(client, 7, ON);
+
+    expect([
+      client.pull.labels.includes('CI approval needed'),
+      client.calls.some((call) => call.method === 'listForcePushes'),
+      client.calls.some((call) => call.method === 'listCheckSuites'),
+    ]).toEqual([true, false, false]);
   });
 });
 

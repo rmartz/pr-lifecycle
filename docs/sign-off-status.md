@@ -91,6 +91,22 @@ Decided in order (`src/sign-off.ts`):
 The JSON `signOff.reason` names the rule: `ci-loosening` (1), `trivial-paths`
 (2, 5), `ci-paths` (3), `safe-title` (4), `uat-off` (6), `needs-uat` (7).
 
+## CI approval needed
+
+The label people see for the CI sign-off, written from the same classification
+with `github-token` like every label (`src/sign-off-plan.ts`), by pr-policy's
+policy ("The CI approval label and `/review`" in its `decisions.md`):
+
+- **Present** while the head needs the CI sign-off: `requirement=ci`, or a
+  loosening bundled into another type (`loosening=yes`).
+- **Removed** when a later push takes that need away.
+- **Never removed** once a trusted person (a `User` with write, maintain, or
+  admin, as for every sign-off) has applied `CI change approved`: the label then
+  stays as the audit record. One applied by a bot or a triage user doesn't count.
+- **`CI change approved` is never written here.** It is the person's sign-off.
+
+The gate reads `CI change approved` and the status, never this label.
+
 ## When it's posted
 
 - **On every reconcile of an open PR**, draft or not, once the head is

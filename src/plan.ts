@@ -4,7 +4,7 @@ import { computeState } from './state.js';
 import type { UatOutcome } from './uat.js';
 import type { SignOffClassification } from './sign-off.js';
 import type { SignOffStatusPlan } from './sign-off-plan.js';
-import { planSignOff } from './sign-off-plan.js';
+import { CI_APPROVAL_NEEDED_LABEL, planSignOff } from './sign-off-plan.js';
 import { UAT_LABELS, uatLabelFor } from './uat.js';
 
 /**
@@ -160,6 +160,10 @@ export function planReconcile(facts: PullRequestFacts, policy: ReconcilePolicy):
     const label = uatLabelFor(signOff.uat);
     if (label !== undefined) {
       desired.add(label);
+    }
+    owned.push(CI_APPROVAL_NEEDED_LABEL);
+    if (signOff.ciApprovalLabel) {
+      desired.add(CI_APPROVAL_NEEDED_LABEL);
     }
   }
 

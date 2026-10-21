@@ -7,10 +7,15 @@
 import type { CiStatus } from './ci.js';
 import type { FileChange, SignOffStatusFact, UatSignOffFact } from './sign-off-facts.js';
 
-export { UAT_SIGN_OFF_LABELS } from './sign-off-facts.js';
+export {
+  CI_CHANGE_APPROVED_LABEL,
+  SIGN_OFF_LABELS,
+  UAT_SIGN_OFF_LABELS,
+} from './sign-off-facts.js';
 export type {
   FileChange,
   SignOffStatusFact,
+  SignOffLabel,
   UatSignOffFact,
   UatSignOffLabel,
 } from './sign-off-facts.js';

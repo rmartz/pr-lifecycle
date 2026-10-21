@@ -1,5 +1,6 @@
 import type { BotEligibility } from '../bot-eligibility.js';
 import { DEPENDABOT_LOGIN } from '../bot-eligibility.js';
+import { CI_CHANGE_APPROVED_LABEL } from '../facts.js';
 import type {
   BranchUpdater,
   PullRequestFacts,
@@ -112,11 +113,13 @@ export async function gatherFacts(
   const [pull, reviews] = await Promise.all([client.getPullRequest(pr), client.listReviews(pr)]);
   const signOffLabels = presentSignOffs(policy, pull);
   const hasSignOff = signOffLabels.length > 0;
+  // Only a UAT sign-off is bound to a head, so only it needs the push history.
+  const hasUatSignOff = signOffLabels.some((label) => label !== CI_CHANGE_APPROVED_LABEL);
   const [removals, forcePushes, signOffs, titleChanges] = await Promise.all([
     gatherEscalationRemovals(client, pr, reviews),
-    gatherForcePushes(client, pr, reviews, hasSignOff),
+    gatherForcePushes(client, pr, reviews, hasUatSignOff),
     gatherSignOffApplications(client, pr, signOffLabels),
-    hasSignOff ? client.listTitleChanges(pr) : [],
+    hasUatSignOff ? client.listTitleChanges(pr) : [],
   ]);
   // Dependabot rebases its own branches; the author login can't be forged.
   const updater: BranchUpdater = pull.authorLogin === DEPENDABOT_LOGIN ? 'dependabot' : 'github';
@@ -133,7 +136,7 @@ export async function gatherFacts(
   const cleanRebaseSources =
     lineage?.rebases.filter((check) => check.carried).map((check) => check.source) ?? [];
   // A sign-off binds to the head or a carried commit, so only their arrivals matter.
-  const commitArrivals = hasSignOff
+  const commitArrivals = hasUatSignOff
     ? await gatherCommitArrivals(client, pull, [
         pull.headSha,
         ...cleanAncestors,

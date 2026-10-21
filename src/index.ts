@@ -25,6 +25,8 @@ export {
   REPO_PERMISSIONS,
   REVIEW_STATES,
   UAT_SETTINGS,
+  CI_CHANGE_APPROVED_LABEL,
+  SIGN_OFF_LABELS,
   UAT_SIGN_OFF_LABELS,
 } from './facts.js';
 export type {
@@ -33,6 +35,7 @@ export type {
   FileChange,
   ForcePushFact,
   UatSetting,
+  SignOffLabel,
   UatSignOffFact,
   UatSignOffLabel,
   PullRequestFacts,
@@ -138,7 +141,7 @@ export type {
   SignOffRequirement,
   WaiverState,
 } from './sign-off.js';
-export { planSignOff, SIGN_OFF_STATUS_CONTEXT } from './sign-off-plan.js';
+export { CI_APPROVAL_NEEDED_LABEL, planSignOff, SIGN_OFF_STATUS_CONTEXT } from './sign-off-plan.js';
 export type { SignOffPlan, SignOffStatusPlan } from './sign-off-plan.js';
 export { classifyWorkflowChanges, classifyWorkflowFile } from './ci-change/classify.js';
 export type { Classification } from './ci-change/classify.js';
