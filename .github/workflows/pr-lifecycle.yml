@@ -104,7 +104,7 @@ jobs:
           client-id: ${{ secrets.MERGE_BOT_CLIENT_ID }}
           private-key: ${{ secrets.MERGE_BOT_PRIVATE_KEY }}
       # The action resolves the PR from the event, including a dispatch's `pr`.
-      - uses: rmartz/pr-lifecycle-action@dde7cfcc50817551ff06523dff0497609127c027 # v4.2.2
+      - uses: rmartz/pr-lifecycle-action@cb58fb834f4761dcf691d6801b8ba2e23316a04a # v4.3.0
         with:
           arm-auto-merge: true
           # Bring an approved PR current when merge-safety flags `update
