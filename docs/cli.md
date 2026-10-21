@@ -81,15 +81,12 @@ workflow. Nothing else uses the token (no reads, no labels: the
 - **Which PRs.** Every PR the lifecycle arms or merges, not only release PRs:
   every merge to `main` should fire its `on: push` workflows. This departs from
   bot-automerge, which used its PAT only on the release-please path.
-- **What it is.** A person's fine-grained PAT with **Contents**, **Pull
-  requests**, and **Commit statuses**, all read and write, on the repository.
-  pr-policy trusts the sign-off status only from a write-access `User`, so in a
-  repo that runs pr-policy a GitHub App installation token won't do: it reads as
-  a bot. The PAT shares its owner's per-user rate-limit pool and attributes
-  merges to that user. Only where pr-policy doesn't run can an App installation
-  token arm and merge instead (its own rate-limit pool, merges attributed to the
-  bot). This repo passes a PAT as `token` and a `rmartz-merge-bot` App token for
-  every read and label write.
+- **What it is.** Any token with **Contents: read and write** and **Pull
+  requests: read and write** on the repository; the CLI is token-agnostic. The
+  recommended value is a GitHub App installation token (this repo mints one per
+  run for the `rmartz-merge-bot` App): it has its own rate-limit pool and
+  attributes merges to the bot. A fine-grained PAT still works, but it shares
+  its owner's per-user rate-limit pool and attributes merges to that user.
 - **Where to store it.** A personal account has no shared secrets, so the
   credentials (the App's Client ID and private key, or a PAT) are stored per
   repo as an **Actions** secret and also as a **Dependabot** secret when bot
