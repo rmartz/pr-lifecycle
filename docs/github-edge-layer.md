@@ -142,7 +142,8 @@ explain it are written, and the update, which moves the head, comes last.
 ### The merge-state race
 
 GitHub has no atomic "merge if mergeable, else arm": arming a PR that is already
-mergeable fails (_"Pull request is in clean status"_), and merging one whose
+mergeable fails (_"Pull request is in clean status"_, or _unstable status_ when
+only non-required checks are failing or pending), and merging one whose
 required checks haven't finished fails (_"Required status check … is queued"_,
 or _expected_, _pending_, _in progress_). The plan chooses from the merge state
 it read, and that state can change before the write, often because of the run's

@@ -167,7 +167,8 @@ export interface GitHubClient {
   createIssueComment(pr: number, body: string): Promise<void>;
   /**
    * Arm squash auto-merge, bound to `expectedHeadOid`: GitHub rejects it if the
-   * head has moved. Throws "…clean status" when the PR is already mergeable.
+   * head has moved. Throws "…clean status" (or "…unstable
+   * status") when the PR is already mergeable.
    */
   enableAutoMerge(pullRequestNodeId: string, expectedHeadOid: string): Promise<void>;
   /** Squash-merge now, bound to `expectedHeadOid` like `enableAutoMerge`. */

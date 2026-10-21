@@ -133,6 +133,24 @@ describe('executePlan — arm/merge outcome', () => {
     expect(outcome).toEqual({ autoMerge: 'merge', deferred: undefined });
   });
 
+  // rmartz/pr-lifecycle#114: a non-required check was still pending, so GitHub
+  // refused the arm with "unstable status" and the whole reconcile failed.
+  it('merges, bound to the same head, when arming found the PR unstable', async () => {
+    const client = new FakeGitHubClient();
+    client.failNext(
+      'enableAutoMerge',
+      new GitHubApiError(200, 'GraphQL error: Pull request Pull request is in unstable status'),
+    );
+
+    const outcome = await executePlan(client, TARGET, makePlan({ autoMerge: 'arm' }));
+
+    expect(outcome).toEqual({ autoMerge: 'merge', deferred: undefined });
+    expect(client.calls).toEqual([
+      { method: 'enableAutoMerge', args: ['PR_node', HEAD_SHA] },
+      { method: 'mergePullRequest', args: ['PR_node', HEAD_SHA] },
+    ]);
+  });
+
   it('reports a disarm as planned', async () => {
     const outcome = await executePlan(
       new FakeGitHubClient(),
