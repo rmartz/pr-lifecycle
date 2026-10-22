@@ -130,5 +130,5 @@ The gate reads `CI change approved` and the status, never this label.
 - **Write order.** After the labels and before arming (see
   [Execute](github-edge-layer.md#execute)).
 
-pr-policy re-runs on the status through `pr-policy evaluate --sha <sha>`; the
-action's `status` trigger, filtered on this context, is a follow-up there.
+pr-policy re-runs on the status through `pr-policy evaluate --sha <sha>`, which
+pr-policy-action's `status` trigger runs, filtered on this context.
