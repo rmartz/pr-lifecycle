@@ -52,6 +52,9 @@ limit, a 5xx, or a network failure, so the CLI can
   Dependabot PR from this repository, and its changed files only for a same-repo
   `release-please--` branch: the cases where they can change the answer
   (`bot-facts.ts`). The verdict, with its `reason`, is returned alongside the facts.
+- **Security update** (`securityUpdate`) is read from those same Dependabot
+  commits with `isDependabotSecurityUpdate`, so it costs no extra request; see
+  [Security update label](reconciler-design.md#security-update-label).
 - **Branch updater.** A PR authored by `dependabot[bot]` is left to Dependabot
   (`updater: dependabot`) and never updated; see [Auto-update](#auto-update).
 - **Dependabot rebasing** (`dependabotRebasing`) is read from the PR body

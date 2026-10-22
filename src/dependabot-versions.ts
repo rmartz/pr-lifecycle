@@ -95,6 +95,16 @@ export function parseDependabotUpdateType(message: string): DependabotUpdateType
   return DEPENDABOT_UPDATE_TYPES[highest];
 }
 
+/**
+ * Whether a commit's metadata marks it a security update: Dependabot leaves
+ * `update-type` out of a security update's entries, and writes it on every
+ * version update's. A missing or empty block is not one.
+ */
+export function isSecurityUpdateCommit(message: string): boolean {
+  const entries = parseUpdatedDependencies(message);
+  return entries !== undefined && entries.some((entry) => entry.updateType === undefined);
+}
+
 /** `from A to B` at the end of a claim line, with any trailing period dropped. */
 function fromTo(rest: string): ClaimedBump | undefined {
   const fromAt = rest.lastIndexOf(' from ');

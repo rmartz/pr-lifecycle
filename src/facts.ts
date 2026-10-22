@@ -132,6 +132,12 @@ export interface PullRequestFacts {
    * `dependabot rebasing` label. Always `false` for other PRs.
    */
   dependabotRebasing: boolean;
+  /**
+   * For a same-repo Dependabot PR: it is a security update, read from its commits'
+   * metadata (see `isDependabotSecurityUpdate`). Drives the `security update`
+   * label. Absent means not one.
+   */
+  securityUpdate?: boolean;
   reviews: readonly ReviewFact[];
   /**
    * Every force-push to the PR's branch. GitHub moves an approval's `commit_id`

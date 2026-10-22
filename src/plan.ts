@@ -10,8 +10,9 @@ import { UAT_LABELS, uatLabelFor } from './uat.js';
 /**
  * The reconcile plan: the minimal label and auto-merge changes that converge a PR
  * to its computed lifecycle state. The core owns the lifecycle labels and
- * `dependabot rebasing` (plus `auto-merge enabled` in arming mode, and the four
- * UAT labels when UAT is reconciled) and never touches any other label. See
+ * `dependabot rebasing` (plus `security update` on a Dependabot PR, `auto-merge
+ * enabled` in arming mode, and the four UAT labels when UAT is reconciled) and
+ * never touches any other label. See
  * docs/reconciler-design.md §Plan.
  */
 
@@ -34,6 +35,12 @@ export const AUTO_MERGE_LABEL = 'auto-merge enabled';
  * the state.
  */
 export const DEPENDABOT_REBASING_LABEL = 'dependabot rebasing';
+
+/**
+ * Marks a Dependabot security update so it gets attention, whatever the state.
+ * Owned only on Dependabot PRs: elsewhere it is a person's label to set.
+ */
+export const SECURITY_UPDATE_LABEL = 'security update';
 
 /** merge-safety's label for a PR whose base moved in a way that matters. Read, never written. */
 export const UPDATE_REQUIRED_LABEL = 'update required';
@@ -142,8 +149,14 @@ export function planReconcile(facts: PullRequestFacts, policy: ReconcilePolicy):
 
   const owned: string[] = [...LIFECYCLE_LABELS, DEPENDABOT_REBASING_LABEL];
   const desired = new Set<string>(lifecycleLabels(state));
-  if (facts.updater === 'dependabot' && facts.dependabotRebasing) {
-    desired.add(DEPENDABOT_REBASING_LABEL);
+  if (facts.updater === 'dependabot') {
+    if (facts.dependabotRebasing) {
+      desired.add(DEPENDABOT_REBASING_LABEL);
+    }
+    owned.push(SECURITY_UPDATE_LABEL);
+    if (facts.securityUpdate === true) {
+      desired.add(SECURITY_UPDATE_LABEL);
+    }
   }
   if (arming) {
     owned.push(AUTO_MERGE_LABEL);

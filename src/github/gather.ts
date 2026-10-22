@@ -9,7 +9,7 @@ import type {
   ReviewFact,
 } from '../facts.js';
 import type { GitRunner } from '../lineage/git.js';
-import { gatherBotEligibility } from './bot-facts.js';
+import { gatherBotFacts } from './bot-facts.js';
 import { gatherCiFacts } from './ci-facts.js';
 import type { GitHubClient, PullRequestData, ReviewData } from './client.js';
 import { isDependabotRebasing } from './dependabot-rebase.js';
@@ -124,9 +124,9 @@ export async function gatherFacts(
   // Dependabot rebases its own branches; the author login can't be forged.
   const updater: BranchUpdater = pull.authorLogin === DEPENDABOT_LOGIN ? 'dependabot' : 'github';
   const signOffActors = signOffs.map(({ application }) => application);
-  const [permissions, botEligibility, ci, lineage, pathFacts, signOffStatus] = await Promise.all([
+  const [permissions, bot, ci, lineage, pathFacts, signOffStatus] = await Promise.all([
     lookupPermissions(client, [...reviews, ...removals, ...signOffActors]),
-    gatherBotEligibility(client, pr, pull),
+    gatherBotFacts(client, pr, pull),
     gatherCiFacts(client, pull, policy),
     gatherLineageFor(client, pull, reviews, options),
     gatherPathFacts(client, pr, pull, policy),
@@ -145,7 +145,7 @@ export async function gatherFacts(
     : {};
   return {
     nodeId: pull.nodeId,
-    botEligibility,
+    botEligibility: bot.eligibility,
     lineage,
     createdAt: pull.createdAt,
     facts: {
@@ -155,7 +155,7 @@ export async function gatherFacts(
       headSha: pull.headSha,
       labels: pull.labels,
       autoMergeEnabled: pull.autoMergeEnabled,
-      botEligible: botEligibility.eligible,
+      botEligible: bot.eligibility.eligible,
       mergeable: pull.mergeable,
       immediatelyMergeable: IMMEDIATE_MERGE_STATES.has(pull.mergeState ?? ''),
       ciStatus: ci.ciStatus,
@@ -164,6 +164,7 @@ export async function gatherFacts(
       cleanRebaseSources,
       updater,
       dependabotRebasing: updater === 'dependabot' && isDependabotRebasing(pull.body),
+      securityUpdate: bot.securityUpdate,
       reviews: reviews.map((review) => toReviewFact(review, permissions)),
       forcePushes,
       escalationRemovals: removals.map((removal) => ({

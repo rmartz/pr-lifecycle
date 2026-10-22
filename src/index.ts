@@ -2,6 +2,7 @@ export {
   classifyBotPr,
   DEPENDABOT_LOGIN,
   DEPENDABOT_UPDATE_TYPES,
+  isDependabotSecurityUpdate,
   parseDependabotUpdateType,
   RELEASE_PLEASE_BRANCH_PREFIX,
 } from './bot-eligibility.js';
@@ -107,6 +108,7 @@ export {
   DEPENDABOT_REBASING_LABEL,
   LIFECYCLE_LABELS,
   planReconcile,
+  SECURITY_UPDATE_LABEL,
   UPDATE_REQUIRED_LABEL,
   withoutReleaseActions,
   withoutSignOffStatus,

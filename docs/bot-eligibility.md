@@ -77,7 +77,8 @@ backtracking regex.
 
 - **Version updates** carry an `update-type: version-update:semver-*` line per
   entry, which is used as is. An unrecognized value yields no type.
-- **Security updates** leave `update-type` out. They are raised as their own PR,
+- **Security updates** leave `update-type` out, which also gives them the
+  [`security update` label](reconciler-design.md#security-update-label). They are raised as their own PR,
   since groups apply only to version updates by default. Their type is
   **derived** (#92):
   1. the `from`/`to` versions come from Dependabot's own prose for that

@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
 import { labelDefinition, OWNED_LABEL_DEFINITIONS } from '../../src/github/label-roster.js';
-import { AUTO_MERGE_LABEL, DEPENDABOT_REBASING_LABEL, LIFECYCLE_LABELS } from '../../src/plan.js';
+import {
+  AUTO_MERGE_LABEL,
+  DEPENDABOT_REBASING_LABEL,
+  LIFECYCLE_LABELS,
+  SECURITY_UPDATE_LABEL,
+} from '../../src/plan.js';
 import { CI_APPROVAL_NEEDED_LABEL } from '../../src/sign-off-plan.js';
 import { UAT_LABELS } from '../../src/uat.js';
 
@@ -16,6 +21,7 @@ describe('label roster', () => {
         AUTO_MERGE_LABEL,
         CI_APPROVAL_NEEDED_LABEL,
         DEPENDABOT_REBASING_LABEL,
+        SECURITY_UPDATE_LABEL,
       ].sort(),
     );
   });
