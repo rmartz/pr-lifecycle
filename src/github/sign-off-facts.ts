@@ -3,6 +3,7 @@ import type { FileChange, SignOffStatusFact } from '../facts.js';
 import type { ChangedFile } from '../release-diff.js';
 import { SIGN_OFF_STATUS_CONTEXT } from '../sign-off-plan.js';
 import type { GitHubClient, PullRequestData } from './client.js';
+import { isTransientError } from './client.js';
 
 /**
  * Gathers the facts behind the sign-off status (docs/sign-off-status.md): the
@@ -64,9 +65,18 @@ export async function gatherSignOffStatus(
   client: Pick<GitHubClient, 'listStatuses'>,
   headSha: string,
 ): Promise<SignOffStatusFact | undefined> {
-  const latest = (await client.listStatuses(headSha)).find(
-    (status) => status.context === SIGN_OFF_STATUS_CONTEXT,
-  );
+  let statuses: Awaited<ReturnType<typeof client.listStatuses>>;
+  try {
+    statuses = await client.listStatuses(headSha);
+  } catch (error) {
+    // Unknown means "post it again", which is harmless; failing the run would
+    // leave the PR's labels unwritten. A transient failure is retried instead.
+    if (isTransientError(error)) {
+      throw error;
+    }
+    return undefined;
+  }
+  const latest = statuses.find((status) => status.context === SIGN_OFF_STATUS_CONTEXT);
   return latest === undefined
     ? undefined
     : {
