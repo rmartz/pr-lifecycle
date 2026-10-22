@@ -6,6 +6,7 @@ import { listAllChangedFiles, touchedPaths } from './changed-files.js';
 import { gatherWorkflowChanges } from './sign-off-facts.js';
 import { isWorkflowPath } from '../ci-change/workflow-paths.js';
 import type { GitHubClient, LabelApplicationData, PullRequestData } from './client.js';
+import { isTransientError } from './client.js';
 
 /**
  * Gathers the facts the sign-off classifier needs (docs/uat.md), reading only
@@ -140,6 +141,12 @@ export interface PathFacts {
 /**
  * The changed paths, manifests, and workflows. An incomplete listing leaves
  * `changedPaths` absent, which exempts nothing and counts as a loosening.
+ *
+ * A read that fails for a reason other than a transient outage (say, a 404 on a
+ * fork's deleted commit) fails closed the same way, rather than failing the run:
+ * a failed run writes no labels at all, and every open PR must still get its UAT
+ * label (docs/uat.md §Always exactly one). A transient failure still propagates,
+ * so the run is retried.
  */
 export async function gatherPathFacts(
   client: Pick<GitHubClient, 'compareCommits' | 'getFileText' | 'listPullRequestFiles'>,
@@ -150,6 +157,21 @@ export async function gatherPathFacts(
   if (!uatActive(policy, pull)) {
     return {};
   }
+  try {
+    return await readPathFacts(client, pr, pull);
+  } catch (error) {
+    if (isTransientError(error)) {
+      throw error;
+    }
+    return {};
+  }
+}
+
+async function readPathFacts(
+  client: Pick<GitHubClient, 'compareCommits' | 'getFileText' | 'listPullRequestFiles'>,
+  pr: number,
+  pull: PullRequestData,
+): Promise<PathFacts> {
   const files = await listAllChangedFiles(client, pr, pull);
   if (files === undefined) {
     return {};
