@@ -103,6 +103,16 @@ describe('CI approval needed', () => {
     expect([plan.addLabels, plan.removeLabels]).toEqual([['review requested'], []]);
   });
 
+  it('leaves exactly one UAT label, no UAT needed, on a ci PR', () => {
+    fc.assert(
+      fc.property(fc.subarray([NEEDED, 'UAT pending', 'UAT ready', 'no UAT needed']), (labels) => {
+        const facts = ciFacts({ labels });
+        const after = applyPlan(facts, planReconcile(facts, ON));
+        expect(after.labels.filter((name) => /UAT/.test(name))).toEqual(['no UAT needed']);
+      }),
+    );
+  });
+
   it('converges: applying the plan and re-planning changes nothing', () => {
     fc.assert(
       fc.property(

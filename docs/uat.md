@@ -10,8 +10,9 @@ tags: [reconciler, uat, labels, sign-off, security]
 
 pr-lifecycle owns a PR's sign-off classification. On every reconcile it leaves
 **exactly one** of `no UAT needed`, `UAT pending`, `UAT ready`, or `UAT passed`
-on an open PR, so the label never goes stale between reviews, except on a PR
-that needs the CI sign-off instead, which gets none. The labels are for people:
+on an open PR, so the label never goes stale between reviews. A PR that needs
+the CI sign-off instead gets `no UAT needed` (see
+[Always exactly one](#always-exactly-one)). The labels are for people:
 pr-policy, the gate, never reads them. The decision reaches it through the
 [sign-off status](sign-off-status.md) on the head, and pr-policy reads only that
 and the people's own sign-off labels.
@@ -29,12 +30,11 @@ UAT labels are neither read nor written.
 Evaluated in order; the first that applies picks the label. Rules 1 and 2 are
 the [sign-off classification](sign-off-status.md#the-classification): `ci`,
 or `none` (statically safe, or UAT off). Rules 3–6 apply to `requirement=uat`.
-The JSON `uat.outcome` names the rule (`uat` is `null` for rule 1, which shows
-no label).
+The JSON `uat.outcome` names the rule.
 
 | #   | Condition                                                                                                                    | Outcome                         | Label           |
 | --- | ---------------------------------------------------------------------------------------------------------------------------- | ------------------------------- | --------------- |
-| 1   | the PR needs the CI sign-off instead (`requirement=ci`)                                                                      | `ci`                            | none            |
+| 1   | the PR needs the CI sign-off instead (`requirement=ci`)                                                                      | `ci`                            | `no UAT needed` |
 | 2   | the PR [can't be user-facing](#which-prs-cant-be-user-facing)                                                                | `exempt-title` / `exempt-paths` | `no UAT needed` |
 | 2   | the repo's UAT setting is `off` (`--uat off`)                                                                                | `off`                           | `no UAT needed` |
 | 3   | the PR [holds an approval](#approval) and a trusted `UAT passed` is [current for the head](#sign-offs-are-bound-to-the-head) | `passed`                        | `UAT passed`    |
@@ -53,6 +53,20 @@ replaced.
 **Draft PRs are classified too.** The UAT label describes the change, not the
 review stage, so a draft feature PR shows `UAT pending`. A closed PR's labels
 are left as its record.
+
+### Always exactly one
+
+Every open PR carries exactly one UAT label, a `ci` PR included. Every reader of
+the labels assumes one is there: the coordinator's UAT state, `/merge`'s UAT
+rule, and `/review`. A `ci` PR with none read as "UAT incomplete" and parked
+approved, green, signed-off PRs, and the reconciler stripped a hand-applied
+`no UAT needed` within seconds (rmartz/firebase-nextjs-template#316).
+
+`no UAT needed` is true for a `ci` PR: it needs the CI sign-off instead, which
+`CI approval needed` shows. That matches `off` and the exemptions. The gate is
+unaffected: pr-policy reads only the [sign-off status](sign-off-status.md), and
+a bot-applied `no UAT needed` never counts as a person's waiver. The `ci`
+outcome stays distinct in the status, in `CI approval needed`, and in `--json`.
 
 ### Approval
 

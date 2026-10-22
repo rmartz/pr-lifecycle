@@ -152,15 +152,12 @@ export function planReconcile(facts: PullRequestFacts, policy: ReconcilePolicy):
       desired.add(AUTO_MERGE_LABEL);
     }
   }
-  // At most one UAT label: the classifier's (none when the CI sign-off is needed
-  // instead). The sign-off labels are inputs too.
+  // Exactly one UAT label: the classifier's (`no UAT needed` when the CI sign-off
+  // is needed instead). The sign-off labels are inputs too.
   const signOff = planSignOff(facts, policy);
   if (signOff !== undefined) {
     owned.push(...UAT_LABELS);
-    const label = uatLabelFor(signOff.uat);
-    if (label !== undefined) {
-      desired.add(label);
-    }
+    desired.add(uatLabelFor(signOff.uat));
     owned.push(CI_APPROVAL_NEEDED_LABEL);
     if (signOff.ciApprovalLabel) {
       desired.add(CI_APPROVAL_NEEDED_LABEL);
