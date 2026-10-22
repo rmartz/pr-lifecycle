@@ -1,5 +1,9 @@
 import type { DependabotUpdateType } from './dependabot-versions.js';
-import { commitUpdateType, DEPENDABOT_UPDATE_TYPES } from './dependabot-versions.js';
+import {
+  commitUpdateType,
+  DEPENDABOT_UPDATE_TYPES,
+  isSecurityUpdateCommit,
+} from './dependabot-versions.js';
 import type { ChangedFile } from './release-diff.js';
 import { classifyReleaseDiff } from './release-diff.js';
 
@@ -107,6 +111,21 @@ function classifyDependabot(
     `Dependabot ${updateType}${how} — held for review`,
     'dependabot',
     updateType,
+  );
+}
+
+/**
+ * Whether a Dependabot PR is a security update: some commit Dependabot authored
+ * carries metadata without an `update-type` (see `isSecurityUpdateCommit`). It only
+ * drives the `security update` label, never eligibility, so it needs no more than
+ * the commit author to trust it. A fork PR is never one.
+ */
+export function isDependabotSecurityUpdate(facts: BotPrFacts): boolean {
+  if (facts.isCrossRepository || facts.authorLogin !== DEPENDABOT_LOGIN) {
+    return false;
+  }
+  return facts.commits.some(
+    (commit) => commit.authorLogin === DEPENDABOT_LOGIN && isSecurityUpdateCommit(commit.message),
   );
 }
 

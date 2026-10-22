@@ -76,6 +76,36 @@ describe('gatherFacts — branch updater', () => {
     expect(facts.dependabotRebasing).toBe(false);
   });
 
+  it('reports a Dependabot security update from its commit metadata', async () => {
+    const client = makeFlaggedClient(DEPENDABOT);
+    client.commits = [
+      {
+        authorLogin: DEPENDABOT_LOGIN,
+        message:
+          '---\nupdated-dependencies:\n- dependency-name: x\n  dependency-version: 1.0.1\n...',
+      },
+    ];
+
+    const { facts } = await gatherFacts(client, 7, {});
+
+    expect(facts.securityUpdate).toBe(true);
+  });
+
+  it('does not report a security update for a PR not opened by Dependabot', async () => {
+    const client = makeFlaggedClient();
+    client.commits = [
+      {
+        authorLogin: DEPENDABOT_LOGIN,
+        message:
+          '---\nupdated-dependencies:\n- dependency-name: x\n  dependency-version: 1.0.1\n...',
+      },
+    ];
+
+    const { facts } = await gatherFacts(client, 7, {});
+
+    expect(facts.securityUpdate).toBe(false);
+  });
+
   it('reads no comments for a Dependabot PR, even with auto-update on', async () => {
     const client = makeFlaggedClient(DEPENDABOT);
 

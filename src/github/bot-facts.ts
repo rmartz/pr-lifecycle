@@ -2,6 +2,7 @@ import type { BotEligibility } from '../bot-eligibility.js';
 import {
   classifyBotPr,
   DEPENDABOT_LOGIN,
+  isDependabotSecurityUpdate,
   parseDependabotUpdateType,
   RELEASE_PLEASE_BRANCH_PREFIX,
 } from '../bot-eligibility.js';
@@ -12,14 +13,21 @@ import type { GitHubClient, PullRequestData } from './client.js';
  * Gathers the facts bot eligibility needs, fetching only what can change the
  * answer: a same-repo Dependabot PR's commits (plus its changed files when a
  * commit has no explicit update type), or a same-repo release-please branch's
- * changed files. See docs/bot-eligibility.md.
+ * changed files. The same commits say whether a Dependabot PR is a security
+ * update. See docs/bot-eligibility.md.
  */
 
-export async function gatherBotEligibility(
+export interface BotFacts {
+  eligibility: BotEligibility;
+  /** A same-repo Dependabot security update (see `isDependabotSecurityUpdate`). */
+  securityUpdate: boolean;
+}
+
+export async function gatherBotFacts(
   client: GitHubClient,
   pr: number,
   pull: PullRequestData,
-): Promise<BotEligibility> {
+): Promise<BotFacts> {
   const sameRepo = !pull.isCrossRepository;
   const isDependabot = pull.authorLogin === DEPENDABOT_LOGIN;
   const isReleaseBranch = !isDependabot && pull.headRef.startsWith(RELEASE_PLEASE_BRANCH_PREFIX);
@@ -35,11 +43,12 @@ export async function gatherBotEligibility(
   );
   const changedFiles =
     isDependabot && needsDiff ? await client.listPullRequestFiles(pr) : releaseFiles;
-  return classifyBotPr({
+  const botPr = {
     authorLogin: pull.authorLogin ?? 'ghost',
     headRef: pull.headRef,
     isCrossRepository: pull.isCrossRepository,
     commits,
     changedFiles,
-  });
+  };
+  return { eligibility: classifyBotPr(botPr), securityUpdate: isDependabotSecurityUpdate(botPr) };
 }

@@ -20,28 +20,29 @@ and the UAT classifier in `uat*.ts`).
 
 ## Facts
 
-| Fact                   | Source (edge layer)                                                                                                                           |
-| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| `status`               | PR `state` / `merged`: `open`, `closed`, or `merged`                                                                                          |
-| `isDraft`, `title`     | PR fields; a `[WIP]` title (any case) is treated like a draft                                                                                 |
-| `headSha`              | PR `head.sha`                                                                                                                                 |
-| `labels`               | current label names                                                                                                                           |
-| `autoMergeEnabled`     | PR `auto_merge` is non-null                                                                                                                   |
-| `botEligible`          | [bot-PR eligibility](bot-eligibility.md): same-repo Dependabot patch/minor, release-please pure release                                       |
-| `mergeable`            | PR `mergeable`: `true`, `false` (merge conflict), or unknown (`null` → `undefined`: still computing)                                          |
-| `immediatelyMergeable` | PR `mergeable_state` is `clean`, `has_hooks`, or `unstable`: GitHub would merge now, so auto-merge can't be armed                             |
-| `ciStatus`             | [CI gate](#ci-gate) over the head's required checks: `passing`, `failing`, or `pending`                                                       |
-| `baseCiFailing`        | the same required checks are failing on the base branch head (fetched only when `ciStatus` is `failing`)                                      |
-| `cleanAncestors`       | commits whose reviews carry over to the head (see [Approval carry-over](approval-carry-over.md)); verified at the edge                        |
-| `cleanRebaseSources`   | reviewed commits a force-push removed, whose reviews carry over (see [Rebased heads](approval-carry-over.md#rebased-heads)); verified at edge |
-| `updater`              | `dependabot` for a PR opened by `dependabot[bot]` (it rebases its own branch), else `github` (`update-branch`)                                |
-| `dependabotRebasing`   | Dependabot PRs only: the PR body carries Dependabot's own rebasing or recreating notice; a rebase request doesn't count                       |
-| `reviews`              | PR reviews: author login, type (`User`/`Bot`), repo permission, `commit_id`, state, body, submitted time                                      |
-| `forcePushes`          | the timeline's force-pushes: the heads each replaced and made, and when (read only for a verdict or a UAT sign-off)                           |
-| `pendingBotReviewers`  | PR `requested_reviewers` entries of type `Bot` (Copilot appears as `Copilot`); users and teams are left out                                   |
-| `changedPaths`, …      | the [UAT facts](uat.md): changed paths and manifests, the latest application of each UAT sign-off, commit arrivals, title changes             |
-| `workflowChanges`      | merge-base and head text of each changed workflow, for [CI loosening](ci-loosening.md)                                                        |
-| `signOffStatus`        | the head's latest `pr-lifecycle/sign-off` status (state, description, creator type)                                                           |
+| Fact                   | Source (edge layer)                                                                                                                             |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `status`               | PR `state` / `merged`: `open`, `closed`, or `merged`                                                                                            |
+| `isDraft`, `title`     | PR fields; a `[WIP]` title (any case) is treated like a draft                                                                                   |
+| `headSha`              | PR `head.sha`                                                                                                                                   |
+| `labels`               | current label names                                                                                                                             |
+| `autoMergeEnabled`     | PR `auto_merge` is non-null                                                                                                                     |
+| `botEligible`          | [bot-PR eligibility](bot-eligibility.md): same-repo Dependabot patch/minor, release-please pure release                                         |
+| `mergeable`            | PR `mergeable`: `true`, `false` (merge conflict), or unknown (`null` → `undefined`: still computing)                                            |
+| `immediatelyMergeable` | PR `mergeable_state` is `clean`, `has_hooks`, or `unstable`: GitHub would merge now, so auto-merge can't be armed                               |
+| `ciStatus`             | [CI gate](#ci-gate) over the head's required checks: `passing`, `failing`, or `pending`                                                         |
+| `baseCiFailing`        | the same required checks are failing on the base branch head (fetched only when `ciStatus` is `failing`)                                        |
+| `cleanAncestors`       | commits whose reviews carry over to the head (see [Approval carry-over](approval-carry-over.md)); verified at the edge                          |
+| `cleanRebaseSources`   | reviewed commits a force-push removed, whose reviews carry over (see [Rebased heads](approval-carry-over.md#rebased-heads)); verified at edge   |
+| `updater`              | `dependabot` for a PR opened by `dependabot[bot]` (it rebases its own branch), else `github` (`update-branch`)                                  |
+| `dependabotRebasing`   | Dependabot PRs only: the PR body carries Dependabot's own rebasing or recreating notice; a rebase request doesn't count                         |
+| `securityUpdate`       | same-repo Dependabot PRs only: a Dependabot-authored commit's metadata has an entry without `update-type` (see [below](#security-update-label)) |
+| `reviews`              | PR reviews: author login, type (`User`/`Bot`), repo permission, `commit_id`, state, body, submitted time                                        |
+| `forcePushes`          | the timeline's force-pushes: the heads each replaced and made, and when (read only for a verdict or a UAT sign-off)                             |
+| `pendingBotReviewers`  | PR `requested_reviewers` entries of type `Bot` (Copilot appears as `Copilot`); users and teams are left out                                     |
+| `changedPaths`, …      | the [UAT facts](uat.md): changed paths and manifests, the latest application of each UAT sign-off, commit arrivals, title changes               |
+| `workflowChanges`      | merge-base and head text of each changed workflow, for [CI loosening](ci-loosening.md)                                                          |
+| `signOffStatus`        | the head's latest `pr-lifecycle/sign-off` status (state, description, creator type)                                                             |
 
 The author's **repo permission** is a fact gathered at the edge (the collaborator
 permission API), so trust evaluation stays pure.
@@ -286,7 +287,8 @@ properties are on their own page: [Approval carry-over](approval-carry-over.md).
   current one is kept (see [UAT labels](uat.md)). The core owns the seven
   lifecycle labels (`approved`, `blocked`, `changes requested`,
   `escalation needed`, `fix required`, `ci failing`, `review requested`),
-  [`dependabot rebasing`](#dependabot-rebasing-label), in arming mode
+  [`dependabot rebasing`](#dependabot-rebasing-label), on a Dependabot PR
+  [`security update`](#security-update-label), in arming mode
   `auto-merge enabled`, and, when `policy.uat` is set, the four UAT labels and
   [`CI approval needed`](sign-off-status.md#ci-approval-needed). It
   adds the desired ones and removes every other owned label present, so a
@@ -346,6 +348,28 @@ label both ways.
   rebasing one and hasn't been seen on a live PR yet; if it differs, recreates
   simply don't raise the label.
 
+### Security update label
+
+`security update` marks a Dependabot security update so it gets attention,
+whatever the lifecycle state: an eligible patch or minor fix still auto-merges,
+and keeps the label as a record. Dependabot writes `update-type` on every entry
+of a version update's `updated-dependencies` metadata and leaves it out of a
+security update's (see [bot eligibility](bot-eligibility.md#reading-the-dependabot-update-type)),
+so `securityUpdate` is true when any commit authored by `dependabot[bot]` on a
+same-repo Dependabot PR has an entry without one. A grouped security update
+counts, as does one someone has since pushed a fix onto.
+
+- **Owned only on Dependabot PRs.** There the label mirrors `securityUpdate`:
+  added when true, removed when not. On any other PR it is a person's label, and
+  the reconciler never adds or removes it.
+- **Attention, not authorization.** The label never feeds the state or
+  eligibility, so a wrong one costs a look, not a merge. That is why the commit
+  author alone is trusted for it, while eligibility asks for more.
+- **It follows Dependabot's metadata.** If Dependabot ever wrote `update-type` on
+  a security update, the label would silently stop appearing; GitHub's
+  vulnerability-alert API (which links an alert to its fix PR) would be the
+  independent check, at the cost of an alerts-read token.
+
 ## Guaranteed properties (tested)
 
 - **Idempotent.** Applying a plan and re-planning yields an empty plan.
@@ -355,6 +379,9 @@ label both ways.
 - **Scoped writes.** A plan never adds or removes a label outside the owned set.
 - **The rebasing label mirrors Dependabot.** On an open PR, `dependabot rebasing`
   is present after a plan exactly when Dependabot says it is rebasing its own PR.
+- **The security label mirrors the metadata.** On an open Dependabot PR,
+  `security update` is present after a plan exactly when `securityUpdate` is
+  true; on any other PR, a plan leaves it as it was.
 - **No unapproved armed PR.** In arming mode, an armed open PR that isn't
   `approved`, whatever its CI, conflict or review state, is always disarmed, and
   a PR is only ever armed or merged when `approved`.

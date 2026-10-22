@@ -1,5 +1,5 @@
 import type { LabelDefinition } from './client.js';
-import { AUTO_MERGE_LABEL, DEPENDABOT_REBASING_LABEL } from '../plan.js';
+import { AUTO_MERGE_LABEL, DEPENDABOT_REBASING_LABEL, SECURITY_UPDATE_LABEL } from '../plan.js';
 import type { LifecycleLabel } from '../plan.js';
 import { CI_APPROVAL_NEEDED_LABEL } from '../sign-off-plan.js';
 import type { UatLabel } from '../uat.js';
@@ -21,7 +21,8 @@ export const OWNED_LABEL_DEFINITIONS: Record<
   | UatLabel
   | typeof AUTO_MERGE_LABEL
   | typeof CI_APPROVAL_NEEDED_LABEL
-  | typeof DEPENDABOT_REBASING_LABEL,
+  | typeof DEPENDABOT_REBASING_LABEL
+  | typeof SECURITY_UPDATE_LABEL,
   LabelDefinition
 > = {
   'no UAT needed': {
@@ -91,6 +92,11 @@ export const OWNED_LABEL_DEFINITIONS: Record<
     name: 'fix required',
     color: 'D93F0B',
     description: 'A statically detected problem (merge conflict or failing CI) needs a fix.',
+  },
+  'security update': {
+    name: SECURITY_UPDATE_LABEL,
+    color: 'E11D48',
+    description: 'Dependabot security update: fixes a known vulnerability, so give it priority.',
   },
   'review requested': {
     name: 'review requested',

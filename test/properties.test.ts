@@ -8,6 +8,7 @@ import {
   DEPENDABOT_REBASING_LABEL,
   LIFECYCLE_LABELS,
   planReconcile,
+  SECURITY_UPDATE_LABEL,
   UPDATE_REQUIRED_LABEL,
   withoutReleaseActions,
 } from '../src/plan.js';
@@ -28,6 +29,7 @@ const OWNED_LABELS = new Set<string>([
   ...LIFECYCLE_LABELS,
   AUTO_MERGE_LABEL,
   DEPENDABOT_REBASING_LABEL,
+  SECURITY_UPDATE_LABEL,
 ]);
 const LOGINS = ['maintainer', 'rmartz', 'drive-by', COPILOT_REVIEWER_LOGIN] as const;
 
@@ -98,6 +100,7 @@ const factsArb: fc.Arbitrary<PullRequestFacts> = fc.record({
   cleanRebaseSources: fc.constantFrom([], [], [OLD_SHA]),
   updater: fc.constantFrom(...BRANCH_UPDATERS),
   dependabotRebasing: fc.boolean(),
+  securityUpdate: fc.boolean(),
   reviews: reviewsArb(),
   forcePushes: fc.array(
     fc.record({
@@ -395,6 +398,22 @@ describe('reconciler properties', () => {
         const expected = facts.updater === 'dependabot' && facts.dependabotRebasing;
 
         expect(labels.includes(DEPENDABOT_REBASING_LABEL)).toBe(expected);
+      }),
+    );
+  });
+
+  // On a Dependabot PR the label mirrors the fact; elsewhere it is a person's label.
+  it('shows security update exactly on a Dependabot security update', () => {
+    fc.assert(
+      fc.property(factsArb, policyArb, (facts, policy) => {
+        fc.pre(facts.status === 'open');
+        const labels = applyPlan(facts, planReconcile(facts, policy)).labels;
+        const expected =
+          facts.updater === 'dependabot'
+            ? facts.securityUpdate === true
+            : facts.labels.includes(SECURITY_UPDATE_LABEL);
+
+        expect(labels.includes(SECURITY_UPDATE_LABEL)).toBe(expected);
       }),
     );
   });
