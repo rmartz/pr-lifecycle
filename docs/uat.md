@@ -56,9 +56,27 @@ are left as its record.
 
 ### Always exactly one
 
-Every open PR carries exactly one UAT label, a `ci` PR included. Every reader of
-the labels assumes one is there: the coordinator's UAT state, `/merge`'s UAT
-rule, and `/review`. A `ci` PR with none read as "UAT incomplete" and parked
+**Invariant: every open PR carries exactly one UAT label after every reconcile,**
+whatever its type, author, or state: a draft, a `[WIP]` PR, a Dependabot or
+other bot PR, a fork PR, and a `ci` PR all get one. With UAT off (`--uat off`)
+every PR still records `no UAT needed`, so the determination is explicit and
+auditable rather than implied by a missing label. The type system backs it
+(`uatLabelFor` returns a label for every outcome), and so do the run conditions:
+
+- the labels use `github-token`, so a missing `PR_LIFECYCLE_TOKEN` (or App
+  token) skips the status and the release actions, never a label;
+- a changed-file list that can't be read in full, for any reason but a
+  transient outage, counts as unknown, which fails closed to `UAT pending`
+  rather than to no label; a status read that fails is treated as no status;
+- a transient failure (a rate limit, an outage) fails the whole run so it is
+  retried, and the next event writes the label. A closed PR's labels are left
+  as its record.
+
+The property tests check it across each requirement, each UAT setting, drafts,
+bot and Dependabot PRs, merge conflicts, failing CI, and unknown paths.
+
+Every reader of the labels assumes one is there: the coordinator's UAT state,
+`/merge`'s UAT rule, and `/review`. A `ci` PR with none read as "UAT incomplete" and parked
 approved, green, signed-off PRs, and the reconciler stripped a hand-applied
 `no UAT needed` within seconds (rmartz/firebase-nextjs-template#316).
 
@@ -189,7 +207,7 @@ token holds the gate instead, because no [status](sign-off-status.md) is posted.
 ## Guaranteed properties (tested)
 
 - **Exactly one.** After a plan is applied, an open PR carries exactly one UAT
-  label.
+  label, under either UAT setting ([Always exactly one](#always-exactly-one)).
 - **Idempotent.** Applying a plan and re-planning yields no label changes.
 - **Order-independent.** Permuting the sign-offs, force-pushes, or title
   changes never changes the plan.
