@@ -217,12 +217,44 @@ describe('reconcilePullRequest — the sign-off status', () => {
     expect(postedStatuses(client)).toEqual([]);
   });
 
-  it('gives a ci PR no UAT label, and CI approval needed instead', async () => {
+  it('gives a ci PR no UAT needed and CI approval needed', async () => {
     const client = makeSourceClient(makePullRequestData({ title: 'ci: add a lint script' }));
 
     await reconcilePullRequest(client, 7, ON);
 
-    expect(client.pull.labels).toEqual(['review requested', 'CI approval needed']);
+    expect(client.pull.labels).toEqual(['review requested', 'no UAT needed', 'CI approval needed']);
+  });
+
+  it('keeps a hand-applied no UAT needed on a ci PR', async () => {
+    const client = makeSourceClient(
+      makePullRequestData({ title: 'ci: add a lint script', labels: ['no UAT needed'] }),
+    );
+
+    await reconcilePullRequest(client, 7, ON);
+
+    expect(client.writes.filter((call) => call.method === 'removeLabel')).toEqual([]);
+  });
+
+  it('replaces no UAT needed with UAT pending once a push makes the PR need UAT', async () => {
+    const client = makeSourceClient(
+      makePullRequestData({ title: 'ci: add a lint script', labels: [] }),
+    );
+    await reconcilePullRequest(client, 7, ON);
+    client.pull.title = 'feat: add a lint script';
+
+    await reconcilePullRequest(client, 7, ON);
+
+    expect(client.pull.labels).toEqual(['review requested', 'UAT pending']);
+  });
+
+  it('converges on a ci PR: a second reconcile writes nothing', async () => {
+    const client = makeSourceClient(makePullRequestData({ title: 'ci: add a lint script' }));
+    await reconcilePullRequest(client, 7, ON);
+    const writesBefore = client.writes.length;
+
+    await reconcilePullRequest(client, 7, ON);
+
+    expect(client.writes.length).toBe(writesBefore);
   });
 });
 
@@ -279,7 +311,7 @@ describe('runCli — the sign-off status', () => {
     ]);
   });
 
-  it('reports no uat field for a ci PR', async () => {
+  it('reports a ci PR as uat outcome ci with no UAT needed', async () => {
     const client = makeSourceClient(makePullRequestData({ title: 'ci: add a lint script' }));
     const { out, io } = makeIo();
 
@@ -287,7 +319,7 @@ describe('runCli — the sign-off status', () => {
 
     const json = JSON.parse(out[0] ?? '{}') as Record<string, unknown>;
     expect([json['uat'], (json['signOff'] as { requirement: string }).requirement]).toEqual([
-      null,
+      { outcome: 'ci', label: 'no UAT needed' },
       'ci',
     ]);
   });

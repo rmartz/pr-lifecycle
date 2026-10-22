@@ -77,6 +77,8 @@ Decided in order (`src/sign-off.ts`):
 | 7    | otherwise, `chore` included                                                                        | `uat`         |
 
 - **`ci` and `uat` are mutually exclusive.** A person is asked for one sign-off.
+  A `ci` PR shows `CI approval needed` and `no UAT needed` (every PR carries
+  exactly one UAT label; see [UAT labels](uat.md#always-exactly-one)).
   A `ci:` PR is decided first, whatever the UAT setting: it is statically safe,
   or it needs the CI sign-off.
 - **A loosening under another type is reported, not reclassified.** A `feat:`

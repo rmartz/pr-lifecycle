@@ -1,5 +1,4 @@
 import type { ReconcileResult } from '../github/reconcile.js';
-import type { UatOutcome } from '../uat.js';
 import { uatLabelFor } from '../uat.js';
 
 /**
@@ -56,8 +55,8 @@ export interface ReconcileJson {
   } | null;
   /**
    * The UAT classification: the label the PR carries and the rule that chose it
-   * (docs/uat.md); `null` when UAT labels aren't reconciled, the PR is closed,
-   * or it needs the CI sign-off instead (see `signOff`).
+   * (docs/uat.md); `null` when UAT labels aren't reconciled or the PR is closed.
+   * A PR that needs the CI sign-off instead reports `ci` with `no UAT needed`.
    */
   uat: { outcome: string; label: string } | null;
   /**
@@ -75,11 +74,6 @@ export interface ReconcileJson {
   } | null;
   /** The status the plan wanted but skipped; `null` when nothing was skipped. */
   signOffStatusSkipped: { reason: 'token-missing' } | null;
-}
-
-function uatJson(outcome: UatOutcome | undefined): ReconcileJson['uat'] {
-  const label = outcome === undefined ? undefined : uatLabelFor(outcome);
-  return outcome === undefined || label === undefined ? null : { outcome, label };
 }
 
 export function toReconcileJson(target: ReconcileTarget, result: ReconcileResult): ReconcileJson {
@@ -118,7 +112,7 @@ export function toReconcileJson(target: ReconcileTarget, result: ReconcileResult
     update: plan.update,
     updateSkipped:
       skippedUpdate === undefined ? null : { action: skippedUpdate, reason: 'token-missing' },
-    uat: uatJson(plan.uat),
+    uat: plan.uat === undefined ? null : { outcome: plan.uat, label: uatLabelFor(plan.uat) },
     signOff:
       plan.signOff === undefined || plan.signOffStatus === undefined
         ? null

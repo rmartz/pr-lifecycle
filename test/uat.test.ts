@@ -270,7 +270,7 @@ describe('uatLabelFor', () => {
     ['off', 'no UAT needed'],
     ['exempt-title', 'no UAT needed'],
     ['exempt-paths', 'no UAT needed'],
-    ['ci', undefined],
+    ['ci', 'no UAT needed'],
     ['waived', 'no UAT needed'],
     ['passed', 'UAT passed'],
     ['ready', 'UAT ready'],

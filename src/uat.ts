@@ -24,9 +24,10 @@ export type UatLabel = (typeof UAT_LABELS)[number];
 
 /**
  * Why the PR carries its UAT label, one per rule, in rule order:
- * `off` and the two exemptions are this package's own `no UAT needed`; `ci`
- * means the CI sign-off instead, so no UAT label; `passed` and `waived` keep a
- * trusted sign-off; `ready` and `pending` are the default.
+ * `off`, the two exemptions, and `ci` (the CI sign-off instead of UAT) are this
+ * package's own `no UAT needed`; `passed` and `waived` keep a trusted sign-off;
+ * `ready` and `pending` are the default. Every outcome shows exactly one UAT
+ * label, since every reader of the labels assumes one is there (docs/uat.md).
  */
 export const UAT_OUTCOMES = [
   'off',
@@ -40,11 +41,10 @@ export const UAT_OUTCOMES = [
 ] as const;
 export type UatOutcome = (typeof UAT_OUTCOMES)[number];
 
-/** The UAT label an outcome shows; none for a PR that needs the CI sign-off instead. */
-export function uatLabelFor(outcome: UatOutcome): UatLabel | undefined {
+/** The one UAT label an outcome shows. */
+export function uatLabelFor(outcome: UatOutcome): UatLabel {
   switch (outcome) {
     case 'ci':
-      return undefined;
     case 'off':
     case 'exempt-title':
     case 'exempt-paths':
