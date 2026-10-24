@@ -35,7 +35,7 @@ export function makeTransport(responses: { status?: number; json?: unknown; text
   const client = createHttpClient({
     token: 't0k',
     owner: 'rmartz',
-    repo: 'demo',
+    repo: 'pr-lifecycle',
     fetch: fakeFetch,
   });
   return { client, requests };

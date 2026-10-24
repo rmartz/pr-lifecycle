@@ -287,7 +287,7 @@ describe('runCli — the sign-off status', () => {
 
     expect([err, client.comments]).toEqual([
       [
-        'warning: rmartz/demo#7: the sign-off status was not posted, so pr-policy holds the PR: PR_LIFECYCLE_TOKEN is not set',
+        'warning: rmartz/pr-lifecycle#7: the sign-off status was not posted, so pr-policy holds the PR: PR_LIFECYCLE_TOKEN is not set',
       ],
       [buildTokenAdvisoryBody('sign-off-status')],
     ]);
@@ -344,7 +344,7 @@ describe('http client — statuses', () => {
     const statuses = await client.listStatuses(HEAD_SHA);
 
     expect([requests[0]?.url, statuses]).toEqual([
-      `https://api.github.com/repos/rmartz/demo/commits/${HEAD_SHA}/statuses?per_page=100&page=1`,
+      `https://api.github.com/repos/rmartz/pr-lifecycle/commits/${HEAD_SHA}/statuses?per_page=100&page=1`,
       [
         {
           context: CONTEXT,
@@ -369,7 +369,7 @@ describe('http client — statuses', () => {
 
     expect([requests[0]?.method, requests[0]?.url, requests[0]?.body]).toEqual([
       'POST',
-      `https://api.github.com/repos/rmartz/demo/statuses/${HEAD_SHA}`,
+      `https://api.github.com/repos/rmartz/pr-lifecycle/statuses/${HEAD_SHA}`,
       status,
     ]);
   });

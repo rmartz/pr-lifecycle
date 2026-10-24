@@ -48,7 +48,7 @@ describe('listLabelRemovals', () => {
     const removals = await client.listLabelRemovals(7, 'escalation needed');
 
     expect([requests[0]?.url, removals]).toEqual([
-      'https://api.github.com/repos/rmartz/demo/issues/7/events?per_page=100&page=1',
+      'https://api.github.com/repos/rmartz/pr-lifecycle/issues/7/events?per_page=100&page=1',
       [{ login: 'rmartz', type: 'User', removedAt: '2026-09-23T10:00:00Z' }],
     ]);
   });

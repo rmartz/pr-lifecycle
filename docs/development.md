@@ -1,7 +1,7 @@
 ---
 type: Reference
 title: Development and CI
-description: The pr-lifecycle toolchain, each CI workflow and what it gates, repo hygiene and the pre-commit hook, GitHub Packages auth, Dependabot, and semantic-release.
+description: The pr-lifecycle toolchain, each CI workflow and what it gates, repo hygiene and the pre-commit hook, Dependabot, and semantic-release.
 tags: [ci, tooling, dependabot, releases, conventions]
 ---
 
@@ -22,19 +22,9 @@ tags: [ci, tooling, dependabot, releases, conventions]
 
 Node 24 runs CI; the package supports Node ≥ 22.
 
-## GitHub Packages auth
-
-The `@rmartz/repo-hygiene` devDependency is published to GitHub Packages, so
-`pnpm install` needs a token. The repo-root [`.npmrc`](../.npmrc) reads it from
-`NODE_AUTH_TOKEN`:
-
-```bash
-NODE_AUTH_TOKEN=$(gh auth token) pnpm install
-```
-
-In CI the shared setup action (`.github/actions/setup`) passes the job's
-`GITHUB_TOKEN`, which is why CI jobs grant `packages: read`. The `.npmrc` also
-pins npmjs as the base registry so Dependabot resolves public packages correctly.
+Every dependency, `@rmartz/*` included, installs from npmjs with no token. The
+repo-root [`.npmrc`](../.npmrc) pins npmjs for both the base registry and the
+`@rmartz` scope, so a developer's global GitHub Packages setting can't reroute it.
 
 ## CI workflows
 
@@ -42,7 +32,7 @@ pins npmjs as the base registry so Dependabot resolves public packages correctly
 | ----------------------- | ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `ci.yml`                | PR + push to `main`             | Typecheck, Lint, Format, Build, Test (with coverage)                                                                                                                                                                                |
 | `release-check.yml`     | PR                              | `release-check / release-check`: the release config works with the shared semantic-release-ci toolchain                                                                                                                             |
-| `repo-hygiene.yml`      | PR + push to `main`             | conflict markers, action/package pins, docs links, AGENTS/CLAUDE pairing, OKF frontmatter + index, file caps                                                                                                                        |
+| `repo-hygiene.yml`      | PR + push to `main`             | the `hygiene` check: every default-on repo-hygiene check (see [Repo hygiene](#repo-hygiene))                                                                                                                                        |
 | `merge-safety.yml`      | `pull_request_target`, push     | the `merge-safety` check-run (base currency, conflicts)                                                                                                                                                                             |
 | `pr-policy.yml`         | `pull_request_target`, `status` | runs `rmartz/pr-policy-action` with `skip-uat: true` (nothing here to user-test): the required `pr-policy` check (title rules, CI sign-off); re-runs on the `pr-lifecycle/sign-off` status, trusted from `rmartz-pr-lifecycle[bot]` |
 | `pr-lifecycle.yml`      | PR, review, CI completion       | dogfoods the published reconciler with `uat: 'off'`: lifecycle and UAT labels, the `pr-lifecycle/sign-off` status, and arms auto-merge on `approved`                                                                                |
@@ -50,7 +40,7 @@ pins npmjs as the base registry so Dependabot resolves public packages correctly
 | `release.yml`           | push to `main`                  | shared semantic-release-ci workflow: publish + tag + GitHub Release                                                                                                                                                                 |
 
 Every job has a timeout; a hit is a signal to investigate, not a number to raise.
-The default-branch ruleset requires the CI jobs, `Repo hygiene`,
+The default-branch ruleset requires the CI jobs, `hygiene`,
 `merge-safety`, `release-check / release-check`, and
 `pr-policy`. PR titles are checked by pr-policy's `title` check, part of the
 `pr-policy` check. Changing CI follows the fleet rules: a
@@ -59,20 +49,22 @@ threshold, raising a timeout) lands alone in its own `ci:` PR.
 
 ## Repo hygiene
 
-Every check in [`.repo-hygiene.yml`](../.repo-hygiene.yml) runs at `error`
-severity. The same check list runs in two places:
+Every default-on `@rmartz/repo-hygiene` check runs, each at its shipped
+severity. No check list is pinned anywhere, so a check added upstream joins on
+the next Dependabot bump. [`.repo-hygiene.yml`](../.repo-hygiene.yml) sets only
+per-check options, never `severity`. The checks run in two places:
 
 - **Pre-commit** — `.husky/pre-commit` runs `pnpm run hygiene:staged` over staged
   content (installed by the `prepare` script on `pnpm install`).
 - **CI** — the Repo Hygiene workflow, via the SHA-pinned
-  `rmartz/repo-hygiene-action`.
+  `rmartz/repo-hygiene-action`. Its job id `hygiene` is the required status
+  context, so never rename the job or give it a `name:`. The action also posts
+  one `repo-hygiene / <check>` status per check.
 
-> **Known gap:** the CI path is currently vacuous. `repo-hygiene-action` runs the
-> CLI through npm's `node_modules/.bin` symlink, and the CLI exits 0 there without
-> running any check ([rmartz/repo-hygiene#67](https://github.com/rmartz/repo-hygiene/issues/67)).
-> The pre-commit hook is unaffected (pnpm's shim execs the real path), so it is
-> the working gate until a fixed action version arrives via Dependabot. Remove
-> this note once the fix lands.
+`private-repo-refs` fails on any `rmartz/<repo>` reference to a private (or
+nonexistent) repo, test fixtures included. Fixtures use this repo,
+`rmartz/pr-lifecycle`, as the target; refer to private tooling by what it is,
+without naming its repo.
 
 ## Dependabot
 
@@ -85,10 +77,8 @@ before pr-policy's title check passes: Dependabot can't set a per-group prefix.
 Other patch and minor
 bumps are batched, per dependency type for npm and in one group for Actions, so
 the reconciler can approve and arm them as eligible bot PRs. Every major gets its
-own PR for review, so a pending major never holds the routine bumps back. The npm
-entry authenticates to GitHub Packages via
-the `DEPENDABOT_PACKAGES_TOKEN` **Dependabot** secret (separate from Actions
-secrets); without it, all npm updates silently stop.
+own PR for review, so a pending major never holds the routine bumps back. Every
+npm dependency resolves from npmjs, so the npm entry needs no registry credentials.
 
 ## Pilot read-out
 

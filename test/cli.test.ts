@@ -48,7 +48,12 @@ describe('runCli — reconcile', () => {
     await runCli(RECONCILE, makeIo().io, deps);
 
     expect(created).toEqual([
-      { token: 't0k', owner: 'rmartz', repo: 'demo', apiUrl: 'https://ghe.example.com/api/v3' },
+      {
+        token: 't0k',
+        owner: 'rmartz',
+        repo: 'pr-lifecycle',
+        apiUrl: 'https://ghe.example.com/api/v3',
+      },
     ]);
   });
 
@@ -60,7 +65,7 @@ describe('runCli — reconcile', () => {
 
     await runCli(RECONCILE, makeIo().io, deps);
 
-    expect(created[0]).toEqual({ token: 't0k', owner: 'rmartz', repo: 'demo' });
+    expect(created[0]).toEqual({ token: 't0k', owner: 'rmartz', repo: 'pr-lifecycle' });
   });
 
   it('applies the plan and exits 0', async () => {
@@ -117,7 +122,7 @@ describe('runCli — reconcile', () => {
     await runCli([...RECONCILE, '--arm-auto-merge'], io, makeDeps(makeApprovedClient()).deps);
 
     expect(out).toEqual([
-      'rmartz/demo#7 → approved: +approved, +auto-merge enabled, +UAT ready, auto-merge arm (bot: not a recognized bot PR)',
+      'rmartz/pr-lifecycle#7 → approved: +approved, +auto-merge enabled, +UAT ready, auto-merge arm (bot: not a recognized bot PR)',
     ]);
   });
 
@@ -134,7 +139,7 @@ describe('runCli — reconcile', () => {
     await runCli([...RECONCILE, '--arm-auto-merge'], io, makeDeps(client).deps);
 
     expect(out).toEqual([
-      'rmartz/demo#7 → awaiting-bot-review: -approved, -auto-merge enabled, auto-merge disarm (bot: not a recognized bot PR)',
+      'rmartz/pr-lifecycle#7 → awaiting-bot-review: -approved, -auto-merge enabled, auto-merge disarm (bot: not a recognized bot PR)',
     ]);
   });
 
@@ -148,7 +153,7 @@ describe('runCli — reconcile', () => {
     await runCli([...RECONCILE, '--dry-run'], io, makeDeps(client).deps);
 
     expect(out).toEqual([
-      '[dry-run] rmartz/demo#7 → awaiting-bot-review: no changes (bot: not a recognized bot PR)',
+      '[dry-run] rmartz/pr-lifecycle#7 → awaiting-bot-review: no changes (bot: not a recognized bot PR)',
     ]);
   });
 
@@ -162,7 +167,7 @@ describe('runCli — reconcile', () => {
     expect([code, out, err]).toEqual([
       1,
       [],
-      ['reconcile failed for rmartz/demo#7: resource not accessible'],
+      ['reconcile failed for rmartz/pr-lifecycle#7: resource not accessible'],
     ]);
   });
 
@@ -180,7 +185,9 @@ describe('runCli — reconcile', () => {
       75,
       75,
       [],
-      ['reconcile interrupted for rmartz/demo#7 by a transient failure: secondary rate limit'],
+      [
+        'reconcile interrupted for rmartz/pr-lifecycle#7 by a transient failure: secondary rate limit',
+      ],
     ]);
   });
 });
@@ -201,7 +208,7 @@ describe('runCli — --json contract (schemaVersion 1)', () => {
     expect(out.map((line) => JSON.parse(line) as unknown)).toEqual([
       {
         schemaVersion: 1,
-        repo: 'rmartz/demo',
+        repo: 'rmartz/pr-lifecycle',
         pr: 7,
         dryRun: false,
         state: 'approved',

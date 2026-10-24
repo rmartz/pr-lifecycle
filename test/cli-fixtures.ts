@@ -5,7 +5,7 @@ import { FakeGitHubClient, makePullRequestData, makeReviewData } from './github/
 
 /** Shared setup for the CLI tests (cli.test.ts, cli-release-token.test.ts). */
 
-export const RECONCILE = ['reconcile', '--repo', 'rmartz/demo', '--pr', '7'];
+export const RECONCILE = ['reconcile', '--repo', 'rmartz/pr-lifecycle', '--pr', '7'];
 
 export function makeIo() {
   const out: string[] = [];

@@ -50,14 +50,14 @@
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",
-    "hygiene": "ai-repo-hygiene conflict-markers action-pins package-pins docs-links md-pairing okf okf-index file-caps --check --config .repo-hygiene.yml",
-    "hygiene:staged": "ai-repo-hygiene conflict-markers action-pins package-pins docs-links md-pairing okf okf-index file-caps --staged --config .repo-hygiene.yml",
+    "hygiene": "repo-hygiene --check --config .repo-hygiene.yml",
+    "hygiene:staged": "repo-hygiene --staged --config .repo-hygiene.yml",
     "pilot-readout": "tsup && node scripts/pilot-readout.mjs",
     "prepare": "husky"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@rmartz/repo-hygiene": "^7.0.1",
+    "@rmartz/repo-hygiene": "^16.0.0",
     "@types/node": "^26.6.2",
     "@vitest/coverage-v8": "^5.0.1",
     "eslint": "^10.11.0",
