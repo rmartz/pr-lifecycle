@@ -64,23 +64,31 @@ Examples: `v1 requirement=none`, `v1 requirement=uat waiver=current`,
 
 ## The classification
 
-Decided in order (`src/sign-off.ts`):
+Decided in order (`src/sign-off.ts`). A **CI change** is a PR with a `ci:`
+title, or one whose changed paths are all CI (`.github/workflows/`,
+`.github/actions/`) or otherwise [statically safe](uat.md#which-prs-cant-be-user-facing),
+at least one of them CI. A `ci:` title is decided first; a CI change by its
+paths is decided after rule 4.
 
-| Rule | When                                                                                               | `requirement` |
-| ---- | -------------------------------------------------------------------------------------------------- | ------------- |
-| 1    | a `ci:` title, and a changed workflow loosens CI                                                   | `ci`          |
-| 2    | a `ci:` title, and every other path is statically safe (its workflow changes don't loosen)         | `none`        |
-| 3    | a `ci:` title, otherwise (`scripts/**`, linter, formatter, or test-runner config, a dev-tool bump) | `ci`          |
-| 4    | a `docs`, `test`, or `refactor` title (pr-policy holds each to its paths)                          | `none`        |
-| 5    | every changed path is statically safe ([the path rules](uat.md#which-prs-cant-be-user-facing))     | `none`        |
-| 6    | UAT is off for the repo (`--uat off`)                                                              | `none`        |
-| 7    | otherwise, `chore` included                                                                        | `uat`         |
+| Rule | When                                                                                                     | `requirement` |
+| ---- | -------------------------------------------------------------------------------------------------------- | ------------- |
+| 1    | a CI change, and a changed workflow loosens CI                                                           | `ci`          |
+| 2    | a CI change, and every non-workflow path is statically safe (its workflow changes don't loosen)          | `none`        |
+| 3    | a CI change, otherwise (a composite action, `scripts/**`, linter or test-runner config, a dev-tool bump) | `ci`          |
+| 4    | a `docs`, `test`, or `refactor` title (pr-policy holds each to its paths)                                | `none`        |
+| 5    | every changed path is statically safe, none of them CI                                                   | `none`        |
+| 6    | UAT is off for the repo (`--uat off`)                                                                    | `none`        |
+| 7    | otherwise, `chore` included                                                                              | `uat`         |
 
 - **`ci` and `uat` are mutually exclusive.** A person is asked for one sign-off.
   A `ci` PR shows `CI approval needed` and `no UAT needed` (every PR carries
   exactly one UAT label; see [UAT labels](uat.md#always-exactly-one)).
-  A `ci:` PR is decided first, whatever the UAT setting: it is statically safe,
-  or it needs the CI sign-off.
+  A CI change is statically safe or needs the CI sign-off, whatever the UAT
+  setting: CI isn't user-facing, so it never needs UAT. A Dependabot action pin
+  bump (`chore(deps):`, only `uses:` refs moved) is rule 2.
+- **A shipped reusable workflow isn't CI.** One whose only trigger is
+  `workflow_call` is product code, so a PR changing it isn't a CI change by its
+  paths.
 - **A loosening under another type is reported, not reclassified.** A `feat:`
   that also loosens a workflow is a bundling violation the review rejects. Until
   it's split it is `uat`, with `loosening=yes`.

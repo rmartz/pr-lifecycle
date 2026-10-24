@@ -1,3 +1,4 @@
+import { isShippedReusableWorkflow } from './ci-change/reusable-workflow.js';
 import type { FileChange } from './facts.js';
 
 /**
@@ -7,17 +8,18 @@ import type { FileChange } from './facts.js';
  * **exempt**: a PR is trivial when every path falls in an exempt category, and a
  * single path outside them leaves it needing UAT.
  *
- * One deliberate narrowing: workflow and composite-action files are never
- * exempt here. pr-policy tells a repo's own CI from a shipped reusable workflow
- * by parsing the YAML; this package doesn't, and a `ci:` title already exempts
- * the routine CI change.
+ * CI paths (the repo's own workflows and composite actions) are never
+ * user-facing, so they're in a category of their own: `ci`. A PR that touches
+ * them needs no UAT, but the sign-off classification may still ask for the CI
+ * sign-off (src/sign-off.ts). A shipped reusable workflow is product code, not
+ * CI, and isn't exempt.
  *
  * Separate from any "safe to approve without review" predicate on purpose: a
  * change can need review and not UAT, and the two questions must not share an
  * answer.
  */
 
-export const TRIVIAL_CATEGORIES = ['docs', 'tests', 'dependencies', 'metadata'] as const;
+export const TRIVIAL_CATEGORIES = ['docs', 'tests', 'ci', 'dependencies', 'metadata'] as const;
 export type TrivialCategory = (typeof TRIVIAL_CATEGORIES)[number];
 
 export const LOCKFILES: ReadonlySet<string> = new Set([
@@ -125,7 +127,11 @@ function isDependencyOnlyManifest(change: FileChange | undefined): boolean {
   return before !== undefined && after !== undefined && jsonEqual(before, after);
 }
 
-function categoryOf(path: string, manifests: readonly FileChange[]): TrivialCategory | undefined {
+function categoryOf(
+  path: string,
+  manifests: readonly FileChange[],
+  workflows: readonly FileChange[],
+): TrivialCategory | undefined {
   const parts = path.split('/');
   const name = parts.at(-1) ?? '';
   if (name.endsWith('.md') || parts[0] === 'docs') {
@@ -134,9 +140,10 @@ function categoryOf(path: string, manifests: readonly FileChange[]): TrivialCate
   if (isTestPath(path)) {
     return 'tests';
   }
-  // CI or a shipped workflow? Telling them apart needs the YAML (see above).
   if (path.startsWith('.github/workflows/') || path.startsWith('.github/actions/')) {
-    return undefined;
+    // An unread workflow counts as CI: the loosening rules fail closed on it.
+    const change = workflows.find((file) => file.path === path);
+    return change !== undefined && isShippedReusableWorkflow(change) ? undefined : 'ci';
   }
   if (LOCKFILES.has(name)) {
     return 'dependencies';
@@ -160,18 +167,20 @@ function categoryOf(path: string, manifests: readonly FileChange[]): TrivialCate
 /**
  * The exempt categories the PR's paths fall in, or `undefined` when any path
  * falls outside them or the paths are unknown. A PR that touches no files is
- * trivially exempt.
+ * trivially exempt. `workflows` is the changed workflows' text, which tells a
+ * shipped reusable workflow from CI.
  */
 export function trivialCategories(
   paths: readonly string[] | undefined,
   manifests: readonly FileChange[] = [],
+  workflows: readonly FileChange[] = [],
 ): TrivialCategory[] | undefined {
   if (paths === undefined) {
     return undefined;
   }
   const found = new Set<TrivialCategory>();
   for (const path of paths) {
-    const category = categoryOf(path, manifests);
+    const category = categoryOf(path, manifests, workflows);
     if (category === undefined) {
       return undefined;
     }

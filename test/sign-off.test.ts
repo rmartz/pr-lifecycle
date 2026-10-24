@@ -33,6 +33,19 @@ const LOOSENING: FileChange = {
   ),
 };
 
+/** A Dependabot-style action bump: only a `uses:` ref moved. */
+const PIN_BUMP: FileChange = {
+  path: WORKFLOW,
+  baseText: BASE_WORKFLOW,
+  headText: edited('actions/checkout@v4', 'actions/checkout@v5'),
+};
+
+const REUSABLE: FileChange = {
+  path: '.github/workflows/deploy.yml',
+  baseText: 'on:\n  workflow_call:\njobs:\n  d:\n    runs-on: ubuntu-latest\n',
+  headText: 'on:\n  workflow_call:\njobs:\n  d:\n    runs-on: ubuntu-22.04\n',
+};
+
 function classify(
   title: string,
   changedPaths: string[] | undefined,
@@ -69,6 +82,10 @@ describe('classifySignOff — ci PRs', () => {
       reason: 'ci-paths',
       loosening: false,
     });
+  });
+
+  it('needs the CI sign-off for a ci PR changing a composite action', () => {
+    expect(classify('ci: a', ['.github/actions/setup/action.yml']).reason).toBe('ci-paths');
   });
 
   it('needs the CI sign-off for a ci PR that loosens a workflow', () => {
@@ -149,6 +166,52 @@ describe('classifySignOff — other PRs', () => {
       reason: 'needs-uat',
       loosening: true,
     });
+  });
+});
+
+describe('classifySignOff — CI changes under other titles', () => {
+  it('needs nothing for a chore(deps) action pin bump', () => {
+    expect(classify('chore(deps): bump actions', [WORKFLOW], [PIN_BUMP])).toEqual({
+      requirement: 'none',
+      reason: 'trivial-paths',
+      loosening: false,
+    });
+  });
+
+  it('needs nothing for a pin bump beside a lockfile', () => {
+    expect(classify('chore: a', [WORKFLOW, 'pnpm-lock.yaml'], [PIN_BUMP]).requirement).toBe('none');
+  });
+
+  it('needs the CI sign-off, not UAT, for a chore that loosens a workflow', () => {
+    expect(classify('chore: a', [WORKFLOW], [LOOSENING])).toEqual({
+      requirement: 'ci',
+      reason: 'ci-loosening',
+      loosening: true,
+    });
+  });
+
+  it('needs the CI sign-off for a chore workflow change it could not read', () => {
+    expect(classify('chore: a', [WORKFLOW], []).reason).toBe('ci-loosening');
+  });
+
+  it('needs the CI sign-off for a chore changing a composite action', () => {
+    expect(classify('chore: a', ['.github/actions/setup/action.yml'])).toEqual({
+      requirement: 'ci',
+      reason: 'ci-paths',
+      loosening: false,
+    });
+  });
+
+  it('needs the CI sign-off for a CI change whatever the UAT setting', () => {
+    expect(classify('chore: a', [WORKFLOW], [LOOSENING], 'off').requirement).toBe('ci');
+  });
+
+  it('needs UAT for a change to a shipped reusable workflow', () => {
+    expect(classify('fix: a', [REUSABLE.path], [REUSABLE]).requirement).toBe('uat');
+  });
+
+  it('needs UAT for a CI change bundled with source', () => {
+    expect(classify('chore: a', [WORKFLOW, 'src/a.ts'], [PIN_BUMP]).requirement).toBe('uat');
   });
 });
 

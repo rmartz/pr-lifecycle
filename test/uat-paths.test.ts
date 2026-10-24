@@ -22,6 +22,8 @@ describe('trivialCategories — exempt paths', () => {
     [['tests/fixtures/data.json', 'pkg/test_thing.py', 'pkg/thing_test.go'], ['tests']],
     [['.github/dependabot.yml', '.vscode/settings.json'], ['metadata']],
     [['LICENSE', 'CODEOWNERS', '.gitignore', '.editorconfig'], ['metadata']],
+    [['.github/workflows/ci.yml'], ['ci']],
+    [['.github/actions/setup/action.yml'], ['ci']],
     [
       ['README.md', 'pnpm-lock.yaml'],
       ['docs', 'dependencies'],
@@ -44,16 +46,55 @@ describe('trivialCategories — exempt paths', () => {
   });
 });
 
-describe('trivialCategories — paths that need UAT', () => {
-  it.each([
-    [['src/index.ts']],
-    [['pnpm-lock.yaml', 'src/index.ts']],
-    [['.github/workflows/ci.yml']],
-    [['.github/actions/setup/action.yml']],
-    [['nested/LICENSE']],
-  ])('does not exempt %j', (paths) => {
-    expect(trivialCategories(paths)).toBeUndefined();
+const REUSABLE_WORKFLOW = `on:
+  workflow_call:
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - run: ./deploy.sh
+`;
+
+describe('trivialCategories — CI paths', () => {
+  it('exempts a workflow whose text was not read as CI', () => {
+    expect(trivialCategories(['.github/workflows/ci.yml'], [], [])).toEqual(['ci']);
   });
+
+  it('exempts a workflow with another trigger beside workflow_call as CI', () => {
+    const change = {
+      path: '.github/workflows/deploy.yml',
+      headText: REUSABLE_WORKFLOW.replace('  workflow_call:', '  workflow_call:\n  push:'),
+    };
+
+    expect(trivialCategories([change.path], [], [change])).toEqual(['ci']);
+  });
+
+  it('does not exempt a shipped reusable workflow', () => {
+    const change = { path: '.github/workflows/deploy.yml', headText: REUSABLE_WORKFLOW };
+
+    expect(trivialCategories([change.path], [], [change])).toBeUndefined();
+  });
+
+  it('does not exempt a deleted shipped reusable workflow', () => {
+    const change = { path: '.github/workflows/deploy.yml', baseText: REUSABLE_WORKFLOW };
+
+    expect(trivialCategories([change.path], [], [change])).toBeUndefined();
+  });
+
+  it('exempts an unparseable workflow as CI', () => {
+    const change = { path: '.github/workflows/ci.yml', headText: 'on: [' };
+
+    expect(trivialCategories([change.path], [], [change])).toEqual(['ci']);
+  });
+});
+
+describe('trivialCategories — paths that need UAT', () => {
+  it.each([[['src/index.ts']], [['pnpm-lock.yaml', 'src/index.ts']], [['nested/LICENSE']]])(
+    'does not exempt %j',
+    (paths) => {
+      expect(trivialCategories(paths)).toBeUndefined();
+    },
+  );
 
   it('does not exempt unknown paths (an incomplete listing)', () => {
     expect(trivialCategories(undefined)).toBeUndefined();
