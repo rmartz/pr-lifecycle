@@ -10,8 +10,9 @@ import { isUatExemptTitle, titleType } from './uat-title.js';
  * (docs/sign-off-status.md). Pure, like the lifecycle state.
  *
  * - `none`: UAT is off, or the PR is statically safe.
- * - `ci`: a `ci:` PR that loosens a workflow or changes a path that isn't
- *   statically safe. It needs the CI sign-off (`CI change approved`), not UAT.
+ * - `ci`: a CI change (a `ci:` title, or only CI and statically safe paths)
+ *   that loosens a workflow or changes a path that isn't statically safe. It
+ *   needs the CI sign-off (`CI change approved`), not UAT: CI isn't user-facing.
  * - `uat`: everything else, `chore` included.
  *
  * `ci` and `uat` are mutually exclusive: a person is asked for one sign-off.
@@ -72,8 +73,9 @@ export function loosensCi(facts: PullRequestFacts): boolean {
 }
 
 /**
- * Whether every non-workflow path is statically safe. Under a `ci:` title, a
- * workflow change that doesn't loosen CI is statically safe too.
+ * Whether every non-workflow path is statically safe. In a CI change, a
+ * workflow change that doesn't loosen CI is statically safe too. A composite
+ * action isn't: the loosening rules don't read it.
  */
 function onlySafePathsBesidesWorkflows(facts: PullRequestFacts): boolean {
   const paths = facts.changedPaths;
@@ -81,7 +83,16 @@ function onlySafePathsBesidesWorkflows(facts: PullRequestFacts): boolean {
     return false;
   }
   const others = paths.filter((path) => !isWorkflowPath(path));
-  return trivialCategories(others, facts.manifestChanges) !== undefined;
+  const categories = trivialCategories(others, facts.manifestChanges);
+  return categories !== undefined && !categories.includes('ci');
+}
+
+/** A CI change is statically safe, or it needs the CI sign-off. */
+function ciReason(facts: PullRequestFacts, loosening: boolean): SignOffReason {
+  if (loosening) {
+    return 'ci-loosening';
+  }
+  return onlySafePathsBesidesWorkflows(facts) ? 'trivial-paths' : 'ci-paths';
 }
 
 function reasonFor(
@@ -90,24 +101,28 @@ function reasonFor(
   loosening: boolean,
 ): SignOffReason {
   if (titleType(facts.title) === 'ci') {
-    if (loosening) {
-      return 'ci-loosening';
-    }
-    return onlySafePathsBesidesWorkflows(facts) ? 'trivial-paths' : 'ci-paths';
+    return ciReason(facts, loosening);
   }
   if (isUatExemptTitle(facts.title)) {
     return 'safe-title';
   }
-  if (trivialCategories(facts.changedPaths, facts.manifestChanges) !== undefined) {
-    return 'trivial-paths';
+  const categories = trivialCategories(
+    facts.changedPaths,
+    facts.manifestChanges,
+    facts.workflowChanges,
+  );
+  if (categories !== undefined) {
+    return categories.includes('ci') ? ciReason(facts, loosening) : 'trivial-paths';
   }
   return setting === 'off' ? 'uat-off' : 'needs-uat';
 }
 
 /**
- * The rules, in order. A `ci:` PR is decided first: it is statically safe, or
- * it needs the CI sign-off, whatever the UAT setting. Then a statically safe
- * title or paths need nothing; UAT off needs nothing; anything else needs UAT.
+ * The rules, in order. A CI change is decided first: a `ci:` title, or (after
+ * the exempt titles) paths that are only CI and statically safe, whatever the
+ * title. It is statically safe, or it needs the CI sign-off, whatever the UAT
+ * setting; it never needs UAT. Then a statically safe title or paths need
+ * nothing; UAT off needs nothing; anything else needs UAT.
  */
 export function classifySignOff(
   facts: PullRequestFacts,
