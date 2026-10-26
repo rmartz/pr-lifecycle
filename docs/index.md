@@ -14,8 +14,11 @@ relevant to your task before editing code — see
   packages. To adopt it in a repo, start from the action's
   [consumer guide](https://github.com/rmartz/pr-lifecycle-action/blob/main/docs/consuming.md).
 - [Reconciler core design](reconciler-design.md) — the pure facts → state → plan
-  core: the fact model, verdict trust and head binding, state priority, the label
-  and auto-merge plan, and the properties the tests guarantee.
+  core: the fact model, state priority, the label and auto-merge plan, and the
+  properties the tests guarantee.
+- [Verdicts](verdicts.md) — which reviews are verdicts, the `/review` marker's
+  per-dimension records (code and UAT), and when a verdict counts: trusted
+  author and head binding.
 - [Approval carry-over](approval-carry-over.md) — how a review on an earlier
   commit keeps counting: verified clean base merges, verified clean rebases after
   a force-push, and the fail-closed rules behind both.

@@ -1,7 +1,7 @@
 import type { ProseMatcher } from '../lineage/prose.js';
 import { proseOverlapReason } from '../lineage/prose.js';
 import type { MergeVerifier } from '../lineage/verify.js';
-import { isObjectId } from '../lineage/verify.js';
+import { isObjectId } from '../object-id.js';
 import type { GitHubClient } from './client.js';
 
 /**

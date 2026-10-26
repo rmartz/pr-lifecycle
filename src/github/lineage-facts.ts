@@ -2,8 +2,9 @@ import type { GitRunner } from '../lineage/git.js';
 import type { ProseMatcher } from '../lineage/prose.js';
 import { DEFAULT_PROSE_PATTERNS, proseMatcher, proseOverlapReason } from '../lineage/prose.js';
 import type { MergeVerifier, RepoSource } from '../lineage/verify.js';
-import { createMergeVerifier, isObjectId } from '../lineage/verify.js';
-import { parseVerdict } from '../verdict.js';
+import { createMergeVerifier } from '../lineage/verify.js';
+import { isObjectId } from '../object-id.js';
+import { parseVerdictRecord } from '../verdict-marker.js';
 import type { GitHubClient, ReviewData } from './client.js';
 import type { RebaseCheck, RebaseInput } from './lineage-rebase.js';
 import { checkCleanRebase } from './lineage-rebase.js';
@@ -65,7 +66,7 @@ function reviewedCommits(input: LineageInput): string[] {
     .filter((review) => review.type === 'User')
     .toReversed()
     .flatMap((review) => {
-      const parsed = parseVerdict(review);
+      const parsed = parseVerdictRecord(review);
       return parsed === undefined ? [] : [parsed.markerHead ?? review.commitSha];
     })
     .filter((sha) => sha !== input.headSha);

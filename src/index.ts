@@ -101,7 +101,8 @@ export {
   proseOverlapReason,
 } from './lineage/prose.js';
 export type { ProseMatcher } from './lineage/prose.js';
-export { createMergeVerifier, isObjectId } from './lineage/verify.js';
+export { createMergeVerifier } from './lineage/verify.js';
+export { isObjectId } from './object-id.js';
 export type { MergeStep, MergeVerifier, RepoSource } from './lineage/verify.js';
 export {
   AUTO_MERGE_LABEL,
@@ -155,5 +156,7 @@ export { isTestPath, LOCKFILES, TRIVIAL_CATEGORIES, trivialCategories } from './
 export type { TrivialCategory } from './uat-paths.js';
 export { COMMIT_TYPES, isUatExemptTitle, titleType, UAT_EXEMPT_TYPES } from './uat-title.js';
 export type { CommitType } from './uat-title.js';
-export { currentVerdict, isTrustedAuthor, parseVerdict, VERDICTS } from './verdict.js';
-export type { ParsedVerdict, Verdict } from './verdict.js';
+export { currentUatVerdict, currentVerdict, isTrustedAuthor, parseVerdict } from './verdict.js';
+export type { ParsedVerdict } from './verdict.js';
+export { parseVerdictRecord, UAT_VERDICTS, VERDICTS } from './verdict-marker.js';
+export type { UatVerdict, Verdict, VerdictRecord } from './verdict-marker.js';
