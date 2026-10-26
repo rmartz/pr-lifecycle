@@ -4,7 +4,8 @@ import { GitHubApiError } from '../../src/github/client.js';
 import { HEAD_SHA } from '../fixtures.js';
 import { makeTransport } from './http-fake.js';
 
-const EVENTS_URL = 'https://api.github.com/repos/rmartz/demo/issues/7/events?per_page=100&page=1';
+const EVENTS_URL =
+  'https://api.github.com/repos/rmartz/pr-lifecycle/issues/7/events?per_page=100&page=1';
 
 describe('listLabelApplications', () => {
   it('maps only the applications of the label, oldest first', async () => {
@@ -100,8 +101,8 @@ describe('listCheckSuites', () => {
 
     expect([requests.map((request) => request.url), suites.length, suites.at(-1)]).toEqual([
       [
-        `https://api.github.com/repos/rmartz/demo/commits/${HEAD_SHA}/check-suites?per_page=100&page=1`,
-        `https://api.github.com/repos/rmartz/demo/commits/${HEAD_SHA}/check-suites?per_page=100&page=2`,
+        `https://api.github.com/repos/rmartz/pr-lifecycle/commits/${HEAD_SHA}/check-suites?per_page=100&page=1`,
+        `https://api.github.com/repos/rmartz/pr-lifecycle/commits/${HEAD_SHA}/check-suites?per_page=100&page=2`,
       ],
       101,
       { headBranch: undefined, createdAt: '2026-10-19T11:00:00Z' },
@@ -117,7 +118,7 @@ describe('getFileText', () => {
     const text = await client.getFileText('packages/a b/package.json', HEAD_SHA);
 
     expect([requests[0]?.url, text]).toEqual([
-      `https://api.github.com/repos/rmartz/demo/contents/packages/a%20b/package.json?ref=${HEAD_SHA}`,
+      `https://api.github.com/repos/rmartz/pr-lifecycle/contents/packages/a%20b/package.json?ref=${HEAD_SHA}`,
       '{"name":"demo"}',
     ]);
   });

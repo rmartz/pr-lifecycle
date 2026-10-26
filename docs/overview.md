@@ -119,7 +119,7 @@ the escalation is resolved and the PR goes back to review.
   trusted verdict and arms auto-merge, just as `/merge` merged it before. This is
   deliberate: review catches mechanical problems, and the UAT labels (classified
   here, gated by pr-policy) keep human attention on user-facing behavior. A separate agent identity
-  (rmartz/dotfiles#1585) would let the two be told apart, but isn't required.
+  would let the two be told apart, but isn't required.
 - **Labels are output only, with two kinds of exception.** Hand-applied
   lifecycle labels are reconciled away. A human approves the same way an agent
   does, by posting a verdict review. The exceptions are labels a person uses to
@@ -154,7 +154,7 @@ the escalation is resolved and the PR goes back to review.
   tracked on #6.
 - **The agent-side merge path defers through the `auto-merge enabled` label**
   (#11). pr-lifecycle applies the same label bot-automerge does when it arms, so
-  the coordinator's existing auto-merge park (rmartz/dotfiles `pr-route.md`)
+  the coordinator's existing auto-merge park (its `pr-route` rule)
   already leaves an armed PR alone: no review, fix-review, or `/merge`.
   - **`/merge` and `merge-pr.py` stay.** They are the merge path in a repo that
     doesn't arm, and a manual fallback. In a repo that does, a PR is only `/merge`d
@@ -169,4 +169,4 @@ the escalation is resolved and the PR goes back to review.
     when merge-safety flags `update required`.
   - **The `/review` marker is a contract.** Its `skill`, `outcome`, and `pr_head`
     fields are documented on both sides: [§Verdicts](reconciler-design.md#verdicts)
-    here, and `docs/scripts/skill-meta.md` in rmartz/dotfiles.
+    here, and `skill-meta.md` in the agent tooling.

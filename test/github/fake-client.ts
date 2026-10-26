@@ -42,7 +42,7 @@ export function makePullRequestData(overrides: Partial<PullRequestData> = {}): P
     authorLogin: 'contributor',
     headRef: 'feature/thing',
     baseRef: 'main',
-    cloneUrl: 'https://github.com/rmartz/demo.git',
+    cloneUrl: 'https://github.com/rmartz/pr-lifecycle.git',
     isCrossRepository: false,
     mergeable: true,
     mergeState: 'blocked',

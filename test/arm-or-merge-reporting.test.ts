@@ -92,7 +92,7 @@ describe('runCli — a deferred arm or merge', () => {
     await runCli(ARM, io, makeDeps(client).deps);
 
     expect(err).toEqual([
-      'notice: rmartz/demo#7 is approved, but auto-merge merge was deferred: its merge state changed mid-run; the next event retries',
+      'notice: rmartz/pr-lifecycle#7 is approved, but auto-merge merge was deferred: its merge state changed mid-run; the next event retries',
     ]);
   });
 

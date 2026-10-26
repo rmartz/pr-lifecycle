@@ -131,7 +131,7 @@ holds for any writes made before the interruption.
 Without `--json`, one summary line goes to stdout, e.g.
 
 ```
-rmartz/demo#7 → approved: +approved, +auto-merge enabled, +UAT ready, auto-merge arm (bot: not a recognized bot PR)
+rmartz/pr-lifecycle#7 → approved: +approved, +auto-merge enabled, +UAT ready, auto-merge arm (bot: not a recognized bot PR)
 ```
 
 With `--json`, stdout carries **exactly one JSON object and nothing else**;
@@ -141,7 +141,7 @@ never omitted:
 ```json
 {
   "schemaVersion": 1,
-  "repo": "rmartz/demo",
+  "repo": "rmartz/pr-lifecycle",
   "pr": 7,
   "dryRun": false,
   "state": "approved",

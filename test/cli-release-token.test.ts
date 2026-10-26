@@ -97,7 +97,7 @@ describe('runCli — auto-update', () => {
     await runCli(UPDATE, io, makeDeps(makeFlaggedClient(), NO_RELEASE_TOKEN).deps);
 
     expect(err).toContain(
-      'warning: rmartz/demo#7 needs an update, but update-branch was skipped: PR_LIFECYCLE_TOKEN is not set',
+      'warning: rmartz/pr-lifecycle#7 needs an update, but update-branch was skipped: PR_LIFECYCLE_TOKEN is not set',
     );
   });
 
@@ -132,7 +132,7 @@ describe('runCli — release token missing', () => {
     await runCli(ARM, io, makeDeps(makeApprovedClient(), NO_RELEASE_TOKEN).deps);
 
     expect(err).toContain(
-      'warning: rmartz/demo#7 is approved, but auto-merge arm was skipped: PR_LIFECYCLE_TOKEN is not set',
+      'warning: rmartz/pr-lifecycle#7 is approved, but auto-merge arm was skipped: PR_LIFECYCLE_TOKEN is not set',
     );
   });
 
@@ -206,7 +206,7 @@ describe('runCli — release token missing', () => {
     await runCli(ARM, io, makeDeps(makeApprovedClient(), NO_RELEASE_TOKEN).deps);
 
     expect(out).toEqual([
-      'rmartz/demo#7 → approved: +approved, +UAT ready, auto-merge arm skipped (no release token), sign-off status skipped (no release token) (bot: not a recognized bot PR)',
+      'rmartz/pr-lifecycle#7 → approved: +approved, +UAT ready, auto-merge arm skipped (no release token), sign-off status skipped (no release token) (bot: not a recognized bot PR)',
     ]);
   });
 });

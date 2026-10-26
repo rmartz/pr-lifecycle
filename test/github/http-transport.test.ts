@@ -28,7 +28,7 @@ function makeTransport(respond: FakeResponse | Error) {
       }),
     );
   };
-  return createTransport({ token: 't0k', owner: 'rmartz', repo: 'demo', fetch: fakeFetch });
+  return createTransport({ token: 't0k', owner: 'rmartz', repo: 'pr-lifecycle', fetch: fakeFetch });
 }
 
 describe('createTransport — transient REST failures', () => {

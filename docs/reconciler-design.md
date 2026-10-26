@@ -51,7 +51,7 @@ permission API), so trust evaluation stays pure.
 
 The `/review` marker's `skill`, `outcome`, and `pr_head` fields are a contract
 with the agent tooling that writes them, documented on that side in
-rmartz/dotfiles `docs/scripts/skill-meta.md`. Change both sides together.
+its `skill-meta.md`. Change both sides together.
 
 A `DISMISSED` review (revoked by a maintainer) or `PENDING` review (never
 submitted) is **never** a verdict, whatever its body says. Dismissing is how a
