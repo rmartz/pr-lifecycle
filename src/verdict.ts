@@ -7,7 +7,7 @@ import { parseVerdictRecord } from './verdict-marker.js';
  * Verdict trust and resolution. A verdict *counts* only from a trusted author and
  * only when bound to the current head, and each dimension (code, UAT) is resolved
  * on its own: the latest counting review that records it decides it. Parsing is
- * in verdict-marker.ts. See docs/reconciler-design.md §Verdicts.
+ * in verdict-marker.ts. See docs/verdicts.md.
  */
 
 const TRUSTED_PERMISSIONS: ReadonlySet<ReviewAuthor['permission']> = new Set([

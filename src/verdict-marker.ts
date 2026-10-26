@@ -6,7 +6,7 @@ import { isObjectId } from './object-id.js';
  * `skill-meta` marker with at least one readable dimension, or (with no marker) a
  * native APPROVED / CHANGES_REQUESTED state. A marker records each decision of a
  * review pass as its own dimension (#141): `code` (the verdict) and `uat`. See
- * docs/reconciler-design.md §Verdicts.
+ * docs/verdicts.md.
  */
 
 export const VERDICTS = ['approved', 'blocked', 'changes-requested', 'escalation-needed'] as const;
