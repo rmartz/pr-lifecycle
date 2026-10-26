@@ -23,13 +23,13 @@ Source: `src/sign-off.ts` (the classification and the description),
 
 ## The status
 
-| Field         | Value                                                                     |
-| ------------- | ------------------------------------------------------------------------- |
-| `context`     | `pr-lifecycle/sign-off`                                                   |
-| commit        | the PR's head SHA the reconcile planned for                               |
-| `state`       | always `success`: the status reports a classification, it is not a gate   |
-| `description` | the versioned summary below                                               |
-| creator       | a `User` with write, maintain, or admin permission (the real-actor token) |
+| Field         | Value                                                                                    |
+| ------------- | ---------------------------------------------------------------------------------------- |
+| `context`     | `pr-lifecycle/sign-off`                                                                  |
+| commit        | the PR's head SHA the reconcile planned for                                              |
+| `state`       | always `success`: the status reports a classification, it is not a gate                  |
+| `description` | the versioned summary below                                                              |
+| creator       | `rmartz-pr-lifecycle[bot]` (the App's installation token), see [below](#when-its-posted) |
 
 ## The description, version `v1`
 
@@ -123,14 +123,22 @@ The gate reads `CI change approved` and the status, never this label.
   classified. A closed PR gets none.
 - **Idempotent.** It isn't posted again when the head's latest
   `pr-lifecycle/sign-off` status already has the same description, state
-  `success`, and a `User` creator. One a bot created is replaced.
+  `success`, and a `User` creator (`isPosted` in `src/sign-off-plan.ts`), so a
+  status the App created is posted again on each reconcile: redundant, not
+  harmful.
 - **With the real-actor token** (`PR_LIFECYCLE_TOKEN`, the
   [release token](cli.md#release-token)), for two reasons:
   - a status created with `GITHUB_TOKEN` triggers no workflow, so pr-policy
     wouldn't re-run;
-  - pr-policy rejects a status whose creator isn't a trusted `User`, since any
-    workflow can post as `github-actions[bot]`. A GitHub App installation token
-    reads as a bot too, so the token must be a person's (a fine-grained PAT).
+  - pr-policy rejects a status created by `github-actions[bot]`, since any
+    workflow can post as it.
+- **Who creates it.** Both the action and the hosted App
+  ([`rmartz/pr-lifecycle-app`](https://github.com/rmartz/pr-lifecycle-app)) post
+  it with the `rmartz-pr-lifecycle` App's installation token, so GitHub reports
+  the creator as `rmartz-pr-lifecycle[bot]`. pr-policy trusts a `User` with
+  write, maintain, or admin permission, or a `Bot` named in its
+  `sign-off-status-creators` input (exact login; its own default names none,
+  and the fleet's callers set `rmartz-pr-lifecycle[bot]`). A PAT is not needed.
 - **Fails closed.** Without the token, no status is posted, and the gate holds.
   The skip is reported like the arming skip: a stderr warning,
   `signOffStatusSkipped` in the `--json` output, and the one-time
