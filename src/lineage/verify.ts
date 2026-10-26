@@ -2,6 +2,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+import { isObjectId } from '../object-id.js';
 import type { GitRunner } from './git.js';
 import { parseGitVersion } from './git.js';
 
@@ -15,15 +16,6 @@ import { parseGitVersion } from './git.js';
 
 /** `git merge-tree --merge-base` (explicit merge base) needs git 2.40+. */
 const MIN_GIT: [number, number] = [2, 40];
-
-// Every value passed to git in argv is validated, so nothing from an API response
-// can be read as an option (e.g. a "sha" of `--upload-pack=…`).
-const OBJECT_ID = /^[0-9a-f]{40}([0-9a-f]{24})?$/;
-
-/** Whether a value is a full hex git object id, safe for git's argv and API paths. */
-export function isObjectId(value: string): boolean {
-  return OBJECT_ID.test(value);
-}
 
 function isStepSafe(step: MergeStep): boolean {
   return [step.mergeBase, step.first, step.second, step.tree].every(isObjectId);

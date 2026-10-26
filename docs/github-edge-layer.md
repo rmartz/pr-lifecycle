@@ -71,7 +71,7 @@ limit, a 5xx, or a network failure, so the CLI can
   made the head, the head it replaced, and its time. They are read only when
   some review is a verdict or a UAT sign-off label is present, since they can
   only stop one from counting (`force-push-facts.ts`; see
-  [Verdicts](reconciler-design.md#verdicts) and [UAT labels](uat.md)). A push
+  [Verdicts](verdicts.md) and [UAT labels](uat.md)). A push
   without a commit reads as unattributed, which fails closed.
 - **UAT facts** (`uat-facts.ts`) are read only when `policy.uat` is set and the
   PR is open. The changed paths (a rename's old path included) are always

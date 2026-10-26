@@ -167,6 +167,7 @@ the escalation is resolved and the PR goes back to review.
   - **A repo that arms must enable `auto-update`.** The park also skips the
     coordinator's branch-sync rule, so nothing else brings an armed PR current
     when merge-safety flags `update required`.
-  - **The `/review` marker is a contract.** Its `skill`, `outcome`, and `pr_head`
-    fields are documented on both sides: [§Verdicts](reconciler-design.md#verdicts)
-    here, and `skill-meta.md` in the agent tooling.
+  - **The `/review` marker is a contract.** Its `skill`, `outcome`, `verdicts`,
+    `uat_since`, and `pr_head` fields are documented on both sides:
+    [§Verdicts](verdicts.md) here, and `skill-meta.md` in the
+    agent tooling.

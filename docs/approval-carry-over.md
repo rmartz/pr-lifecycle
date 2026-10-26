@@ -10,7 +10,7 @@ tags: [reconciler, carry-over, lineage, rebase, security]
 
 Part of the [reconciler core design](reconciler-design.md): this page defines the
 `cleanAncestors` and `cleanRebaseSources` facts that
-[head binding](reconciler-design.md#verdicts) counts reviews against.
+[head binding](verdicts.md) counts reviews against.
 
 Head binding makes any push drop the approval, so without carry-over every base
 update would cost a full review cycle. A review bound to commit `A` also counts
@@ -91,7 +91,7 @@ every rebase. A reviewed commit the walk didn't reach also counts for the head
    carry.
 
 The reviewed commit is the marker's `pr_head` when there is one, for the same
-reason as in [Verdicts](reconciler-design.md#verdicts): `commit_id` is re-pointed after a force-push.
+reason as in [Verdicts](verdicts.md): `commit_id` is re-pointed after a force-push.
 Validated on rmartz/personal-budget#562 (a happy-dom major rebased after
 sign-off): the replayed tree matched the new head byte for byte.
 

@@ -15,8 +15,8 @@ the plan. Because the output depends only on current facts, never on the event
 that triggered the run, replaying, reordering or dropping events cannot drive a PR
 into a wrong state.
 
-Source: `src/` (`facts.ts`, `verdict.ts`, `head-binding.ts`, `state.ts`, `plan.ts`,
-and the UAT classifier in `uat*.ts`).
+Source: `src/` (`facts.ts`, `verdict-marker.ts`, `verdict.ts`, `head-binding.ts`,
+`state.ts`, `plan.ts`, and the UAT classifier in `uat*.ts`).
 
 ## Facts
 
@@ -49,71 +49,10 @@ permission API), so trust evaluation stays pure.
 
 ## Verdicts
 
-The `/review` marker's `skill`, `outcome`, and `pr_head` fields are a contract
-with the agent tooling that writes them, documented on that side in
-its `skill-meta.md`. Change both sides together.
-
-A `DISMISSED` review (revoked by a maintainer) or `PENDING` review (never
-submitted) is **never** a verdict, whatever its body says. Dismissing is how a
-maintainer revokes an approval, so a marker must not outlive it. Otherwise, a
-review is a **verdict** when either:
-
-- its body carries a `skill-meta` marker with `"skill": "review"`. The marker's
-  `outcome` is the verdict: canonically `approved`, `blocked`,
-  `changes-requested`, or `escalation-needed`. `blocked` means the change is
-  ready but waits on another PR or issue. It is a hold that the next `/review`
-  replaces when that ref closes, never an escalation. The legacy spelling
-  `changes requested` in older markers is still read as `changes-requested`. A
-  `skipped` outcome is **not** a verdict: `/review`
-  deliberately did nothing. Any other outcome fails closed to
-  `escalation-needed`, including a missing or non-string one. An unreadable
-  `/review` verdict must never let an earlier approval stand, so a human looks
-  at it. The marker stays authoritative in every case, and the review never
-  falls back to its native state. Or:
-- it has no such marker and its native state is `APPROVED` or `CHANGES_REQUESTED`.
-
-The marker wins over the native state. A self-authored verdict is posted as a
-`COMMENTED` review, so the marker is the only place its verdict lives.
-
-Review bodies are attacker-controlled, so marker parsing must stay
-**linear-time**. It finds the opening with a regex that has no overlapping
-quantifiers, then scans to `-->` with `indexOf`. A one-regex
-`<!--\s*skill-meta:\s*(.*?)\s*-->` backtracks cubically, and a malicious comment
-could stall the reconcile job (CodeQL `js/polynomial-redos`). A timing test
-guards against a regression.
-
-A verdict **counts** only when all of the following hold:
-
-1. **Trusted author.** The author is a `User` (never a `Bot`) with `write`,
-   `maintain`, or `admin` permission, and, when `policy.trustedAuthors` is set,
-   their login is on that list (case-insensitive). The marker never contributes
-   trust: anyone can write one into a comment. This boundary grants no new
-   privilege, because a write-permission user can already merge a PR once its
-   required checks pass.
-2. **Bound to the current head.** The commit the review covered (the marker's
-   `pr_head` when it names one, else the review's `commit_id`) is the head, a
-   [clean ancestor](approval-carry-over.md), or a
-   [clean rebase source](approval-carry-over.md#rebased-heads). When the marker names a different commit
-   than `commit_id`, it counts only if the marker's commit is a clean ancestor or
-   rebase source. A marker can never claim the head for a review GitHub bound to
-   another commit. A verdict on any other commit never counts, so a real push
-   after approval un-approves the PR without extra logic.
-   **A review GitHub moved by a force-push binds only through its marker.**
-   GitHub moves an `APPROVED` review's `commit_id` onto the new head when a
-   force-push leaves the PR's diff unchanged, for example a clean rebase such as
-   `@dependabot rebase`. A `COMMENTED` review, or a push that changes the diff,
-   keeps its original commit. A moved review reads as bound to a commit its
-   author never saw, so its `commit_id` can't bind it at all. A review counts as
-   moved when a force-push to its commit happened at or after it was submitted.
-   It then counts only when its marker's `pr_head` names a verified
-   [clean rebase source](approval-carry-over.md#rebased-heads) (or clean ancestor), never the head. A
-   native approval has no marker, so a moved one is inert: without this rule it
-   would survive the rebase and stay armed on a new combination of code that
-   nobody reviewed. The rule fails closed. A push GitHub didn't name the commit
-   of, or a review with no readable submission time, counts as moved. A commit
-   force-pushed away and then back drops the reviews made before it came back.
-
-The **latest** counting verdict (by submitted time, then review id) decides.
+Which reviews are verdicts, how the `/review` marker records each decision as
+its own dimension, and when a verdict counts (trusted author, bound to the
+head) are on their own page: [Verdicts](verdicts.md). The state below reads the
+latest counting code verdict.
 
 ## State, in priority order
 

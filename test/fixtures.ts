@@ -56,6 +56,21 @@ export function makeVerdictBody(outcome: string, prHead: string | undefined = HE
   return `Looks good.\n\n---\n\n_Claude Opus 5.5_\n<!-- skill-meta: ${JSON.stringify(meta)} -->\n`;
 }
 
+/** A review body carrying a /review marker that records each dimension in a `verdicts` map. */
+export function makeDimensionedVerdictBody(
+  verdicts: Readonly<Record<string, unknown>>,
+  extra: Readonly<Record<string, unknown>> = {},
+): string {
+  const meta = {
+    skill: 'review',
+    pr_head: HEAD_SHA,
+    skill_hash: 'c'.repeat(40),
+    verdicts,
+    ...extra,
+  };
+  return `Looks good.\n\n---\n\n_Claude Opus 5.5_\n<!-- skill-meta: ${JSON.stringify(meta)} -->\n`;
+}
+
 export function makeCopilotReview(overrides: Partial<ReviewFact> = {}): ReviewFact {
   return makeReview({
     author: makeAuthor({ login: COPILOT_REVIEWER_LOGIN, type: 'Bot', permission: 'none' }),

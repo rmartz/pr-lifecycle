@@ -1,5 +1,5 @@
 import type { ForcePushFact } from '../facts.js';
-import { parseVerdict } from '../verdict.js';
+import { parseVerdictRecord } from '../verdict-marker.js';
 import type { GitHubClient, ReviewData } from './client.js';
 
 /**
@@ -16,6 +16,6 @@ export async function gatherForcePushes(
   reviews: readonly ReviewData[],
   forSignOff = false,
 ): Promise<ForcePushFact[]> {
-  const hasVerdict = reviews.some((review) => parseVerdict(review) !== undefined);
+  const hasVerdict = reviews.some((review) => parseVerdictRecord(review) !== undefined);
   return hasVerdict || forSignOff ? client.listForcePushes(pr) : [];
 }
