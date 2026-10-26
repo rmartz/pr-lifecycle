@@ -121,16 +121,21 @@ The title type is checked first; the changed paths are only a fallback.
 - **Path fallback, for those types only.** pr-policy's trivial-path rules,
   ported: Markdown and `docs/`, tests (including Storybook stories), lockfiles
   and `requirements*.txt`, a `package.json` that changes only dependency
-  versions (its text is read at the merge base and the head), and repo metadata
-  (`.github/` outside workflows, `.vscode/`, root `LICENSE`, `CODEOWNERS`, and
-  ignore files). The fallback can only exempt, never require UAT. It matters
-  because a bot PR can reach `approved` through bot eligibility with no review
-  agent to waive it.
-  - **Workflows are judged by the loosening rules, not the path rules.** Under a
-    `ci:` title, a workflow change that doesn't loosen CI is statically safe.
-    Under any other title a workflow path is never trivial, so such a PR needs
-    UAT (and its loosening, if any, is reported). Composite-action files
-    (`.github/actions/`) are never trivial either.
+  versions (its text is read at the merge base and the head), CI
+  (`.github/workflows/` and `.github/actions/`), and repo metadata (the rest of
+  `.github/`, `.vscode/`, root `LICENSE`, `CODEOWNERS`, and ignore files). The
+  fallback can only exempt, never require UAT. It matters because a bot PR can
+  reach `approved` through bot eligibility with no review agent to waive it.
+  - **CI is never user-facing, so it never needs UAT, whatever the title.** A PR
+    whose paths are only CI and other safe paths is a CI change: like a `ci:` PR
+    it is statically safe, or it needs `CI change approved` instead (a
+    loosening, an unread workflow, or a composite action, which the loosening
+    rules don't read). A `chore(deps):` action pin bump is statically safe. It
+    keeps its `chore` title: a `ci:` title would make every open PR re-sync
+    with the base.
+  - **A shipped reusable workflow isn't CI.** A workflow whose only trigger is
+    `workflow_call` is the product consumers call, so it needs UAT like other
+    product code, as in pr-policy.
   - **Fails closed.** An incomplete file listing (GitHub lists at most 3,000), or
     more than 10 changed manifests, exempts nothing.
 
