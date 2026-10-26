@@ -48,6 +48,15 @@ describe('classifyUat — rule 2: can not be user-facing', () => {
     expect(outcome(facts)).toBe('exempt-paths');
   });
 
+  it('exempts a chore PR touching only CI scripts and tooling config by its paths', () => {
+    const facts = makeUatFacts({
+      title: 'chore: group storybook-ci bumps',
+      changedPaths: ['.github/dependabot.yml', 'scripts/dependabot-audit.mjs', 'eslint.config.js'],
+    });
+
+    expect(outcome(facts)).toBe('exempt-paths');
+  });
+
   it('does not exempt a chore PR touching source', () => {
     const facts = makeUatFacts({
       title: 'chore: tidy up',

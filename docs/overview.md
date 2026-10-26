@@ -105,6 +105,9 @@ the escalation is resolved and the PR goes back to review.
   `UAT passed`), cautious by default: a PR that could be user-facing stays
   `UAT pending` until a trusted person waives it or signs it off, and a sign-off
   counts only for the head it was applied to (#115; see [UAT labels](uat.md)).
+  UAT is exclusively for the product's user-facing functional behavior. CI and
+  other tooling are never user-facing, so they never need it; CI governance is
+  the CI sign-off's job.
   The labels are for people and use `github-token`. pr-policy gates on the
   decision through the [`pr-lifecycle/sign-off` commit status](sign-off-status.md) instead, so a
   missing sign-off is a hold and an approved PR can still be armed at any time

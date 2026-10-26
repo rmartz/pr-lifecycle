@@ -117,6 +117,44 @@ describe('classifySignOff — other PRs', () => {
     expect(classify('chore(deps): bump', ['pnpm-lock.yaml']).reason).toBe('trivial-paths');
   });
 
+  it('needs nothing for a chore touching only tooling, metadata, and tests', () => {
+    const paths = ['.github/dependabot.yml', 'scripts/audit.mjs', 'src/scripts/audit.spec.ts'];
+
+    expect(classify('chore: group bumps', paths)).toEqual({
+      requirement: 'none',
+      reason: 'tooling-paths',
+      loosening: false,
+    });
+  });
+
+  it('needs nothing for a chore that tightens its own CI workflow', () => {
+    expect(classify('chore: test on node 24', [WORKFLOW], [TIGHTENING]).reason).toBe(
+      'tooling-paths',
+    );
+  });
+
+  it('needs no UAT for a chore that loosens CI, but reports the loosening', () => {
+    expect(classify('chore: relax CI', [WORKFLOW], [LOOSENING])).toEqual({
+      requirement: 'none',
+      reason: 'tooling-paths',
+      loosening: true,
+    });
+  });
+
+  it('needs UAT for a chore changing a shipped reusable workflow', () => {
+    const shipped: FileChange = {
+      path: WORKFLOW,
+      baseText: 'on: workflow_call\njobs: {}\n',
+      headText: 'on: workflow_call\njobs: { a: {} }\n',
+    };
+
+    expect(classify('chore: a', [WORKFLOW], [shipped]).requirement).toBe('uat');
+  });
+
+  it('needs UAT for tooling bundled with source', () => {
+    expect(classify('feat: a', ['scripts/a.mjs', 'src/a.ts']).requirement).toBe('uat');
+  });
+
   it('needs nothing with UAT off', () => {
     expect(classify('feat: a', ['src/a.ts'], [], 'off')).toEqual({
       requirement: 'none',
@@ -156,6 +194,7 @@ describe('requirementFor', () => {
   it.each([
     ['safe-title', 'none'],
     ['trivial-paths', 'none'],
+    ['tooling-paths', 'none'],
     ['uat-off', 'none'],
     ['ci-loosening', 'ci'],
     ['ci-paths', 'ci'],

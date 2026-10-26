@@ -128,6 +128,7 @@ export function classifyUat(
     case 'safe-title':
       return 'exempt-title';
     case 'trivial-paths':
+    case 'tooling-paths':
       return 'exempt-paths';
     case 'ci-loosening':
     case 'ci-paths':

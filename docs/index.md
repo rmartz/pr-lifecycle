@@ -19,8 +19,9 @@ relevant to your task before editing code — see
 - [Approval carry-over](approval-carry-over.md) — how a review on an earlier
   commit keeps counting: verified clean base merges, verified clean rebases after
   a force-push, and the fail-closed rules behind both.
-- [UAT labels](uat.md) — how the four UAT labels are reconciled: the six rules,
-  why the exemptions are a title allowlist with a path fallback, binding
+- [UAT labels](uat.md) — what UAT is for (only the product's user-facing
+  behavior; CI and tooling never), how the four UAT labels are reconciled: the
+  six rules, why the exemptions are a title allowlist with a path fallback, binding
   sign-offs to the head, why `UAT passed` doesn't carry over a rebase, and why
   the labels are for people only.
 - [The sign-off status](sign-off-status.md) — the `pr-lifecycle/sign-off`

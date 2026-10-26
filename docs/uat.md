@@ -1,7 +1,7 @@
 ---
 type: Design
 title: UAT labels
-description: How pr-lifecycle reconciles the four UAT labels on every event — the six rules, the title-first exemption with a path fallback, binding sign-offs to the head with unforgeable push times, and why the labels are for people and written with the workflow token.
+description: How pr-lifecycle reconciles the four UAT labels on every event — what UAT is for (only the product's user-facing functional behavior; CI and tooling never), the six rules, the title-first exemption with a path fallback, binding sign-offs to the head with unforgeable push times, and why the labels are for people and written with the workflow token.
 resource: src/uat.ts
 tags: [reconciler, uat, labels, sign-off, security]
 ---
@@ -17,8 +17,24 @@ pr-policy, the gate, never reads them. The decision reaches it through the
 [sign-off status](sign-off-status.md) on the head, and pr-policy reads only that
 and the people's own sign-off labels.
 
+## What UAT is for
+
+**UAT is exclusively for the repository's product's user-facing functional
+behavior**: what the product does that its users can observe. Nothing else
+needs UAT. **Tooling is never user-facing, and CI is the clearest example.** A
+workflow, a composite action, a repo script, or lint, formatter, test-runner,
+or repo-hygiene config changes how the repo is built and checked, not what its
+users see. So does a test, a doc, a dependency pin, or repo metadata.
+
+"It can change what a check lets through" is not a reason to require UAT. That
+is a CI-governance question, answered by the review and the CI sign-off
+([CI loosening](ci-loosening.md), `CI approval needed`), never by UAT. The one
+place a workflow is the product is a repo that ships it: a reusable workflow
+(`workflow_call`-only) that consumers call is the product's behavior.
+
 Source: `src/uat.ts` (the UAT rules), `src/sign-off.ts` (the classification),
-`src/uat-title.ts`, `src/uat-paths.ts`, `src/uat-binding.ts`; the facts are
+`src/uat-title.ts`, `src/uat-paths.ts`, `src/uat-tooling.ts`,
+`src/uat-binding.ts`; the facts are
 gathered in `src/github/uat-facts.ts`.
 
 The CLI reconciles the UAT labels always, with `--uat on` by default (see
@@ -115,9 +131,10 @@ The title type is checked first; the changed paths are only a fallback.
   carry a user-facing change past UAT on the strength of a title its author
   chose. `revert` and `perf` change behavior in their own right. `chore` is out
   because "no behavior change" can't be checked by a path rule, so pr-policy
-  doesn't enforce its paths and the title is an unchecked claim. A `chore:` PR
-  the paths don't exempt is left to `/review`, which applies `no UAT needed`
-  when it fits.
+  doesn't enforce its paths and the title is an unchecked claim. The paths
+  decide instead: a `chore:` that touches only tooling is exempt by them (see
+  [below](#ci-and-tooling)). One the paths don't exempt is left to `/review`,
+  which applies `no UAT needed` when it fits.
 - **Path fallback, for those types only.** pr-policy's trivial-path rules,
   ported: Markdown and `docs/`, tests (including Storybook stories), lockfiles
   and `requirements*.txt`, a `package.json` that changes only dependency
@@ -126,13 +143,37 @@ The title type is checked first; the changed paths are only a fallback.
   ignore files). The fallback can only exempt, never require UAT. It matters
   because a bot PR can reach `approved` through bot eligibility with no review
   agent to waive it.
-  - **Workflows are judged by the loosening rules, not the path rules.** Under a
-    `ci:` title, a workflow change that doesn't loosen CI is statically safe.
-    Under any other title a workflow path is never trivial, so such a PR needs
-    UAT (and its loosening, if any, is reported). Composite-action files
-    (`.github/actions/`) are never trivial either.
   - **Fails closed.** An incomplete file listing (GitHub lists at most 3,000), or
     more than 10 changed manifests, exempts nothing.
+
+### CI and tooling
+
+Under any title but `ci`, a PR whose every path is either trivial (above) or
+the repo's own CI and tooling needs no UAT (`requirement=none`, reason
+`tooling-paths`, label `no UAT needed`). Tooling is never user-facing
+([What UAT is for](#what-uat-is-for)). The tooling paths (`src/uat-tooling.ts`)
+match pr-policy's `ci`, `tooling-config`, and `repo-script` path kinds:
+
+- `.github/workflows/**`, except a **shipped reusable workflow**: one whose only
+  trigger is `workflow_call`, which is the product a reusable-workflow repo's
+  consumers call. A workflow whose text wasn't read, or won't parse, counts as
+  product (fails closed);
+- `.github/actions/**`, the repo's composite actions;
+- linter, formatter, test-runner, and repo-tooling config by file name at any
+  depth (`eslint.config.*`, `.prettierrc*`, `vitest.config.*`,
+  `.repo-hygiene.yml`, `.pre-commit-config.yaml`, `.releaserc*`, …);
+- the repo's own scripts under a top-level `scripts/` (audits, CI checks,
+  release helpers).
+
+Build, app, and deploy config (`tsconfig.json`, `next.config.*`, bundler
+config, `vercel.json`) and `package.json` fields outside the dependency blocks
+are product: they decide what ships.
+
+A CI loosening in such a PR is still reported (`loosening=yes`) and still
+needs `CI change approved`: governance stays with the CI sign-off. Under a
+`ci:` title, tooling beyond the trivial paths still needs the CI sign-off
+([the classification](sign-off-status.md#the-classification)); that is CI
+governance too, and never UAT.
 
 The path rules are the UAT question only. They are kept apart from any
 "safe to approve without review" predicate (#39): a change can need review but

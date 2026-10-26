@@ -2,6 +2,7 @@ import type { FileChange, ReconcilePolicy, SignOffLabel } from '../facts.js';
 import { SIGN_OFF_LABELS } from '../facts.js';
 import type { ChangedFile } from '../release-diff.js';
 import { isPackageManifest, trivialCategories } from '../uat-paths.js';
+import { isToolingPath } from '../uat-tooling.js';
 import { listAllChangedFiles, touchedPaths } from './changed-files.js';
 import { gatherWorkflowChanges } from './sign-off-facts.js';
 import { isWorkflowPath } from '../ci-change/workflow-paths.js';
@@ -101,9 +102,10 @@ async function gatherManifestChanges(
       isPackageManifest(file.filename) ||
       (file.previousFilename !== undefined && isPackageManifest(file.previousFilename)),
   );
-  // Workflows are judged by the loosening rules, not the path rules.
+  // Workflows are judged on their content (loosening, shipped or not), not here.
+  // Tooling paths can't need UAT either, so they don't stop the read.
   const others = touchedPaths(files.filter((file) => !manifests.includes(file))).filter(
-    (path) => !isWorkflowPath(path),
+    (path) => !isWorkflowPath(path) && !isToolingPath(path),
   );
   if (
     manifests.length === 0 ||

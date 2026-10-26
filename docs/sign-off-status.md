@@ -73,8 +73,9 @@ Decided in order (`src/sign-off.ts`):
 | 3    | a `ci:` title, otherwise (`scripts/**`, linter, formatter, or test-runner config, a dev-tool bump) | `ci`          |
 | 4    | a `docs`, `test`, or `refactor` title (pr-policy holds each to its paths)                          | `none`        |
 | 5    | every changed path is statically safe ([the path rules](uat.md#which-prs-cant-be-user-facing))     | `none`        |
-| 6    | UAT is off for the repo (`--uat off`)                                                              | `none`        |
-| 7    | otherwise, `chore` included                                                                        | `uat`         |
+| 6    | every changed path is statically safe or the repo's [CI and tooling](uat.md#ci-and-tooling)        | `none`        |
+| 7    | UAT is off for the repo (`--uat off`)                                                              | `none`        |
+| 8    | otherwise, `chore` included                                                                        | `uat`         |
 
 - **`ci` and `uat` are mutually exclusive.** A person is asked for one sign-off.
   A `ci` PR shows `CI approval needed` and `no UAT needed` (every PR carries
@@ -83,7 +84,12 @@ Decided in order (`src/sign-off.ts`):
   or it needs the CI sign-off.
 - **A loosening under another type is reported, not reclassified.** A `feat:`
   that also loosens a workflow is a bundling violation the review rejects. Until
-  it's split it is `uat`, with `loosening=yes`.
+  it's split it is `uat`, with `loosening=yes`. A `chore:` that changes only
+  tooling and loosens a workflow is `none` with `loosening=yes`: the loosening
+  needs the CI sign-off, and nothing in it needs UAT.
+- **Rules 6 and 3 differ on purpose.** Under any title, CI and tooling never
+  need UAT (rule 6). Under a `ci:` title, a tooling path that isn't statically
+  safe still needs the CI sign-off (rule 3): that is CI governance, not UAT.
 - **Loosening detection** is ported from pr-policy's `ci-change` check: see
   [CI loosening](ci-loosening.md).
 - **Fails closed.** An incomplete file list, a changed workflow whose text
@@ -91,7 +97,8 @@ Decided in order (`src/sign-off.ts`):
   incomplete file list is never statically safe.
 
 The JSON `signOff.reason` names the rule: `ci-loosening` (1), `trivial-paths`
-(2, 5), `ci-paths` (3), `safe-title` (4), `uat-off` (6), `needs-uat` (7).
+(2, 5), `ci-paths` (3), `safe-title` (4), `tooling-paths` (6), `uat-off` (7),
+`needs-uat` (8).
 
 ## CI approval needed
 

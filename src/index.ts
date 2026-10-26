@@ -153,6 +153,7 @@ export { isWorkflowPath } from './ci-change/workflow-paths.js';
 export { isRetitledSince, isSignOffCurrent } from './uat-binding.js';
 export { isTestPath, LOCKFILES, TRIVIAL_CATEGORIES, trivialCategories } from './uat-paths.js';
 export type { TrivialCategory } from './uat-paths.js';
+export { isShippedReusableWorkflow, isToolingPath, onlyNonUserFacingPaths } from './uat-tooling.js';
 export { COMMIT_TYPES, isUatExemptTitle, titleType, UAT_EXEMPT_TYPES } from './uat-title.js';
 export type { CommitType } from './uat-title.js';
 export { currentVerdict, isTrustedAuthor, parseVerdict, VERDICTS } from './verdict.js';

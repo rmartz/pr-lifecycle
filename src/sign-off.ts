@@ -3,13 +3,16 @@ import { isWorkflowPath } from './ci-change/workflow-paths.js';
 import type { PullRequestFacts, UatSetting } from './facts.js';
 import { trivialCategories } from './uat-paths.js';
 import { isUatExemptTitle, titleType } from './uat-title.js';
+import { onlyNonUserFacingPaths } from './uat-tooling.js';
 
 /**
  * Which human sign-off a PR's head needs. pr-lifecycle decides it here and hands
  * it to pr-policy, the gate, as the `pr-lifecycle/sign-off` commit status
  * (docs/sign-off-status.md). Pure, like the lifecycle state.
  *
- * - `none`: UAT is off, or the PR is statically safe.
+ * - `none`: UAT is off, the PR is statically safe, or (under any title but
+ *   `ci`) it changes nothing but trivial paths and the repo's CI and tooling.
+ *   UAT is only for the product's user-facing behavior, and tooling never is.
  * - `ci`: a `ci:` PR that loosens a workflow or changes a path that isn't
  *   statically safe. It needs the CI sign-off (`CI change approved`), not UAT.
  * - `uat`: everything else, `chore` included.
@@ -27,6 +30,7 @@ export type SignOffRequirement = (typeof SIGN_OFF_REQUIREMENTS)[number];
 export const SIGN_OFF_REASONS = [
   'safe-title',
   'trivial-paths',
+  'tooling-paths',
   'ci-loosening',
   'ci-paths',
   'uat-off',
@@ -45,6 +49,7 @@ export function requirementFor(reason: SignOffReason): SignOffRequirement {
   switch (reason) {
     case 'safe-title':
     case 'trivial-paths':
+    case 'tooling-paths':
     case 'uat-off':
       return 'none';
     case 'ci-loosening':
@@ -100,6 +105,10 @@ function reasonFor(
   }
   if (trivialCategories(facts.changedPaths, facts.manifestChanges) !== undefined) {
     return 'trivial-paths';
+  }
+  // A loosening is still reported, and pr-policy's ci-change check holds it.
+  if (onlyNonUserFacingPaths(facts.changedPaths, facts.manifestChanges, facts.workflowChanges)) {
+    return 'tooling-paths';
   }
   return setting === 'off' ? 'uat-off' : 'needs-uat';
 }
