@@ -53,7 +53,7 @@ describe('listForcePushes', () => {
     expect([requests[0]?.url, requests[0]?.body, pushes]).toEqual([
       'https://api.github.com/graphql',
       expect.objectContaining({
-        variables: { owner: 'rmartz', repo: 'demo', pr: 7, cursor: null },
+        variables: { owner: 'rmartz', repo: 'pr-lifecycle', pr: 7, cursor: null },
       }),
       [{ headSha: HEAD_SHA, beforeSha: OLD_SHA, pushedAt: PUSHED_AFTER }],
     ]);

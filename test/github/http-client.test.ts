@@ -13,7 +13,7 @@ const REST_PULL = {
   body: 'Bumps x from 1.0.0 to 1.0.1.',
   user: { login: 'dependabot[bot]' },
   head: { sha: 'abc', ref: 'dependabot/x', repo: { id: 11 } },
-  base: { ref: 'main', repo: { id: 11, clone_url: 'https://github.com/rmartz/demo.git' } },
+  base: { ref: 'main', repo: { id: 11, clone_url: 'https://github.com/rmartz/pr-lifecycle.git' } },
   labels: [{ name: 'approved' }],
   auto_merge: { merge_method: 'squash' },
   changed_files: 3,
@@ -82,7 +82,7 @@ describe('createHttpClient requests', () => {
       authorLogin: 'dependabot[bot]',
       headRef: 'dependabot/x',
       baseRef: 'main',
-      cloneUrl: 'https://github.com/rmartz/demo.git',
+      cloneUrl: 'https://github.com/rmartz/pr-lifecycle.git',
       isCrossRepository: false,
       changedFileCount: 3,
       createdAt: '2026-09-23T14:23:01Z',
@@ -162,7 +162,7 @@ describe('createHttpClient requests', () => {
 
     expect([required, requests[0]?.url]).toEqual([
       ['Build', 'Test'],
-      'https://api.github.com/repos/rmartz/demo/rules/branches/release%2F1.x?per_page=100&page=1',
+      'https://api.github.com/repos/rmartz/pr-lifecycle/rules/branches/release%2F1.x?per_page=100&page=1',
     ]);
   });
 
@@ -210,7 +210,7 @@ describe('createHttpClient requests', () => {
 
     expect([commit, requests[0]?.url]).toEqual([
       { treeSha: 't1', parents: ['p1', 'p2'] },
-      'https://api.github.com/repos/rmartz/demo/git/commits/m',
+      'https://api.github.com/repos/rmartz/pr-lifecycle/git/commits/m',
     ]);
   });
 
@@ -223,7 +223,7 @@ describe('createHttpClient requests', () => {
 
     expect([comparison, requests[0]?.url]).toEqual([
       { status: 'ahead', mergeBaseSha: 'mb' },
-      'https://api.github.com/repos/rmartz/demo/compare/base...head?per_page=1',
+      'https://api.github.com/repos/rmartz/pr-lifecycle/compare/base...head?per_page=1',
     ]);
   });
 
@@ -254,7 +254,7 @@ describe('createHttpClient requests', () => {
         { authorLogin: 'dependabot[bot]', message: 'bump' },
         { authorLogin: undefined, message: 'unlinked' },
       ],
-      'https://api.github.com/repos/rmartz/demo/pulls/7/commits?per_page=100&page=1',
+      'https://api.github.com/repos/rmartz/pr-lifecycle/pulls/7/commits?per_page=100&page=1',
     ]);
   });
 
@@ -276,8 +276,8 @@ describe('createHttpClient requests', () => {
     expect([reviews.length, requests.map((request) => request.url)]).toEqual([
       101,
       [
-        'https://api.github.com/repos/rmartz/demo/pulls/7/reviews?per_page=100&page=1',
-        'https://api.github.com/repos/rmartz/demo/pulls/7/reviews?per_page=100&page=2',
+        'https://api.github.com/repos/rmartz/pr-lifecycle/pulls/7/reviews?per_page=100&page=1',
+        'https://api.github.com/repos/rmartz/pr-lifecycle/pulls/7/reviews?per_page=100&page=2',
       ],
     ]);
   });
@@ -333,7 +333,7 @@ describe('createHttpClient requests', () => {
 
     expect([result, requests[0]?.url]).toEqual([
       { permission: 'write', roleName: 'maintain' },
-      'https://api.github.com/repos/rmartz/demo/collaborators/some%20user/permission',
+      'https://api.github.com/repos/rmartz/pr-lifecycle/collaborators/some%20user/permission',
     ]);
   });
 
@@ -358,7 +358,7 @@ describe('createHttpClient requests', () => {
     await client.addLabels(7, ['approved']);
 
     expect([requests[0]?.url, requests[0]?.body]).toEqual([
-      'https://api.github.com/repos/rmartz/demo/issues/7/labels',
+      'https://api.github.com/repos/rmartz/pr-lifecycle/issues/7/labels',
       { labels: ['approved'] },
     ]);
   });
@@ -370,7 +370,7 @@ describe('createHttpClient requests', () => {
 
     expect([requests[0]?.method, requests[0]?.url]).toEqual([
       'DELETE',
-      'https://api.github.com/repos/rmartz/demo/issues/7/labels/review%20requested',
+      'https://api.github.com/repos/rmartz/pr-lifecycle/issues/7/labels/review%20requested',
     ]);
   });
 
@@ -420,7 +420,7 @@ describe('createHttpClient requests', () => {
 
     expect([requests[0]?.method, requests[0]?.url, requests[0]?.body]).toEqual([
       'POST',
-      'https://api.github.com/repos/rmartz/demo/issues/7/comments',
+      'https://api.github.com/repos/rmartz/pr-lifecycle/issues/7/comments',
       { body: 'hello' },
     ]);
   });
@@ -438,7 +438,7 @@ describe('createHttpClient requests', () => {
     expect([files.length, files[100], requests[1]?.url]).toEqual([
       101,
       { filename: 'logo.png', status: 'added', patch: undefined },
-      'https://api.github.com/repos/rmartz/demo/pulls/7/files?per_page=100&page=2',
+      'https://api.github.com/repos/rmartz/pr-lifecycle/pulls/7/files?per_page=100&page=2',
     ]);
   });
 

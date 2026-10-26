@@ -35,7 +35,7 @@ runner.
 ## Local development
 
 ```bash
-NODE_AUTH_TOKEN=$(gh auth token) pnpm install
+pnpm install
 pnpm run build
 pnpm run typecheck
 pnpm run lint

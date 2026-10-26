@@ -17,12 +17,6 @@ name: Release
 # are generated automatically. OIDC publishing needs npm >= 11.5.1: the shared
 # workflow runs on Node 24 (npm 11) and, because this workflow grants
 # `id-token: write`, fails before tagging if npm is older.
-#
-# `packages: read` is for INSTALLING the @rmartz/repo-hygiene devDependency from
-# GitHub Packages: the shared workflow passes the job token as NODE_AUTH_TOKEN to
-# its dependency install, which resolves the ${NODE_AUTH_TOKEN} placeholder in
-# .npmrc. Publishing goes to npmjs because package.json's publishConfig pins both
-# `registry` and `@rmartz:registry` there.
 
 on:
   push:
@@ -32,7 +26,6 @@ on:
 # Releases are serialized per repository inside it.
 permissions:
   contents: write # create tags + GitHub Releases
-  packages: read # install the @rmartz/repo-hygiene devDependency
   id-token: write # npm trusted publishing (OIDC) + provenance
   issues: write # semantic-release/github comments on released issues
   pull-requests: write # semantic-release/github comments on released PRs

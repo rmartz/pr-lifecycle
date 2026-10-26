@@ -127,7 +127,7 @@ export function toReconcileJson(target: ReconcileTarget, result: ReconcileResult
   };
 }
 
-/** One human-readable line, e.g. `rmartz/x#7 → approved: +approved, auto-merge arm`. */
+/** One human-readable line, e.g. `octo-org/app#7 → approved: +approved, auto-merge arm`. */
 export function formatSummary(target: ReconcileTarget, result: ReconcileResult): string {
   const { plan, botEligibility } = result;
   const changes = [

@@ -12,7 +12,7 @@ import {
 
 /**
  * Canonical definitions for the labels the reconciler owns, mirroring the fleet
- * roster (rmartz/dotfiles claude/scripts/labels.yml). Used only to create a label
+ * label roster. Used only to create a label
  * a consumer repo is missing; an existing label's color and description are never
  * changed.
  */
@@ -77,7 +77,7 @@ export const OWNED_LABEL_DEFINITIONS: Record<
     color: 'DB2777',
     description: 'Needs author input or judgment — not addressable by automated fix-review.',
   },
-  // Placeholder colors until the fleet roster assigns them (rmartz/dotfiles#1573).
+  // Placeholder colors until the fleet roster assigns them.
   'ci failing': {
     name: 'ci failing',
     color: 'B60205',

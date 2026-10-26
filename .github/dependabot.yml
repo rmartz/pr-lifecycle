@@ -1,18 +1,5 @@
 version: 2
 
-# @rmartz/repo-hygiene (the pre-commit CLI devDependency) publishes to GitHub
-# Packages, so Dependabot needs registry auth to see new versions. Without the
-# DEPENDABOT_PACKAGES_TOKEN Dependabot secret (a classic PAT scoped to
-# read:packages) the npm job dies with a 422 and silently stops opening ALL npm
-# PRs, not just the @rmartz one. The repo-root .npmrc pins npmjs as the base
-# registry so public deps don't resolve against GitHub Packages
-# (dependabot-core#15415).
-registries:
-  github-packages:
-    type: npm-registry
-    url: https://npm.pkg.github.com
-    token: ${{secrets.DEPENDABOT_PACKAGES_TOKEN}}
-
 # Cooldown: since 2026-07-14 Dependabot waits 3 days after a release before
 # proposing it, even with no `cooldown` configured. Third-party dependencies keep
 # that default (security updates are never delayed by it).
@@ -26,8 +13,6 @@ registries:
 updates:
   - package-ecosystem: npm
     directory: /
-    registries:
-      - github-packages
     schedule:
       interval: weekly
     commit-message:
@@ -62,7 +47,7 @@ updates:
           - 'typescript'
       # Catch-all groups batch patch and minor bumps, which auto-merge. A major
       # matches no group, so Dependabot opens it as its own PR for review instead
-      # of holding every routine bump in the group (rmartz/ai repository
+      # of holding every routine bump in the group (shared repository
       # checklist §Supply chain).
       dev-dependencies:
         dependency-type: development

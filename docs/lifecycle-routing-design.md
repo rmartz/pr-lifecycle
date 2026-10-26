@@ -36,6 +36,6 @@ decisions behind them.
   Dependabot itself rebases them. See
   [Plan](reconciler-design.md#plan) and
   [Auto-update](github-edge-layer.md#auto-update).
-- **New lifecycle labels** `fix required` and `ci failing` join the fleet roster
-  via rmartz/dotfiles#1573. `merge conflict` and `update required` stay
+- **New lifecycle labels** `fix required` and `ci failing` join the fleet label
+  roster. `merge conflict` and `update required` stay
   merge-safety's labels and are never written here.

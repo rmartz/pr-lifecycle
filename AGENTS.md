@@ -37,7 +37,7 @@ keep if agents read it. Put detail in `docs/` and link to it from here.
 ## Common commands
 
 ```bash
-NODE_AUTH_TOKEN=$(gh auth token) pnpm install   # first, in every worktree
+pnpm install             # first, in every worktree
 pnpm run build           # tsup → dist (ESM + d.ts)
 pnpm run typecheck       # tsc --noEmit over src/ and test/
 pnpm run lint            # eslint, type-aware (incl. max-lines caps)
@@ -47,8 +47,7 @@ pnpm run test:coverage   # vitest + enforced coverage thresholds (what CI runs)
 pnpm run hygiene         # repo-hygiene checks (the pre-commit hook runs --staged)
 ```
 
-`NODE_AUTH_TOKEN` authenticates the `@rmartz/repo-hygiene` devDependency from
-GitHub Packages. Before pushing, run `ai-pre-push-verify -C <worktree>` and fix
+Before pushing, run `ai-pre-push-verify -C <worktree>` and fix
 every failure. Toolchain and CI details: [docs/development.md](docs/development.md).
 
 ## Code standards
@@ -88,9 +87,8 @@ See [docs/testing.md](docs/testing.md) for the full strategy. The rules:
 
 ## Repository conformance
 
-This repo is held to the shared
-[repository checklist](https://github.com/rmartz/ai/blob/main/docs/guidance/repository-checklist.md)
-and **self-manages** its own config: fix conformance gaps directly here, in a PR.
+This repo is held to the fleet's shared repository checklist (agent tooling
+guidance) and **self-manages** its own config: fix conformance gaps directly here, in a PR.
 Bootstrap (`ai-ensure-*`) is a one-time starter, not an ongoing manager.
 
 ## Worktrees, PRs, and releases

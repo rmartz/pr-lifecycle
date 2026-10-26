@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { parseArgs } from '../../src/cli/args.js';
 
-const BASE = ['reconcile', '--repo', 'rmartz/demo', '--pr', '7'];
+const BASE = ['reconcile', '--repo', 'rmartz/pr-lifecycle', '--pr', '7'];
 
 describe('parseArgs — commands', () => {
   it.each([[[]], [['help']], [['--help']], [['-h']], [['reconcile', '--help']]])(
@@ -25,7 +25,7 @@ describe('parseArgs — reconcile', () => {
     expect(parseArgs(BASE)).toEqual({
       command: 'reconcile',
       owner: 'rmartz',
-      repo: 'demo',
+      repo: 'pr-lifecycle',
       pr: 7,
       policy: { armAutoMerge: false, autoUpdate: false, skipCopilotReview: false, uat: 'on' },
       dryRun: false,

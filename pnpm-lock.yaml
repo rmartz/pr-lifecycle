@@ -16,8 +16,8 @@ importers:
         specifier: ^10.0.1
         version: 10.0.1(eslint@10.13.0)
       '@rmartz/repo-hygiene':
-        specifier: ^7.0.1
-        version: 7.0.1
+        specifier: ^16.0.0
+        version: 16.0.0
       '@types/node':
         specifier: ^26.6.2
         version: 26.6.5
@@ -350,8 +350,8 @@ packages:
   '@oxc-project/types@0.154.0':
     resolution: {integrity: sha512-KYOUGQFlLWR+s4QMV2Q9ko38TZm7EdO87Qm7rvZLqk/webse/cDjtyxKhg/47l0byCbs/k46LT8qc4PKjAikzA==}
 
-  '@rmartz/repo-hygiene@7.0.1':
-    resolution: {integrity: sha512-nXxzYm/k/C5XcREcGkhQ7QV6KcRnhKPZnIrwkblG7JsJRPign8W1Ex+j2fRXR7W5vH17LcfbWhIBx8yAAicOmw==, tarball: https://npm.pkg.github.com/download/@rmartz/repo-hygiene/7.0.1/dd0ce82221080beb59cf788f941474b6a0ee547e}
+  '@rmartz/repo-hygiene@16.0.0':
+    resolution: {integrity: sha512-+pgz0iUBX8GgFFcfbP80zlUVreT/BIC5G65d9ZN8XT+4oEXcFUrlFHJbc81FsBFSZ3OYA2SvVaKp3+9Py+LKkA==}
     engines: {node: '>=20.11.0'}
     hasBin: true
 
@@ -2309,7 +2309,7 @@ snapshots:
 
   '@oxc-project/types@0.154.0': {}
 
-  '@rmartz/repo-hygiene@7.0.1':
+  '@rmartz/repo-hygiene@16.0.0':
     dependencies:
       gray-matter: 4.0.3
       picomatch: 4.0.7
