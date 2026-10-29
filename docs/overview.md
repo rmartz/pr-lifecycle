@@ -102,9 +102,10 @@ the escalation is resolved and the PR goes back to review.
   from pr-policy for the same reason ([CI loosening](ci-loosening.md)).
 - **UAT labels follow the classification.** Every reconcile
   leaves exactly one UAT label (`no UAT needed`, `UAT pending`, `UAT ready`, or
-  `UAT passed`), cautious by default: a PR that could be user-facing stays
-  `UAT pending` until a trusted person waives it or signs it off, and a sign-off
-  counts only for the head it was applied to (#115; see [UAT labels](uat.md)).
+  `UAT passed`), cautious by default: a PR stays `UAT pending` until the review
+  agent's verdict or a trusted person decides, and a sign-off counts only for
+  the head it was applied to or a commit carried over a verified clean update
+  (#141; see [UAT labels](uat.md)).
   The labels are for people and use `github-token`. pr-policy gates on the
   decision through the [`pr-lifecycle/sign-off` commit status](sign-off-status.md) instead, so a
   missing sign-off is a hold and an approved PR can still be armed at any time

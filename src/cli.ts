@@ -57,7 +57,9 @@ reconcile options:
                             need a new review (default: *.md,!index.md)
   --uat <on|off>            The repo's UAT setting; off labels every PR 'no UAT needed'
                             (default: on)
-  --dry-run                 Compute the plan without writing anything
+  --sign-off-status <v1|v2> The sign-off status format; v2 needs pr-policy 1.8.0+
+                            (default: v1)
+  --dry-run                Compute the plan without writing anything
   --json                    Print one JSON object (schemaVersion 1) on stdout
   --no-token-advisory       Don't comment on the PR when arming lacks a release token
 

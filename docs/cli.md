@@ -21,7 +21,7 @@ installs a pinned version and invokes it, so everything on this page is a
 pr-lifecycle reconcile --repo <owner/repo> --pr <n>
   [--arm-auto-merge] [--auto-update] [--trusted-authors a,b] [--skip-copilot-review]
   [--hold-checks a,b] [--ignore-checks a,b] [--prose-paths a,b] [--uat on|off]
-  [--dry-run] [--json] [--no-token-advisory]
+  [--sign-off-status v1|v2] [--dry-run] [--json] [--no-token-advisory]
 ```
 
 | Flag                      | Effect                                                                                                                                                                                                                                                       |
@@ -35,7 +35,8 @@ pr-lifecycle reconcile --repo <owner/repo> --pr <n>
 | `--hold-checks <a,b>`     | Required checks whose _pending_ is a hold, not a running build; their failures still count (`policy.holdChecks`, default `pr-policy`).                                                                                                                       |
 | `--ignore-checks <a,b>`   | Required checks the CI gate never counts (`policy.ignoredChecks`, default `merge-safety`). An empty value counts every check.                                                                                                                                |
 | `--prose-paths <a,b>`     | Basename patterns (`*` wildcard, `!` excludes) for prose files: a base merge in which both sides edited the same one doesn't [carry an approval over](approval-carry-over.md). Default `*.md,!index.md`; an empty value turns the check off.                 |
-| `--uat <on\|off>`         | The repo's UAT setting (`policy.uat`, default `on`). `on` keeps exactly one [UAT label](uat.md) on the PR, `UAT pending` until it is signed off; `off` labels every PR `no UAT needed`. Also decides the [sign-off status](sign-off-status.md).              |
+| `--uat <on\|off>`         | The repo's UAT setting (`policy.uat`, default `on`). `on` keeps exactly one [UAT label](uat.md) on the PR, `UAT pending` until it is decided; `off` labels every PR `no UAT needed`. Also decides the [sign-off status](sign-off-status.md).                 |
+| `--sign-off-status <v>`   | The [sign-off status](sign-off-status.md#choosing-the-version) format (`policy.signOffStatus`): `v1` (default) or `v2`. Use `v2` once the repo's pr-policy is 1.8.0 or later; an older one holds every PR on `v2`.                                           |
 | `--dry-run`               | Gather and plan, but write nothing.                                                                                                                                                                                                                          |
 | `--json`                  | Print the result as one JSON object (below) instead of a summary line.                                                                                                                                                                                       |
 | `--no-token-advisory`     | Don't post the [advisory comment](#release-token) when arming or the sign-off status is skipped for want of a release token.                                                                                                                                 |
@@ -196,9 +197,9 @@ ancestors whose reviews count, and why the walk stopped (e.g. `… is not the cl
 automatic merge`). `rebases` lists each [clean-rebase check](approval-carry-over.md#rebased-heads)
 as `{ "source", "carried", "reason" }`. It is `null` when carry-over didn't run (a closed PR); a walk that failed reports `verification failed: …` and carries nothing.
 `uat` is `{ "outcome", "label" }`: the PR's one [UAT label](uat.md) and the rule
-that picked it (`off`, `exempt-title`, `exempt-paths`, `ci`, `passed`,
-`waived`, `ready`, or `pending`); `null` for a closed PR. A PR that needs the CI
-sign-off instead reports `ci` with `no UAT needed`.
+that picked it (`off`, `ci`, `exempt-auto-approved`, `passed`,
+`passed-attested`, `waived`, `waived-by-review`, `ready`, or `pending`); `null`
+for a closed PR. A CI change reports `ci` with `no UAT needed`.
 `signOff` is the head's [sign-off classification](sign-off-status.md):
 `requirement` (`none`, `ci`, `uat`), the `reason` (the rule that decided it),
 `loosening`, the `status` description, and `statusPosted`, whether it was posted

@@ -71,6 +71,7 @@ export interface CommitComparison {
 }
 
 export interface CommitData {
+  sha: string;
   /** The commit author's GitHub login; undefined when not linked to an account. */
   authorLogin: string | undefined;
   message: string;
@@ -149,8 +150,6 @@ export interface GitHubClient {
   listLabelRemovals(pr: number, label: string): Promise<LabelRemovalData[]>;
   /** Every application of `label` to the PR, oldest first. */
   listLabelApplications(pr: number, label: string): Promise<LabelApplicationData[]>;
-  /** When the PR's title was changed (ISO-8601), oldest first. */
-  listTitleChanges(pr: number): Promise<string[]>;
   /** Every force-push to the PR's branch, with the heads it replaced and made, oldest first. */
   listForcePushes(pr: number): Promise<ForcePushFact[]>;
   /** The check suites on a commit. */

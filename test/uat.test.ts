@@ -26,67 +26,82 @@ describe('classifyUat — rule 1: UAT off', () => {
   });
 });
 
-describe('classifyUat — rule 2: can not be user-facing', () => {
-  it.each(['docs: a', 'test: a', 'refactor: a'])('exempts the title %j', (title) => {
-    expect(outcome(makeUatFacts({ title }))).toBe('exempt-title');
-  });
-
+describe('classifyUat — rule 2: a CI change', () => {
   it('gives a ci PR touching source the CI sign-off instead of UAT', () => {
     expect(outcome(makeUatFacts({ title: 'ci: a' }))).toBe('ci');
   });
 
-  it.each(['feat: a', 'fix: a', 'perf: a', 'revert: a', 'chore: a', 'chore no colon'])(
-    'does not exempt the title %j',
+  it('treats a PR touching only workflows as a CI change, whatever its title', () => {
+    const facts = makeUatFacts({
+      title: 'chore(deps): bump an action',
+      changedPaths: ['.github/workflows/ci.yml'],
+      workflowChanges: [
+        { path: '.github/workflows/ci.yml', baseText: 'on: push\n', headText: 'on: push\n' },
+      ],
+    });
+
+    expect(outcome(facts)).toBe('ci');
+  });
+});
+
+describe('classifyUat — no title or path exemption', () => {
+  it.each(['docs: a', 'test: a', 'refactor: a', 'chore: a', 'feat: a', 'chore no colon'])(
+    'holds the title %j for a decision',
     (title) => {
       expect(outcome(makeUatFacts({ title }))).toBe('pending');
     },
   );
 
-  it('exempts a chore PR touching only lockfiles by its paths', () => {
-    const facts = makeUatFacts({ title: 'chore(deps): bump a', changedPaths: ['pnpm-lock.yaml'] });
-
-    expect(outcome(facts)).toBe('exempt-paths');
-  });
-
-  it('does not exempt a chore PR touching source', () => {
-    const facts = makeUatFacts({
-      title: 'chore: tidy up',
-      changedPaths: ['pnpm-lock.yaml', 'src/a.ts'],
-    });
+  it('holds a docs-only PR for a decision', () => {
+    const facts = makeUatFacts({ title: 'docs: explain', changedPaths: ['README.md'] });
 
     expect(outcome(facts)).toBe('pending');
   });
 
-  it('does not exempt a PR whose paths are unknown', () => {
+  it('asks for UAT on an approved docs-only PR with no UAT decision', () => {
+    const facts = makeUatFacts({
+      title: 'docs: explain',
+      changedPaths: ['README.md'],
+      reviews: [makeApproval()],
+    });
+
+    expect(outcome(facts)).toBe('ready');
+  });
+
+  it('holds a lockfile-only chore PR for a decision', () => {
+    const facts = makeUatFacts({ title: 'chore(deps): bump a', changedPaths: ['pnpm-lock.yaml'] });
+
+    expect(outcome(facts)).toBe('pending');
+  });
+
+  it('holds a PR whose paths are unknown', () => {
     const facts: PullRequestFacts = makeUatFacts();
     delete facts.changedPaths;
 
     expect(outcome(facts)).toBe('pending');
   });
+});
 
-  it('exempts even an approved PR with a UAT passed on it', () => {
-    const facts = withSignOffs(
-      makeUatFacts({ title: 'docs: a', reviews: [makeApproval()] }),
-      makeSignOff({ label: 'UAT passed' }),
-    );
+describe('classifyUat — rule 3: approved through bot eligibility', () => {
+  it('exempts an eligible bot PR with no verdict', () => {
+    expect(outcome(makeUatFacts({ botEligible: true }))).toBe('exempt-auto-approved');
+  });
 
-    expect(outcome(facts)).toBe('exempt-title');
+  it('does not exempt an eligible bot PR once a person requests changes', () => {
+    const changes = makeReview({ state: 'CHANGES_REQUESTED', submittedAt: '2026-10-19T10:30:00Z' });
+
+    expect(outcome(makeUatFacts({ botEligible: true, reviews: [changes] }))).toBe('pending');
+  });
+
+  it('decides an eligible bot PR with a verdict by the other rules', () => {
+    expect(outcome(makeUatFacts({ botEligible: true, reviews: [makeApproval()] }))).toBe('ready');
   });
 });
 
-describe('classifyUat — rule 3: UAT passed', () => {
+describe('classifyUat — rule 4: UAT passed', () => {
   it('keeps a current UAT passed on an approved PR', () => {
     const facts = withSignOffs(
       makeUatFacts({ reviews: [makeApproval()] }),
-      makeSignOff({ label: 'UAT passed' }),
-    );
-
-    expect(outcome(facts)).toBe('passed');
-  });
-
-  it('keeps it on an eligible bot PR', () => {
-    const facts = withSignOffs(
-      makeUatFacts({ botEligible: true }),
       makeSignOff({ label: 'UAT passed' }),
     );
 
@@ -140,13 +155,38 @@ describe('classifyUat — rule 3: UAT passed', () => {
     expect(outcome(facts)).toBe('ready');
   });
 
-  it('does not carry over a verified clean rebase', () => {
+  it('carries over a verified clean rebase', () => {
     const facts = withSignOffs(
       makeUatFacts({
         reviews: [makeApproval(OLD_SHA)],
         cleanRebaseSources: [OLD_SHA],
         commitArrivals: { [OLD_SHA]: '2026-10-19T08:00:00Z' },
         forcePushes: [{ headSha: HEAD_SHA, beforeSha: OLD_SHA, pushedAt: HEAD_ARRIVED }],
+      }),
+      makeSignOff({ label: 'UAT passed', appliedAt: BEFORE_HEAD }),
+    );
+
+    expect(outcome(facts)).toBe('passed');
+  });
+
+  it('carries over a verified clean base merge', () => {
+    const facts = withSignOffs(
+      makeUatFacts({
+        reviews: [makeApproval(OLD_SHA)],
+        cleanAncestors: [OLD_SHA],
+        commitArrivals: { [HEAD_SHA]: HEAD_ARRIVED, [OLD_SHA]: '2026-10-19T08:00:00Z' },
+      }),
+      makeSignOff({ label: 'UAT passed', appliedAt: BEFORE_HEAD }),
+    );
+
+    expect(outcome(facts)).toBe('passed');
+  });
+
+  it('does not carry over a hand-resolved merge', () => {
+    const facts = withSignOffs(
+      makeUatFacts({
+        reviews: [makeApproval()],
+        commitArrivals: { [HEAD_SHA]: HEAD_ARRIVED, [OLD_SHA]: '2026-10-19T08:00:00Z' },
       }),
       makeSignOff({ label: 'UAT passed', appliedAt: BEFORE_HEAD }),
     );
@@ -165,7 +205,7 @@ describe('classifyUat — rule 3: UAT passed', () => {
   });
 });
 
-describe('classifyUat — rule 4: no UAT needed', () => {
+describe('classifyUat — rule 6: a person waives UAT', () => {
   it('keeps a trusted waiver for the head', () => {
     expect(outcome(withSignOffs(makeUatFacts(), makeSignOff()))).toBe('waived');
   });
@@ -240,24 +280,17 @@ describe('classifyUat — rule 4: no UAT needed', () => {
 
     expect(outcome(facts)).toBe('waived');
   });
-
-  it('drops a waiver once the title changes', () => {
-    const facts = withSignOffs(
-      makeUatFacts({ titleChanges: ['2026-10-19T12:00:00Z'] }),
-      makeSignOff(),
-    );
-
-    expect(outcome(facts)).toBe('pending');
-  });
 });
 
-describe('classifyUat — rules 5 and 6', () => {
+describe('classifyUat — rules 8 and 9', () => {
   it('is ready once the PR is approved', () => {
     expect(outcome(makeUatFacts({ reviews: [makeApproval()] }))).toBe('ready');
   });
 
-  it('is ready for an eligible bot PR', () => {
-    expect(outcome(makeUatFacts({ botEligible: true }))).toBe('ready');
+  it('is ready on a native approval with no marker', () => {
+    const approval = makeReview({ state: 'APPROVED', submittedAt: '2026-10-19T10:30:00Z' });
+
+    expect(outcome(makeUatFacts({ reviews: [approval] }))).toBe('ready');
   });
 
   it('is pending otherwise', () => {
@@ -268,11 +301,12 @@ describe('classifyUat — rules 5 and 6', () => {
 describe('uatLabelFor', () => {
   it.each([
     ['off', 'no UAT needed'],
-    ['exempt-title', 'no UAT needed'],
-    ['exempt-paths', 'no UAT needed'],
     ['ci', 'no UAT needed'],
-    ['waived', 'no UAT needed'],
+    ['exempt-auto-approved', 'no UAT needed'],
     ['passed', 'UAT passed'],
+    ['passed-attested', 'UAT passed'],
+    ['waived', 'no UAT needed'],
+    ['waived-by-review', 'no UAT needed'],
     ['ready', 'UAT ready'],
     ['pending', 'UAT pending'],
   ] as const)('labels %s as %j', (uat, label) => {

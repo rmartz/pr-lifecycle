@@ -8,18 +8,13 @@ import { toActorType } from './rest-payloads.js';
 
 /**
  * The real GitHubClient's reads of a PR's history, for binding UAT sign-offs to
- * a head (docs/uat.md): who applied a label and when, title changes, the
- * force-pushes with the heads they replaced, when a commit's check suites were
+ * a head (docs/uat.md): who applied a label and when, the force-pushes with the heads they replaced, when a commit's check suites were
  * created, and a file's text at a commit.
  */
 
 export type HistoryMethods = Pick<
   GitHubClient,
-  | 'getFileText'
-  | 'listCheckSuites'
-  | 'listForcePushes'
-  | 'listLabelApplications'
-  | 'listTitleChanges'
+  'getFileText' | 'listCheckSuites' | 'listForcePushes' | 'listLabelApplications'
 >;
 
 // REST's `head_ref_force_pushed` event names only the new head; the timeline's
@@ -81,10 +76,6 @@ export function createHistoryMethods(transport: HttpTransport): HistoryMethods {
             appliedAt: event.created_at,
           };
         });
-    },
-    async listTitleChanges(pr) {
-      const events = await paginate<RestIssueEvent>(`${repoPath}/issues/${pr}/events`);
-      return events.filter((event) => event.event === 'renamed').map((event) => event.created_at);
     },
     async listForcePushes(pr): Promise<ForcePushFact[]> {
       const pushes: ForcePushFact[] = [];

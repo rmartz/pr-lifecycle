@@ -71,21 +71,6 @@ describe('listLabelApplications', () => {
   });
 });
 
-describe('listTitleChanges', () => {
-  it('maps the renamed events to their times', async () => {
-    const { client } = makeTransport([
-      {
-        json: [
-          { event: 'renamed', created_at: '2026-10-19T09:00:00Z' },
-          { event: 'labeled', created_at: '2026-10-19T09:30:00Z', label: { name: 'x' } },
-        ],
-      },
-    ]);
-
-    expect(await client.listTitleChanges(7)).toEqual(['2026-10-19T09:00:00Z']);
-  });
-});
-
 describe('listCheckSuites', () => {
   it('maps each suite’s branch and creation time across pages', async () => {
     const full = Array.from({ length: 100 }, () => ({

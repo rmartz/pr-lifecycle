@@ -25,6 +25,7 @@ export {
   PR_STATUSES,
   REPO_PERMISSIONS,
   REVIEW_STATES,
+  SIGN_OFF_STATUS_VERSIONS,
   UAT_SETTINGS,
   CI_CHANGE_APPROVED_LABEL,
   SIGN_OFF_LABELS,
@@ -35,6 +36,7 @@ export type {
   BranchUpdater,
   FileChange,
   ForcePushFact,
+  SignOffStatusVersion,
   UatSetting,
   SignOffLabel,
   UatSignOffFact,
@@ -128,6 +130,7 @@ export {
   UAT_PENDING_LABEL,
   UAT_READY_LABEL,
   uatLabelFor,
+  uatSignOffFor,
 } from './uat.js';
 export type { UatLabel, UatOutcome } from './uat.js';
 export {
@@ -142,6 +145,8 @@ export type {
   SignOffClassification,
   SignOffReason,
   SignOffRequirement,
+  SignOffStatusFields,
+  UatSignOff,
   WaiverState,
 } from './sign-off.js';
 export { CI_APPROVAL_NEEDED_LABEL, planSignOff, SIGN_OFF_STATUS_CONTEXT } from './sign-off-plan.js';
@@ -151,11 +156,11 @@ export type { Classification } from './ci-change/classify.js';
 export { AMBIGUOUS_INDICATORS, LOOSENING_INDICATORS } from './ci-change/indicators.js';
 export type { Indicator, IndicatorKind } from './ci-change/indicators.js';
 export { isWorkflowPath } from './ci-change/workflow-paths.js';
-export { isRetitledSince, isSignOffCurrent } from './uat-binding.js';
+export { isAppliedWhileHead, isSignOffCurrent } from './uat-binding.js';
 export { isTestPath, LOCKFILES, TRIVIAL_CATEGORIES, trivialCategories } from './uat-paths.js';
 export type { TrivialCategory } from './uat-paths.js';
-export { COMMIT_TYPES, isUatExemptTitle, titleType, UAT_EXEMPT_TYPES } from './uat-title.js';
-export type { CommitType } from './uat-title.js';
+export { COMMIT_TYPES, titleType } from './title-type.js';
+export type { CommitType } from './title-type.js';
 export { currentUatVerdict, currentVerdict, isTrustedAuthor, parseVerdict } from './verdict.js';
 export type { ParsedVerdict } from './verdict.js';
 export { parseVerdictRecord, UAT_VERDICTS, VERDICTS } from './verdict-marker.js';

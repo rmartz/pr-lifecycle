@@ -1,11 +1,12 @@
 import type { FileChange, ReconcilePolicy, SignOffLabel } from '../facts.js';
 import { SIGN_OFF_LABELS } from '../facts.js';
+import { parseVerdictRecord } from '../verdict-marker.js';
 import type { ChangedFile } from '../release-diff.js';
 import { isPackageManifest, trivialCategories } from '../uat-paths.js';
 import { listAllChangedFiles, touchedPaths } from './changed-files.js';
 import { gatherWorkflowChanges } from './sign-off-facts.js';
 import { isWorkflowPath } from '../ci-change/workflow-paths.js';
-import type { GitHubClient, LabelApplicationData, PullRequestData } from './client.js';
+import type { GitHubClient, LabelApplicationData, PullRequestData, ReviewData } from './client.js';
 import { isTransientError } from './client.js';
 
 /**
@@ -60,6 +61,50 @@ export async function gatherSignOffApplications(
     }),
   );
   return found.flat();
+}
+
+/** A PR with more commits than this has no attested pass read: their arrivals aren't all fetched. */
+export const MAX_ATTESTED_COMMITS = 100;
+
+/** The commits reviews name in `uat: unchanged`, whose `UAT passed` they attest. */
+export function attestedCommits(reviews: readonly ReviewData[]): string[] {
+  const since = reviews.flatMap((review) => {
+    const uat = parseVerdictRecord(review)?.uat;
+    return uat?.kind === 'unchanged' ? [uat.since] : [];
+  });
+  return [...new Set(since)];
+}
+
+export interface AttestationFacts {
+  /** Every application of `UAT passed`, oldest first; empty when none is attested. */
+  applications: LabelApplicationData[];
+  /** Every commit whose arrival bounds when an application was made. */
+  commits: string[];
+}
+
+/**
+ * What an attested pass is checked against (docs/uat.md rule 5): every
+ * application of `UAT passed`, whether or not the label is still on the PR, and
+ * every commit on the PR, each of whose arrival bounds when an application was
+ * made. Too many commits to fetch every arrival reads no application at all,
+ * so the attestation fails closed.
+ */
+export async function gatherAttestationFacts(
+  client: Pick<GitHubClient, 'listCommits' | 'listLabelApplications'>,
+  pr: number,
+  attested: readonly string[],
+): Promise<AttestationFacts> {
+  if (attested.length === 0) {
+    return { applications: [], commits: [] };
+  }
+  const [applications, commits] = await Promise.all([
+    client.listLabelApplications(pr, 'UAT passed'),
+    client.listCommits(pr),
+  ]);
+  if (commits.length > MAX_ATTESTED_COMMITS) {
+    return { applications: [], commits: [] };
+  }
+  return { applications, commits: [...commits.map((commit) => commit.sha), ...attested] };
 }
 
 /**

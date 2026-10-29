@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
 import { gatherFacts } from '../../src/github/gather.js';
-import { MAX_MANIFEST_READS } from '../../src/github/uat-facts.js';
-import { HEAD_SHA, makeChangedFile, OLD_SHA } from '../fixtures.js';
-import { FakeGitHubClient, makePullRequestData } from './fake-client.js';
+import { planReconcile } from '../../src/plan.js';
+import { MAX_ATTESTED_COMMITS, MAX_MANIFEST_READS } from '../../src/github/uat-facts.js';
+import { HEAD_SHA, makeChangedFile, makeDimensionedVerdictBody, OLD_SHA } from '../fixtures.js';
+import { FakeGitHubClient, makePullRequestData, makeReviewData } from './fake-client.js';
 
 // The UAT facts at the edge: what is read, and only when it can matter.
 
@@ -150,18 +151,16 @@ describe('gatherFacts — UAT sign-offs', () => {
     ]);
   });
 
-  it('reads the force-pushes and title changes alongside', async () => {
+  it('reads the force-pushes alongside', async () => {
     const client = makeSignedClient(['no UAT needed']);
     client.forcePushes = [
       { headSha: HEAD_SHA, beforeSha: OLD_SHA, pushedAt: '2026-10-19T10:00:00Z' },
     ];
-    client.titleChanges = ['2026-10-19T12:00:00Z'];
 
     const { facts } = await gatherFacts(client, 7, ON);
 
-    expect([facts.forcePushes, facts.titleChanges]).toEqual([
-      [{ headSha: HEAD_SHA, beforeSha: OLD_SHA, pushedAt: '2026-10-19T10:00:00Z' }],
-      ['2026-10-19T12:00:00Z'],
+    expect(facts.forcePushes).toEqual([
+      { headSha: HEAD_SHA, beforeSha: OLD_SHA, pushedAt: '2026-10-19T10:00:00Z' },
     ]);
   });
 
@@ -206,5 +205,94 @@ describe('gatherFacts — UAT sign-offs', () => {
     await gatherFacts(client, 7, ON);
 
     expect(called(client, 'listLabelApplications')).toBe(false);
+  });
+});
+
+describe('gatherFacts — an attested UAT pass', () => {
+  const PASSED_AT = '2026-10-19T09:00:00Z';
+
+  /** A PR whose review attests that a pass on OLD_SHA still holds; the label is gone. */
+  function makeAttestingClient() {
+    const client = makeFilesClient(['src/a.ts']);
+    client.reviews = [
+      makeReviewData({
+        state: 'COMMENTED',
+        body: makeDimensionedVerdictBody(
+          { code: 'approved', uat: 'unchanged' },
+          { uat_since: OLD_SHA },
+        ),
+        submittedAt: '2026-10-19T10:30:00Z',
+      }),
+    ];
+    client.permissions.set('rmartz', { permission: 'admin', roleName: 'admin' });
+    client.labelApplications.set('UAT passed', [
+      { login: 'rmartz', type: 'User', appliedAt: PASSED_AT },
+    ]);
+    client.commits = [
+      { sha: OLD_SHA, authorLogin: 'rmartz', message: 'feat: a' },
+      { sha: HEAD_SHA, authorLogin: 'rmartz', message: 'Merge main' },
+    ];
+    client.checkSuites.set(OLD_SHA, [
+      { headBranch: 'feature/thing', createdAt: '2026-10-19T08:00:00Z' },
+    ]);
+    client.checkSuites.set(HEAD_SHA, [
+      { headBranch: 'feature/thing', createdAt: '2026-10-19T10:00:00Z' },
+    ]);
+    return client;
+  }
+
+  it('reads the pass history, even with the label removed', async () => {
+    const { facts } = await gatherFacts(makeAttestingClient(), 7, ON);
+
+    expect(facts.uatPassedHistory).toEqual([
+      {
+        label: 'UAT passed',
+        actor: { login: 'rmartz', type: 'User', permission: 'admin' },
+        appliedAt: PASSED_AT,
+      },
+    ]);
+  });
+
+  it('reads the arrival of every commit on the PR', async () => {
+    const { facts } = await gatherFacts(makeAttestingClient(), 7, ON);
+
+    expect(facts.commitArrivals).toEqual({
+      [HEAD_SHA]: '2026-10-19T10:00:00Z',
+      [OLD_SHA]: '2026-10-19T08:00:00Z',
+    });
+  });
+
+  it('resolves the attested pass end to end', async () => {
+    const client = makeAttestingClient();
+    client.permissions.set('maintainer', { permission: 'write', roleName: 'write' });
+
+    const { facts } = await gatherFacts(client, 7, ON);
+
+    expect(planReconcile(facts, ON).uat).toBe('passed-attested');
+  });
+
+  it('reads no history without an attesting review', async () => {
+    const client = makeAttestingClient();
+    client.reviews = [];
+
+    await gatherFacts(client, 7, ON);
+
+    expect([called(client, 'listCommits'), called(client, 'listLabelApplications')]).toEqual([
+      false,
+      false,
+    ]);
+  });
+
+  it('reads no history on a PR with too many commits to date', async () => {
+    const client = makeAttestingClient();
+    client.commits = Array.from({ length: MAX_ATTESTED_COMMITS + 1 }, (_, index) => ({
+      sha: index.toString(16).padStart(40, '0'),
+      authorLogin: 'rmartz',
+      message: 'wip',
+    }));
+
+    const { facts } = await gatherFacts(client, 7, ON);
+
+    expect(facts.uatPassedHistory).toBeUndefined();
   });
 });

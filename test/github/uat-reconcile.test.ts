@@ -3,8 +3,8 @@ import { describe, expect, it } from 'vitest';
 import { runCli } from '../../src/cli.js';
 import { reconcilePullRequest } from '../../src/github/reconcile.js';
 import { makeDeps, makeIo, makeSourceClient, RECONCILE } from '../cli-fixtures.js';
-import { HEAD_SHA } from '../fixtures.js';
-import { FakeGitHubClient, makePullRequestData } from './fake-client.js';
+import { HEAD_SHA, makeDimensionedVerdictBody } from '../fixtures.js';
+import { FakeGitHubClient, makePullRequestData, makeReviewData } from './fake-client.js';
 
 // UAT labels at the edge: they are for people, so every write uses the workflow
 // token, with or without a real-actor token configured. The decision reaches
@@ -13,8 +13,17 @@ import { FakeGitHubClient, makePullRequestData } from './fake-client.js';
 const ON = { uat: 'on' } as const;
 const NO_RELEASE_TOKEN = { GITHUB_TOKEN: 't0k' };
 
-function makeDocsClient() {
-  return new FakeGitHubClient(makePullRequestData({ title: 'docs: explain a thing' }));
+/** A docs PR whose review recorded that it needs no UAT, and no code verdict yet. */
+function makeWaivedClient() {
+  const client = makeSourceClient(makePullRequestData({ title: 'docs: explain a thing' }));
+  client.reviews = [
+    makeReviewData({
+      body: makeDimensionedVerdictBody({ uat: 'not-needed' }),
+      submittedAt: '2026-10-19T10:30:00Z',
+    }),
+  ];
+  client.permissions.set('maintainer', { permission: 'write', roleName: 'write' });
+  return client;
 }
 
 /** A feature PR whose `no UAT needed` a trusted person applied before the last push. */
@@ -39,13 +48,13 @@ function makeTokenDeps(main: FakeGitHubClient, release: FakeGitHubClient) {
 }
 
 describe('reconcilePullRequest — UAT labels', () => {
-  it('applies no UAT needed to an exempt PR', async () => {
-    const client = makeDocsClient();
+  it('applies no UAT needed when the review waives UAT', async () => {
+    const client = makeWaivedClient();
 
     const result = await reconcilePullRequest(client, 7, ON);
 
     expect([result.plan.uat, client.pull.labels]).toEqual([
-      'exempt-title',
+      'waived-by-review',
       ['review requested', 'no UAT needed'],
     ]);
   });
@@ -87,7 +96,7 @@ describe('runCli — UAT labels', () => {
   });
 
   it('applies no UAT needed without a release token', async () => {
-    const client = makeDocsClient();
+    const client = makeWaivedClient();
 
     await runCli(RECONCILE, makeIo().io, makeDeps(client, NO_RELEASE_TOKEN).deps);
 
@@ -109,11 +118,11 @@ describe('runCli — UAT labels', () => {
   it('reports the UAT outcome in --json', async () => {
     const { out, io } = makeIo();
 
-    await runCli([...RECONCILE, '--json'], io, makeDeps(makeDocsClient()).deps);
+    await runCli([...RECONCILE, '--json'], io, makeDeps(makeWaivedClient()).deps);
 
     const json = JSON.parse(out[0] ?? '{}') as Record<string, unknown>;
     expect([json['uat'], 'uatWaiverSkipped' in json]).toEqual([
-      { outcome: 'exempt-title', label: 'no UAT needed' },
+      { outcome: 'waived-by-review', label: 'no UAT needed' },
       false,
     ]);
   });

@@ -5,8 +5,9 @@ import type { PullRequestFacts, ReconcilePolicy, UatSignOffFact } from '../src/f
 import { REPO_PERMISSIONS, UAT_SETTINGS, UAT_SIGN_OFF_LABELS } from '../src/facts.js';
 import { planReconcile } from '../src/plan.js';
 import { UAT_LABELS } from '../src/uat.js';
-import { applyPlan, HEAD_SHA, makeReview, makeVerdictBody, OLD_SHA } from './fixtures.js';
-import { makeUatFacts } from './uat-fixtures.js';
+import type { UatOutcome } from '../src/uat.js';
+import { applyPlan, HEAD_SHA, OLD_SHA } from './fixtures.js';
+import { makeUatFacts, makeUatReview } from './uat-fixtures.js';
 
 // Property-based guarantees of the UAT labels (docs/uat.md §Guaranteed properties).
 
@@ -47,7 +48,8 @@ const factsArb: fc.Arbitrary<PullRequestFacts> = fc
       { maxLength: 2 },
     ),
     cleanRebaseSources: fc.constantFrom([], [OLD_SHA]),
-    titleChanges: fc.subarray([...TIMES]),
+    uat: fc.constantFrom(undefined, 'not-needed', 'required', 'unchanged'),
+    passedHistory: fc.array(signOffArb, { maxLength: 2 }),
   })
   .map((drawn) =>
     makeUatFacts({
@@ -56,9 +58,20 @@ const factsArb: fc.Arbitrary<PullRequestFacts> = fc
       changedPaths: drawn.changedPaths,
       botEligible: drawn.botEligible,
       ciStatus: drawn.ciStatus,
-      reviews: drawn.approved
-        ? [makeReview({ body: makeVerdictBody('approved'), submittedAt: TIMES[2] })]
-        : [],
+      reviews:
+        drawn.approved || drawn.uat !== undefined
+          ? [
+              makeUatReview(drawn.uat ?? 'required', {
+                code: drawn.approved ? 'approved' : 'changes-requested',
+                since: OLD_SHA,
+                review: { submittedAt: TIMES[2] },
+              }),
+            ]
+          : [],
+      uatPassedHistory: drawn.passedHistory.map((signOff) => ({
+        ...signOff,
+        label: 'UAT passed' as const,
+      })),
       uatSignOffs: drawn.signOffs,
       commitArrivals: {
         ...(drawn.headArrived === undefined ? {} : { [HEAD_SHA]: drawn.headArrived }),
@@ -66,13 +79,21 @@ const factsArb: fc.Arbitrary<PullRequestFacts> = fc
       },
       forcePushes: drawn.forcePushes,
       cleanRebaseSources: drawn.cleanRebaseSources,
-      titleChanges: drawn.titleChanges,
     }),
   );
 
 const policyArb: fc.Arbitrary<ReconcilePolicy> = fc.record({
   uat: fc.constantFrom(...UAT_SETTINGS),
 });
+
+/** Outcomes whose label this package decides, not a person's sign-off. */
+const SELF_DECIDED: ReadonlySet<UatOutcome> = new Set([
+  'off',
+  'ci',
+  'exempt-auto-approved',
+  'passed-attested',
+  'waived-by-review',
+]);
 
 function uatLabelsOf(facts: PullRequestFacts): string[] {
   return facts.labels.filter((name) => UAT_LABELS.some((label) => label === name));
@@ -98,14 +119,14 @@ describe('UAT label properties', () => {
     );
   });
 
-  it('is order-independent: permuting the sign-offs, pushes, and title changes changes nothing', () => {
+  it('is order-independent: permuting the sign-offs, pushes, and pass history changes nothing', () => {
     fc.assert(
       fc.property(factsArb, policyArb, fc.boolean(), (facts, policy, reverse) => {
         const permuted: PullRequestFacts = {
           ...facts,
           uatSignOffs: reverse ? facts.uatSignOffs?.toReversed() : facts.uatSignOffs,
           forcePushes: facts.forcePushes.toReversed(),
-          titleChanges: facts.titleChanges?.toReversed(),
+          uatPassedHistory: facts.uatPassedHistory?.toReversed(),
         } as PullRequestFacts;
         expect(planReconcile(permuted, policy)).toEqual(planReconcile(facts, policy));
       }),
@@ -124,8 +145,8 @@ describe('UAT label properties', () => {
         for (const signOff of untrusted) {
           const kept =
             facts.labels.includes(signOff.label) && !plan.removeLabels.includes(signOff.label);
-          // A waiver this package grants itself (an exempt PR) is the one exception.
-          if (kept && plan.uat !== 'exempt-title' && plan.uat !== 'exempt-paths') {
+          // A label this package decides itself is the one exception.
+          if (kept && (plan.uat === undefined || !SELF_DECIDED.has(plan.uat))) {
             expect.fail(`kept ${signOff.label} from ${signOff.actor.login}`);
           }
         }

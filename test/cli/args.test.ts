@@ -27,10 +27,29 @@ describe('parseArgs — reconcile', () => {
       owner: 'rmartz',
       repo: 'pr-lifecycle',
       pr: 7,
-      policy: { armAutoMerge: false, autoUpdate: false, skipCopilotReview: false, uat: 'on' },
+      policy: {
+        armAutoMerge: false,
+        autoUpdate: false,
+        skipCopilotReview: false,
+        uat: 'on',
+        signOffStatus: 'v1',
+      },
       dryRun: false,
       json: false,
       tokenAdvisory: true,
+    });
+  });
+
+  it.each(['v1', 'v2'])('parses --sign-off-status %s', (version) => {
+    expect(parseArgs([...BASE, '--sign-off-status', version])).toMatchObject({
+      policy: { signOffStatus: version },
+    });
+  });
+
+  it('rejects a --sign-off-status other than v1 or v2', () => {
+    expect(parseArgs([...BASE, '--sign-off-status', 'v3'])).toEqual({
+      command: 'error',
+      message: '--sign-off-status must be v1 or v2, not v3',
     });
   });
 

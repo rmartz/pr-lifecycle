@@ -72,6 +72,7 @@ export interface RestRule {
 }
 
 export interface RestCommit {
+  sha: string;
   author: { login: string } | null;
   commit: { message: string };
 }

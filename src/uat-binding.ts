@@ -81,8 +81,28 @@ export function isSignOffCurrent(
   return [...carried].some((sha) => sha !== facts.headSha && boundToCarried(applied, sha, facts));
 }
 
-/** Whether the PR's title changed after the sign-off was applied. */
-export function isRetitledSince(signOff: UatSignOffFact, facts: PullRequestFacts): boolean {
+/**
+ * Whether a sign-off was applied while `sha` was the head: after `sha` arrived,
+ * and before any later commit arrived or any later force-push. For an earlier
+ * commit the review agent names (`uat_since`), which may no longer be in the
+ * branch's clean history. Every known arrival bounds it: the edge gathers the
+ * arrival of every commit on the PR when it reads one (src/github/gather.ts).
+ */
+export function isAppliedWhileHead(
+  signOff: UatSignOffFact,
+  sha: string,
+  facts: PullRequestFacts,
+): boolean {
   const applied = time(signOff.appliedAt);
-  return (facts.titleChanges ?? []).some((changed) => !(time(changed) < applied));
+  const arrived = arrivalOf(sha, facts, false);
+  if (!(applied > arrived)) {
+    return false;
+  }
+  const others = [
+    ...Object.entries(facts.commitArrivals ?? {})
+      .filter(([commit]) => commit !== sha)
+      .map(([, at]) => time(at)),
+    ...facts.forcePushes.filter((push) => push.headSha !== sha).map((push) => time(push.pushedAt)),
+  ];
+  return others.every((at) => !Number.isNaN(at) && (!(at > arrived) || at > applied));
 }

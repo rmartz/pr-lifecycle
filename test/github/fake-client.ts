@@ -95,8 +95,6 @@ export class FakeGitHubClient implements GitHubClient {
   forcePushes: ForcePushFact[] = [];
   /** Label applications by label name, oldest first. */
   labelApplications = new Map<string, LabelApplicationData[]>();
-  /** When the PR's title was changed, oldest first. */
-  titleChanges: string[] = [];
   /** Check suites by commit sha. */
   checkSuites = new Map<string, CheckSuiteData[]>();
   /** Commit statuses by sha, newest first, with description and creator. */
@@ -134,7 +132,6 @@ export class FakeGitHubClient implements GitHubClient {
       'listLabelRemovals',
       'listForcePushes',
       'listLabelApplications',
-      'listTitleChanges',
       'listCheckSuites',
       'getFileText',
       'listStatuses',
@@ -277,11 +274,6 @@ export class FakeGitHubClient implements GitHubClient {
   listLabelApplications(pr: number, label: string): Promise<LabelApplicationData[]> {
     this.record('listLabelApplications', pr, label);
     return Promise.resolve([...(this.labelApplications.get(label) ?? [])]);
-  }
-
-  listTitleChanges(pr: number): Promise<string[]> {
-    this.record('listTitleChanges', pr);
-    return Promise.resolve([...this.titleChanges]);
   }
 
   listCheckSuites(sha: string): Promise<CheckSuiteData[]> {

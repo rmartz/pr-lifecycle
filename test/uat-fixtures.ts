@@ -1,5 +1,12 @@
-import type { PullRequestFacts, UatSignOffFact } from '../src/facts.js';
-import { HEAD_SHA, makeAuthor, makeFacts, makeReview, makeVerdictBody } from './fixtures.js';
+import type { PullRequestFacts, ReviewFact, UatSignOffFact } from '../src/facts.js';
+import {
+  HEAD_SHA,
+  makeAuthor,
+  makeDimensionedVerdictBody,
+  makeFacts,
+  makeReview,
+  makeVerdictBody,
+} from './fixtures.js';
 
 /** Shared setup for the UAT tests: a feature PR whose head arrived at HEAD_ARRIVED. */
 
@@ -45,4 +52,31 @@ export function withSignOffs(
     labels: [...facts.labels, ...signOffs.map((signOff) => signOff.label)],
     uatSignOffs: signOffs,
   };
+}
+
+/**
+ * A trusted `/review` that records a UAT decision (and, unless `code` is
+ * undefined, a code verdict) for `prHead`, submitted after the head arrived.
+ */
+export function makeUatReview(
+  uat: string,
+  options: {
+    code?: string | undefined;
+    since?: string;
+    prHead?: string;
+    review?: Partial<ReviewFact>;
+  } = {},
+): ReviewFact {
+  const prHead = options.prHead ?? HEAD_SHA;
+  const code = 'code' in options ? options.code : 'approved';
+  const verdicts = code === undefined ? { uat } : { code, uat };
+  return makeReview({
+    body: makeDimensionedVerdictBody(verdicts, {
+      pr_head: prHead,
+      ...(options.since === undefined ? {} : { uat_since: options.since }),
+    }),
+    commitSha: prHead,
+    submittedAt: '2026-10-19T10:30:00Z',
+    ...options.review,
+  });
 }

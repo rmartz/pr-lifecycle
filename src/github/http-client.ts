@@ -115,6 +115,7 @@ export function createHttpClient(options: HttpClientOptions): GitHubClient {
     async listCommits(pr): Promise<CommitData[]> {
       const commits = await paginate<RestCommit>(`${repoPath}/pulls/${pr}/commits`);
       return commits.map((commit) => ({
+        sha: commit.sha,
         authorLogin: commit.author?.login,
         message: commit.commit.message,
       }));

@@ -12,6 +12,10 @@ Part of the [reconciler core design](reconciler-design.md): this page defines th
 `cleanAncestors` and `cleanRebaseSources` facts that
 [head binding](verdicts.md) counts reviews against.
 
+The same facts carry every dimension of a review, the `uat` record included, and
+people's UAT sign-offs: `no UAT needed` and `UAT passed` count for a carried
+commit as an approval does ([UAT labels](uat.md#sign-offs-are-bound-to-the-head)).
+
 Head binding makes any push drop the approval, so without carry-over every base
 update would cost a full review cycle. A review bound to commit `A` also counts
 for the head `H` when every commit on the first-parent chain from `H` back to `A`
