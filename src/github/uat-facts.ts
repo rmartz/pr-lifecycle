@@ -17,7 +17,7 @@ import { isTransientError } from './client.js';
  * reported whatever the title. Trust and head binding are decided in the core.
  */
 
-/** More changed manifests than this aren't read: such a PR isn't exempt by its paths. */
+/** More changed manifests than this aren't read: such a PR isn't a CI change by its paths. */
 export const MAX_MANIFEST_READS = 10;
 
 /**
@@ -185,7 +185,7 @@ export interface PathFacts {
 
 /**
  * The changed paths, manifests, and workflows. An incomplete listing leaves
- * `changedPaths` absent, which exempts nothing and counts as a loosening.
+ * `changedPaths` absent: the PR is then not a CI change, and counts as a loosening.
  *
  * A read that fails for a reason other than a transient outage (say, a 404 on a
  * fork's deleted commit) fails closed the same way, rather than failing the run:
