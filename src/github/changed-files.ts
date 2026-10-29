@@ -3,7 +3,7 @@ import type { GitHubClient, PullRequestData } from './client.js';
 
 /**
  * The PR's changed files, the one fact-gathering step the path-based rules share
- * (bot eligibility's release check and the UAT path fallback). Each rule keeps
+ * (bot eligibility's release check and the CI classification). Each rule keeps
  * its own predicate over the list.
  */
 

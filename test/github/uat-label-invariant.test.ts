@@ -54,8 +54,8 @@ describe('reconcilePullRequest — exactly one UAT label', () => {
 
     await reconcilePullRequest(client, 7, ON);
 
-    // A docs title is statically safe without its paths.
-    expect(uatLabels(client.pull.labels)).toEqual(['no UAT needed']);
+    // No title exempts a PR: it waits for a decision.
+    expect(uatLabels(client.pull.labels)).toEqual(['UAT pending']);
   });
 
   it('fails closed to UAT pending when a feature PR’s files can’t be read', async () => {

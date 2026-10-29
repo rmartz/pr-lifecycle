@@ -3,7 +3,7 @@ import { CI_CHANGE_APPROVED_LABEL } from './facts.js';
 import type { SignOffClassification } from './sign-off.js';
 import { classifySignOff, signOffStatusDescription } from './sign-off.js';
 import type { UatOutcome } from './uat.js';
-import { classifyUat, waiverState } from './uat.js';
+import { classifyUat, uatSignOffFor, waiverState } from './uat.js';
 import { isTrustedAuthor } from './verdict.js';
 
 /**
@@ -85,10 +85,21 @@ export function planSignOff(
     return undefined;
   }
   const classification = classifySignOff(facts, policy.uat);
-  const description = signOffStatusDescription(classification, waiverState(facts, policy));
+  const uat = classifyUat(facts, policy, classification);
+  // A PR approved through bot eligibility needs no sign-off (docs/uat.md rule 3).
+  const signoff = uatSignOffFor(uat);
+  const description = signOffStatusDescription(policy.signOffStatus ?? 'v1', {
+    requirement:
+      classification.requirement === 'uat' && signoff === undefined
+        ? 'none'
+        : classification.requirement,
+    loosening: classification.loosening,
+    waiver: waiverState(facts, policy),
+    signoff: signoff ?? 'absent',
+  });
   return {
     classification,
-    uat: classifyUat(facts, policy, classification),
+    uat,
     status: { description, post: !isPosted(facts, description) },
     ciApprovalLabel: wantsCiApprovalLabel(facts, policy, classification),
   };

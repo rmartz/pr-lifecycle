@@ -1,5 +1,5 @@
-import type { ReconcilePolicy, UatSetting } from '../facts.js';
-import { UAT_SETTINGS } from '../facts.js';
+import type { ReconcilePolicy, SignOffStatusVersion, UatSetting } from '../facts.js';
+import { SIGN_OFF_STATUS_VERSIONS, UAT_SETTINGS } from '../facts.js';
 
 /**
  * Argument parsing for `pr-lifecycle`. Pure: argv in, a parsed command or a
@@ -30,11 +30,16 @@ type ValueOption =
   | '--pr'
   | '--prose-paths'
   | '--repo'
+  | '--sign-off-status'
   | '--trusted-authors'
   | '--uat';
 
 function isUatSetting(value: string): value is UatSetting {
   return UAT_SETTINGS.some((setting) => setting === value);
+}
+
+function isSignOffStatusVersion(value: string): value is SignOffStatusVersion {
+  return SIGN_OFF_STATUS_VERSIONS.some((version) => version === value);
 }
 
 const REPO_PATTERN = /^([A-Za-z0-9-]+)\/([A-Za-z0-9._-]+)$/;
@@ -88,6 +93,7 @@ function parseReconcile(args: readonly string[]): ParsedArgs {
       case '--hold-checks':
       case '--ignore-checks':
       case '--prose-paths':
+      case '--sign-off-status':
       case '--uat': {
         const value = args[index + 1];
         if (value === undefined || value.startsWith('--')) {
@@ -127,6 +133,10 @@ function parseReconcile(args: readonly string[]): ParsedArgs {
   if (!isUatSetting(uat)) {
     return usageError(`--uat must be on or off, not ${uat}`);
   }
+  const signOffStatus = values['--sign-off-status'] ?? 'v1';
+  if (!isSignOffStatusVersion(signOffStatus)) {
+    return usageError(`--sign-off-status must be v1 or v2, not ${signOffStatus}`);
+  }
 
   return {
     command: 'reconcile',
@@ -138,6 +148,7 @@ function parseReconcile(args: readonly string[]): ParsedArgs {
       autoUpdate,
       skipCopilotReview,
       uat,
+      signOffStatus,
       ...(trustedAuthors === undefined ? {} : { trustedAuthors }),
       ...(holdChecks === undefined ? {} : { holdChecks }),
       ...(ignoredChecks === undefined ? {} : { ignoredChecks }),

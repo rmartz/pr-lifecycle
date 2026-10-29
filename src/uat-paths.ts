@@ -2,21 +2,20 @@ import { isShippedReusableWorkflow } from './ci-change/reusable-workflow.js';
 import type { FileChange } from './facts.js';
 
 /**
- * Which PRs can't need UAT, judged from their changed paths alone: the fallback
- * for a title that doesn't exempt the PR (docs/uat.md). Ported from pr-policy's
- * trivial-path rules (`src/checks/uat/trivial.ts` there). These rules only ever
- * **exempt**: a PR is trivial when every path falls in an exempt category, and a
- * single path outside them leaves it needing UAT.
+ * Which changed paths are statically safe, for the CI classification
+ * (docs/sign-off-status.md#the-classification): a PR whose paths are all CI or
+ * statically safe, at least one of them CI, is a CI change. Ported from
+ * pr-policy's trivial-path rules (`src/checks/uat/trivial.ts` there). A PR is
+ * trivial when every path falls in one of these categories; a single path
+ * outside them makes it not a CI change. No path exempts a PR from UAT
+ * (docs/uat.md#who-decides).
  *
- * CI paths (the repo's own workflows and composite actions) are never
- * user-facing, so they're in a category of their own: `ci`. A PR that touches
- * them needs no UAT, but the sign-off classification may still ask for the CI
- * sign-off (src/sign-off.ts). A shipped reusable workflow is product code, not
- * CI, and isn't exempt.
+ * CI paths (the repo's own workflows and composite actions) are a category of
+ * their own: `ci`. A shipped reusable workflow is product code, not CI, so it
+ * falls in no category.
  *
- * Separate from any "safe to approve without review" predicate on purpose: a
- * change can need review and not UAT, and the two questions must not share an
- * answer.
+ * Separate from any "safe to approve without review" predicate on purpose: the
+ * two questions must not share an answer.
  */
 
 export const TRIVIAL_CATEGORIES = ['docs', 'tests', 'ci', 'dependencies', 'metadata'] as const;
@@ -165,9 +164,9 @@ function categoryOf(
 }
 
 /**
- * The exempt categories the PR's paths fall in, or `undefined` when any path
- * falls outside them or the paths are unknown. A PR that touches no files is
- * trivially exempt. `workflows` is the changed workflows' text, which tells a
+ * The statically safe categories the PR's paths fall in, or `undefined` when
+ * any path falls outside them or the paths are unknown. A PR that touches no
+ * files falls in none and is trivially safe. `workflows` is the changed workflows' text, which tells a
  * shipped reusable workflow from CI.
  */
 export function trivialCategories(

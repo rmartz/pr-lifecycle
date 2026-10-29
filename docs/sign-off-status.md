@@ -1,7 +1,7 @@
 ---
 type: Reference
 title: The sign-off status
-description: The pr-lifecycle/sign-off commit status — a versioned contract with pr-policy that says which human sign-off a PR's head needs (none, ci, or uat), whether a trusted waiver counts, and whether a workflow loosens CI; its exact grammar, who posts it, and when.
+description: The pr-lifecycle/sign-off commit status — a versioned contract with pr-policy that says which human sign-off a PR's head needs (none, ci, or uat), the UAT sign-off found for it (v2) or whether a person's waiver counts (v1), and whether a workflow loosens CI; its exact grammar, who posts it, and when.
 resource: src/sign-off-plan.ts
 tags: [contract, sign-off, uat, ci, pr-policy, status]
 ---
@@ -19,7 +19,8 @@ rejects a status that doesn't match it exactly, and holds the PR. Change both
 sides together.
 
 Source: `src/sign-off.ts` (the classification and the description),
-`src/sign-off-plan.ts` (when to post), `src/github/execute.ts` (posting).
+`src/sign-off-plan.ts` (what to report, and when to post), `src/github/execute.ts`
+(posting).
 
 ## The status
 
@@ -31,54 +32,76 @@ Source: `src/sign-off.ts` (the classification and the description),
 | `description` | the versioned summary below                                                              |
 | creator       | `rmartz-pr-lifecycle[bot]` (the App's installation token), see [below](#when-its-posted) |
 
-## The description, version `v1`
+## The description
 
 Space-separated tokens, at most 140 characters, in this order:
 
 ```
+v2 requirement=<none|ci|uat> [signoff=<waived|passed|absent>] [loosening=<yes|no>]
 v1 requirement=<none|ci|uat> [waiver=<current|stale|absent>] [loosening=<yes|no>]
 ```
 
-- **`v1`** comes first. Adding a key or a value needs a new version: pr-policy
-  rejects an unknown version, an unknown key, a repeated key, or an unknown
-  value.
+- **The version** comes first. Adding a key or a value needs a new version:
+  pr-policy rejects an unknown version, an unknown key, a repeated key, or an
+  unknown value. Each version rejects the other's UAT key.
 - **`requirement`** is the sign-off the head needs:
-  - `none`: UAT is off for the repo, or the PR is statically safe;
+  - `none`: UAT is off for the repo, the PR is a statically safe CI change, or
+    it is approved through [bot eligibility](bot-eligibility.md) with no verdict
+    over it ([UAT rule 3](uat.md#rules));
   - `ci`: the CI sign-off (`CI change approved`), not UAT;
   - `uat`: UAT.
-- **`waiver`** is **required** with `requirement=uat` and **forbidden**
-  otherwise. It says whether a trusted `no UAT needed` counts for this head:
-  - `current`: it does, applied for this head or for a commit whose verified
-    clean rebase or base merge this head is (a check only pr-lifecycle can make);
-  - `stale`: a trusted one is on the PR, but for an earlier head or before the
-    title last changed;
-  - `absent`: none is on the PR, or the latest one wasn't applied by a trusted
-    person.
+- **`signoff`** (`v2`) is **required** with `requirement=uat` and **forbidden**
+  otherwise. It is the UAT sign-off [the UAT rules](uat.md#rules) found for the
+  head, from people's labels and the review agent's verdict records:
+  - `passed`: a person's `UAT passed` counts, for the head, a carried commit, or
+    attested by the review (rules 4–5);
+  - `waived`: a person's `no UAT needed` counts, or the review recorded
+    `uat: not-needed` (rules 6–7);
+  - `absent`: neither (rules 8–9).
+- **`waiver`** (`v1`) is **required** with `requirement=uat` and **forbidden**
+  otherwise. It says whether a trusted person's `no UAT needed` counts for this
+  head: `current` (for the head or a carried commit), `stale` (for an earlier
+  head), or `absent` (none, or not from a trusted person). The gate reads the
+  `UAT passed` label itself, bound to the exact head.
 - **`loosening`** is `yes` or `no`, and means `no` when omitted. pr-lifecycle
   writes `loosening=yes` whenever a changed workflow loosens CI, whatever the
   requirement, so the gate can still ask for `CI change approved` on a PR that
   bundled a loosening into another type. It omits `loosening=no`.
 
-Examples: `v1 requirement=none`, `v1 requirement=uat waiver=current`,
+Examples: `v2 requirement=uat signoff=waived`, `v2 requirement=none`,
 `v1 requirement=uat waiver=absent loosening=yes`, `v1 requirement=ci loosening=yes`.
+
+### Choosing the version
+
+`v1` is the default (`--sign-off-status`, `policy.signOffStatus`). Under `v2`,
+pr-policy trusts the status alone for UAT (rmartz/pr-policy#109), so the review
+agent's decisions and carried or attested passes reach the gate. Under `v1` they
+don't: the gate still reads a person's labels, so a review's `not-needed` holds
+until a person waives, and a carried `UAT passed` needs a re-test. Switch a repo
+to `v2` once its pr-policy accepts it (`@rmartz/pr-policy` 1.8.0, through
+pr-policy-action); an older one rejects the unknown version and holds every PR.
 
 ## The classification
 
 Decided in order (`src/sign-off.ts`). A **CI change** is a PR with a `ci:`
 title, or one whose changed paths are all CI (`.github/workflows/`,
-`.github/actions/`) or otherwise [statically safe](uat.md#which-prs-cant-be-user-facing),
-at least one of them CI. A `ci:` title is decided first; a CI change by its
-paths is decided after rule 4.
+`.github/actions/`) or otherwise statically safe, at least one of them CI.
+Statically safe paths are Markdown and `docs/`, tests and Storybook stories,
+lockfiles and `requirements*.txt`, a `package.json` that changes only
+dependency versions, and repo metadata (`src/uat-paths.ts`). They decide only
+whether a PR is a CI change: no title or path exempts a PR from UAT
+([UAT labels](uat.md#who-decides)).
 
 | Rule | When                                                                                                     | `requirement` |
 | ---- | -------------------------------------------------------------------------------------------------------- | ------------- |
 | 1    | a CI change, and a changed workflow loosens CI                                                           | `ci`          |
 | 2    | a CI change, and every non-workflow path is statically safe (its workflow changes don't loosen)          | `none`        |
 | 3    | a CI change, otherwise (a composite action, `scripts/**`, linter or test-runner config, a dev-tool bump) | `ci`          |
-| 4    | a `docs`, `test`, or `refactor` title (pr-policy holds each to its paths)                                | `none`        |
-| 5    | every changed path is statically safe, none of them CI                                                   | `none`        |
-| 6    | UAT is off for the repo (`--uat off`)                                                                    | `none`        |
-| 7    | otherwise, `chore` included                                                                              | `uat`         |
+| 4    | UAT is off for the repo (`--uat off`)                                                                    | `none`        |
+| 5    | otherwise                                                                                                | `uat`         |
+
+The status then reports `none` for a `uat` PR approved through bot eligibility
+([UAT rule 3](uat.md#rules)).
 
 - **`ci` and `uat` are mutually exclusive.** A person is asked for one sign-off.
   A `ci` PR shows `CI approval needed` and `no UAT needed` (every PR carries
@@ -98,8 +121,8 @@ paths is decided after rule 4.
   wasn't read, or more than 20 changed workflows counts as a loosening. An
   incomplete file list is never statically safe.
 
-The JSON `signOff.reason` names the rule: `ci-loosening` (1), `trivial-paths`
-(2, 5), `ci-paths` (3), `safe-title` (4), `uat-off` (6), `needs-uat` (7).
+The JSON `signOff.reason` names the rule: `ci-loosening` (1), `ci-safe` (2),
+`ci-paths` (3), `uat-off` (4), `needs-uat` (5).
 
 ## CI approval needed
 

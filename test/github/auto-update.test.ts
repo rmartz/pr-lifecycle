@@ -80,6 +80,7 @@ describe('gatherFacts — branch updater', () => {
     const client = makeFlaggedClient(DEPENDABOT);
     client.commits = [
       {
+        sha: 'c'.repeat(40),
         authorLogin: DEPENDABOT_LOGIN,
         message:
           '---\nupdated-dependencies:\n- dependency-name: x\n  dependency-version: 1.0.1\n...',
@@ -95,6 +96,7 @@ describe('gatherFacts — branch updater', () => {
     const client = makeFlaggedClient();
     client.commits = [
       {
+        sha: 'c'.repeat(40),
         authorLogin: DEPENDABOT_LOGIN,
         message:
           '---\nupdated-dependencies:\n- dependency-name: x\n  dependency-version: 1.0.1\n...',

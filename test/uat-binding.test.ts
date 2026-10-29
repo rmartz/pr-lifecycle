@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { isRetitledSince, isSignOffCurrent } from '../src/uat-binding.js';
+import { isAppliedWhileHead, isSignOffCurrent } from '../src/uat-binding.js';
 import { HEAD_SHA, OLD_SHA } from './fixtures.js';
 import {
   AFTER_HEAD,
@@ -154,22 +154,40 @@ describe('isSignOffCurrent — carried commits', () => {
   });
 });
 
-describe('isRetitledSince', () => {
-  it('is true when the title changed after the sign-off', () => {
-    const facts = makeUatFacts({ titleChanges: ['2026-10-19T12:00:00Z'] });
+describe('isAppliedWhileHead', () => {
+  const ARRIVALS = { [HEAD_SHA]: HEAD_ARRIVED, [OLD_SHA]: OLD_ARRIVED };
 
-    expect(isRetitledSince(makeSignOff(), facts)).toBe(true);
+  it('binds a sign-off applied between the commit and the next arrival', () => {
+    const facts = makeUatFacts({ commitArrivals: ARRIVALS });
+
+    expect(isAppliedWhileHead(makeSignOff({ appliedAt: BEFORE_HEAD }), OLD_SHA, facts)).toBe(true);
   });
 
-  it('is false when the title changed before the sign-off', () => {
-    const facts = makeUatFacts({ titleChanges: [BEFORE_HEAD] });
+  it('does not bind a sign-off applied after the next arrival', () => {
+    const facts = makeUatFacts({ commitArrivals: ARRIVALS });
 
-    expect(isRetitledSince(makeSignOff(), facts)).toBe(false);
+    expect(isAppliedWhileHead(makeSignOff({ appliedAt: AFTER_HEAD }), OLD_SHA, facts)).toBe(false);
   });
 
-  it('is true when a title change has an unreadable time', () => {
-    const facts = makeUatFacts({ titleChanges: ['at some point'] });
+  it('does not bind a sign-off applied before the commit arrived', () => {
+    const facts = makeUatFacts({ commitArrivals: ARRIVALS });
+    const signOff = makeSignOff({ appliedAt: '2026-10-19T07:00:00Z' });
 
-    expect(isRetitledSince(makeSignOff(), facts)).toBe(true);
+    expect(isAppliedWhileHead(signOff, OLD_SHA, facts)).toBe(false);
+  });
+
+  it('does not bind when another arrival is unreadable', () => {
+    const facts = makeUatFacts({ commitArrivals: { ...ARRIVALS, ['d'.repeat(40)]: 'soon' } });
+
+    expect(isAppliedWhileHead(makeSignOff({ appliedAt: BEFORE_HEAD }), OLD_SHA, facts)).toBe(false);
+  });
+
+  it('does not bind a sign-off applied after a later force-push GitHub did not attribute', () => {
+    const facts = makeUatFacts({
+      commitArrivals: ARRIVALS,
+      forcePushes: [{ headSha: undefined, pushedAt: '2026-10-19T08:30:00Z' }],
+    });
+
+    expect(isAppliedWhileHead(makeSignOff({ appliedAt: BEFORE_HEAD }), OLD_SHA, facts)).toBe(false);
   });
 });

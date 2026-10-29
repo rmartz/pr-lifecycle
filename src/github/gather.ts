@@ -19,6 +19,8 @@ import type { Lineage } from './lineage-facts.js';
 import { gatherLineage } from './lineage-facts.js';
 import { lookupPermissions, toAuthor } from './permissions.js';
 import {
+  attestedCommits,
+  gatherAttestationFacts,
   gatherCommitArrivals,
   gatherPathFacts,
   gatherSignOffApplications,
@@ -113,17 +115,23 @@ export async function gatherFacts(
   const [pull, reviews] = await Promise.all([client.getPullRequest(pr), client.listReviews(pr)]);
   const signOffLabels = presentSignOffs(policy, pull);
   const hasSignOff = signOffLabels.length > 0;
+  // A review attesting `uat: unchanged` names a person's earlier pass.
+  const attested = uatActive(policy, pull) ? attestedCommits(reviews) : [];
   // Only a UAT sign-off is bound to a head, so only it needs the push history.
-  const hasUatSignOff = signOffLabels.some((label) => label !== CI_CHANGE_APPROVED_LABEL);
-  const [removals, forcePushes, signOffs, titleChanges] = await Promise.all([
+  const hasUatSignOff =
+    signOffLabels.some((label) => label !== CI_CHANGE_APPROVED_LABEL) || attested.length > 0;
+  const [removals, forcePushes, signOffs, attestation] = await Promise.all([
     gatherEscalationRemovals(client, pr, reviews),
     gatherForcePushes(client, pr, reviews, hasUatSignOff),
     gatherSignOffApplications(client, pr, signOffLabels),
-    hasUatSignOff ? client.listTitleChanges(pr) : [],
+    gatherAttestationFacts(client, pr, attested),
   ]);
   // Dependabot rebases its own branches; the author login can't be forged.
   const updater: BranchUpdater = pull.authorLogin === DEPENDABOT_LOGIN ? 'dependabot' : 'github';
-  const signOffActors = signOffs.map(({ application }) => application);
+  const signOffActors = [
+    ...signOffs.map(({ application }) => application),
+    ...attestation.applications,
+  ];
   const [permissions, bot, ci, lineage, pathFacts, signOffStatus] = await Promise.all([
     lookupPermissions(client, [...reviews, ...removals, ...signOffActors]),
     gatherBotFacts(client, pr, pull),
@@ -135,12 +143,14 @@ export async function gatherFacts(
   const cleanAncestors = lineage?.cleanAncestors ?? [];
   const cleanRebaseSources =
     lineage?.rebases.filter((check) => check.carried).map((check) => check.source) ?? [];
-  // A sign-off binds to the head or a carried commit, so only their arrivals matter.
+  // A sign-off binds to the head or a carried commit, or (attested) to an
+  // earlier commit, so only their arrivals matter.
   const commitArrivals = hasUatSignOff
     ? await gatherCommitArrivals(client, pull, [
         pull.headSha,
         ...cleanAncestors,
         ...cleanRebaseSources,
+        ...attestation.commits,
       ])
     : {};
   return {
@@ -181,8 +191,16 @@ export async function gatherFacts(
               actor: toAuthor(application, permissions),
               appliedAt: application.appliedAt,
             })),
-            commitArrivals,
-            titleChanges,
+          }
+        : {}),
+      ...(hasUatSignOff ? { commitArrivals } : {}),
+      ...(attestation.applications.length > 0
+        ? {
+            uatPassedHistory: attestation.applications.map((application) => ({
+              label: 'UAT passed' as const,
+              actor: toAuthor(application, permissions),
+              appliedAt: application.appliedAt,
+            })),
           }
         : {}),
     },

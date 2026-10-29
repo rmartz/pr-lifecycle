@@ -84,7 +84,7 @@ describe('gatherFacts — bot eligibility', () => {
     const client = new FakeGitHubClient(
       makePullRequestData({ authorLogin: 'dependabot[bot]', headRef: 'dependabot/x', ...pull }),
     );
-    client.commits = [{ authorLogin: 'dependabot[bot]', message: MINOR_BUMP }];
+    client.commits = [{ sha: 'c'.repeat(40), authorLogin: 'dependabot[bot]', message: MINOR_BUMP }];
     return client;
   }
 
@@ -129,6 +129,7 @@ describe('gatherFacts — bot eligibility', () => {
     const client = makeDependabotClient();
     client.commits = [
       {
+        sha: 'c'.repeat(40),
         authorLogin: 'dependabot[bot]',
         message: [
           'Bumps [next](https://github.com/vercel/next.js) from 16.3.6 to 16.3.8.',

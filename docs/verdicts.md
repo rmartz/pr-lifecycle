@@ -69,8 +69,10 @@ Each dimension is **resolved on its own**, by the [counting rules](#when-a-verdi
 the latest counting review that records it decides it (`currentVerdict` for
 `code`, `currentUatVerdict` for `uat`). A review that leaves a dimension out
 never supersedes an earlier one that records it, and dismissing a review revokes
-all of its dimensions. Only the code verdict drives the lifecycle state today;
-the [UAT labels](uat.md) don't read the `uat` dimension yet.
+all of its dimensions. The code verdict drives the lifecycle state, and the
+`uat` dimension drives the [UAT labels](uat.md#rules) (rules 5 and 7). A
+`uat` record carries over verified clean base merges and rebases exactly as an
+approval does.
 
 ## Parsing is linear-time
 

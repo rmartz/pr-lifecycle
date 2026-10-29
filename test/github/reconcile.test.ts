@@ -107,6 +107,7 @@ describe('reconcilePullRequest', () => {
     );
     client.commits = [
       {
+        sha: 'c'.repeat(40),
         authorLogin: 'dependabot[bot]',
         message:
           '---\nupdated-dependencies:\n- dependency-name: left-pad\n  update-type: version-update:semver-patch\n...',

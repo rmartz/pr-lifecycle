@@ -1,19 +1,21 @@
 import { classifyWorkflowChanges } from './ci-change/classify.js';
 import { isWorkflowPath } from './ci-change/workflow-paths.js';
-import type { PullRequestFacts, UatSetting } from './facts.js';
+import type { PullRequestFacts, SignOffStatusVersion, UatSetting } from './facts.js';
+import { titleType } from './title-type.js';
 import { trivialCategories } from './uat-paths.js';
-import { isUatExemptTitle, titleType } from './uat-title.js';
 
 /**
  * Which human sign-off a PR's head needs. pr-lifecycle decides it here and hands
  * it to pr-policy, the gate, as the `pr-lifecycle/sign-off` commit status
  * (docs/sign-off-status.md). Pure, like the lifecycle state.
  *
- * - `none`: UAT is off, or the PR is statically safe.
+ * - `none`: UAT is off, or the PR is a statically safe CI change.
  * - `ci`: a CI change (a `ci:` title, or only CI and statically safe paths)
  *   that loosens a workflow or changes a path that isn't statically safe. It
  *   needs the CI sign-off (`CI change approved`), not UAT: CI isn't user-facing.
- * - `uat`: everything else, `chore` included.
+ * - `uat`: everything else. No title or path exempts a PR from UAT: the review
+ *   agent's verdict decides (docs/uat.md), and the status reports `none` for a
+ *   PR approved through bot eligibility.
  *
  * `ci` and `uat` are mutually exclusive: a person is asked for one sign-off.
  * A workflow loosening is reported on its own (`loosening`) whatever the
@@ -26,8 +28,7 @@ export type SignOffRequirement = (typeof SIGN_OFF_REQUIREMENTS)[number];
 
 /** Why the requirement is what it is, one per rule. */
 export const SIGN_OFF_REASONS = [
-  'safe-title',
-  'trivial-paths',
+  'ci-safe',
   'ci-loosening',
   'ci-paths',
   'uat-off',
@@ -44,8 +45,7 @@ export interface SignOffClassification {
 
 export function requirementFor(reason: SignOffReason): SignOffRequirement {
   switch (reason) {
-    case 'safe-title':
-    case 'trivial-paths':
+    case 'ci-safe':
     case 'uat-off':
       return 'none';
     case 'ci-loosening':
@@ -92,7 +92,7 @@ function ciReason(facts: PullRequestFacts, loosening: boolean): SignOffReason {
   if (loosening) {
     return 'ci-loosening';
   }
-  return onlySafePathsBesidesWorkflows(facts) ? 'trivial-paths' : 'ci-paths';
+  return onlySafePathsBesidesWorkflows(facts) ? 'ci-safe' : 'ci-paths';
 }
 
 function reasonFor(
@@ -103,26 +103,22 @@ function reasonFor(
   if (titleType(facts.title) === 'ci') {
     return ciReason(facts, loosening);
   }
-  if (isUatExemptTitle(facts.title)) {
-    return 'safe-title';
-  }
   const categories = trivialCategories(
     facts.changedPaths,
     facts.manifestChanges,
     facts.workflowChanges,
   );
-  if (categories !== undefined) {
-    return categories.includes('ci') ? ciReason(facts, loosening) : 'trivial-paths';
+  if (categories?.includes('ci') === true) {
+    return ciReason(facts, loosening);
   }
   return setting === 'off' ? 'uat-off' : 'needs-uat';
 }
 
 /**
- * The rules, in order. A CI change is decided first: a `ci:` title, or (after
- * the exempt titles) paths that are only CI and statically safe, whatever the
- * title. It is statically safe, or it needs the CI sign-off, whatever the UAT
- * setting; it never needs UAT. Then a statically safe title or paths need
- * nothing; UAT off needs nothing; anything else needs UAT.
+ * The rules, in order. A CI change is decided first: a `ci:` title, or paths
+ * that are only CI and statically safe, whatever the title. It is statically
+ * safe, or it needs the CI sign-off, whatever the UAT setting; it never needs
+ * UAT. Then UAT off needs nothing; anything else needs UAT.
  */
 export function classifySignOff(
   facts: PullRequestFacts,
@@ -133,24 +129,44 @@ export function classifySignOff(
   return { requirement: requirementFor(reason), reason, loosening };
 }
 
-/** Whether a trusted `no UAT needed` counts for the head. Reported on `uat` only. */
+/** `v1`: whether a trusted person's `no UAT needed` counts for the head. */
 export type WaiverState = 'absent' | 'current' | 'stale';
+
+/** `v2`: the UAT sign-off the resolver found for the head (docs/uat.md). */
+export type UatSignOff = 'absent' | 'passed' | 'waived';
+
+/** What the status reports for a head, before it is written in a version's format. */
+export interface SignOffStatusFields {
+  requirement: SignOffRequirement;
+  loosening: boolean;
+  /** Read by `v1` with `requirement=uat`. */
+  waiver: WaiverState;
+  /** Read by `v2` with `requirement=uat`. */
+  signoff: UatSignOff;
+}
 
 /**
  * The status description, a versioned contract with pr-policy
- * (docs/sign-off-status.md): `v1 requirement=<r>`, then `waiver=<w>` exactly
- * when the requirement is `uat`, then `loosening=yes` when there is one
- * (omitted means `no`).
+ * (docs/sign-off-status.md): `<version> requirement=<r>`, then the UAT sign-off
+ * exactly when the requirement is `uat` (`waiver=<w>` in `v1`, `signoff=<s>` in
+ * `v2`), then `loosening=yes` when there is one (omitted means `no`).
  */
 export function signOffStatusDescription(
-  classification: SignOffClassification,
-  waiver: WaiverState,
+  version: SignOffStatusVersion,
+  fields: SignOffStatusFields,
 ): string {
-  const parts = ['v1', `requirement=${classification.requirement}`];
-  if (classification.requirement === 'uat') {
-    parts.push(`waiver=${waiver}`);
+  const parts: string[] = [version, `requirement=${fields.requirement}`];
+  if (fields.requirement === 'uat') {
+    switch (version) {
+      case 'v1':
+        parts.push(`waiver=${fields.waiver}`);
+        break;
+      case 'v2':
+        parts.push(`signoff=${fields.signoff}`);
+        break;
+    }
   }
-  if (classification.loosening) {
+  if (fields.loosening) {
     parts.push('loosening=yes');
   }
   return parts.join(' ');

@@ -22,13 +22,14 @@ relevant to your task before editing code — see
 - [Approval carry-over](approval-carry-over.md) — how a review on an earlier
   commit keeps counting: verified clean base merges, verified clean rebases after
   a force-push, and the fail-closed rules behind both.
-- [UAT labels](uat.md) — how the four UAT labels are reconciled: the six rules,
-  why the exemptions are a title allowlist with a path fallback, binding
-  sign-offs to the head, why `UAT passed` doesn't carry over a rebase, and why
-  the labels are for people only.
+- [UAT labels](uat.md) — how the four UAT labels are reconciled: the nine
+  rules, why the review agent's verdict decides UAT instead of title or path
+  heuristics, binding and carrying people's sign-offs, the attested pass after a
+  hand-resolved conflict, and why the labels are for people only.
 - [The sign-off status](sign-off-status.md) — the `pr-lifecycle/sign-off`
   commit status: a versioned contract with pr-policy saying which sign-off a
-  head needs (`none`, `ci`, `uat`), the waiver state, and any CI loosening.
+  head needs (`none`, `ci`, `uat`), the UAT sign-off found (`v2`) or the waiver
+  state (`v1`), and any CI loosening.
 - [CI loosening](ci-loosening.md) — how a workflow diff is classified as
   tightening or loosening: the indicators, the containment backstop, and fail-closed
   reads.

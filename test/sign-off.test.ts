@@ -9,10 +9,18 @@ import {
   SIGN_OFF_REASONS,
   signOffStatusDescription,
 } from '../src/sign-off.js';
+import { planSignOff } from '../src/sign-off-plan.js';
 import { waiverState } from '../src/uat.js';
 import { BASE_WORKFLOW, edited } from './ci-change/fixtures/workflow.js';
-import { makeAuthor } from './fixtures.js';
-import { BEFORE_HEAD, makeSignOff, makeUatFacts, withSignOffs } from './uat-fixtures.js';
+import { makeAuthor, OLD_SHA } from './fixtures.js';
+import {
+  BEFORE_HEAD,
+  makeApproval,
+  makeSignOff,
+  makeUatFacts,
+  makeUatReview,
+  withSignOffs,
+} from './uat-fixtures.js';
 
 const WORKFLOW = '.github/workflows/ci.yml';
 
@@ -65,7 +73,7 @@ describe('classifySignOff — ci PRs', () => {
   it('needs nothing for a ci PR whose workflow change only tightens', () => {
     expect(classify('ci: test on node 24', [WORKFLOW], [TIGHTENING])).toEqual({
       requirement: 'none',
-      reason: 'trivial-paths',
+      reason: 'ci-safe',
       loosening: false,
     });
   });
@@ -122,16 +130,20 @@ describe('classifySignOff — other PRs', () => {
     expect(classify('chore: tidy', ['src/a.ts']).requirement).toBe('uat');
   });
 
-  it.each(['docs: a', 'test: a', 'refactor: a'])('needs nothing for %j', (title) => {
+  it.each(['docs: a', 'test: a', 'refactor: a'])('needs UAT for %j: no title exempts', (title) => {
     expect(classify(title, ['src/a.ts'])).toEqual({
-      requirement: 'none',
-      reason: 'safe-title',
+      requirement: 'uat',
+      reason: 'needs-uat',
       loosening: false,
     });
   });
 
-  it('needs nothing when every path is trivial', () => {
-    expect(classify('chore(deps): bump', ['pnpm-lock.yaml']).reason).toBe('trivial-paths');
+  it('needs UAT when every path is trivial: no path exempts', () => {
+    expect(classify('chore(deps): bump', ['pnpm-lock.yaml']).reason).toBe('needs-uat');
+  });
+
+  it('needs UAT for a docs-only PR', () => {
+    expect(classify('docs: a', ['README.md']).requirement).toBe('uat');
   });
 
   it('needs nothing with UAT off', () => {
@@ -142,10 +154,10 @@ describe('classifySignOff — other PRs', () => {
     });
   });
 
-  it('reports a loosening on a docs PR that bundles one', () => {
+  it('treats a docs PR that bundles a loosening as a CI change', () => {
     expect(classify('docs: a', ['README.md', WORKFLOW], [LOOSENING])).toEqual({
-      requirement: 'none',
-      reason: 'safe-title',
+      requirement: 'ci',
+      reason: 'ci-loosening',
       loosening: true,
     });
   });
@@ -173,7 +185,7 @@ describe('classifySignOff — CI changes under other titles', () => {
   it('needs nothing for a chore(deps) action pin bump', () => {
     expect(classify('chore(deps): bump actions', [WORKFLOW], [PIN_BUMP])).toEqual({
       requirement: 'none',
-      reason: 'trivial-paths',
+      reason: 'ci-safe',
       loosening: false,
     });
   });
@@ -217,8 +229,7 @@ describe('classifySignOff — CI changes under other titles', () => {
 
 describe('requirementFor', () => {
   it.each([
-    ['safe-title', 'none'],
-    ['trivial-paths', 'none'],
+    ['ci-safe', 'none'],
     ['uat-off', 'none'],
     ['ci-loosening', 'ci'],
     ['ci-paths', 'ci'],
@@ -255,41 +266,108 @@ describe('waiverState', () => {
 });
 
 describe('signOffStatusDescription', () => {
-  it.each([
-    [{ requirement: 'uat', loosening: false }, 'current', 'v1 requirement=uat waiver=current'],
-    [
-      { requirement: 'uat', loosening: true },
-      'stale',
-      'v1 requirement=uat waiver=stale loosening=yes',
-    ],
-    [{ requirement: 'ci', loosening: true }, 'absent', 'v1 requirement=ci loosening=yes'],
-    [{ requirement: 'ci', loosening: false }, 'current', 'v1 requirement=ci'],
-    [{ requirement: 'none', loosening: false }, 'current', 'v1 requirement=none'],
-  ] as const)('describes %j with waiver %s as %j', (shape, waiver, description) => {
-    const classification = { ...shape, reason: 'needs-uat' as const };
+  const FIELDS = { waiver: 'current', signoff: 'waived' } as const;
 
-    expect(signOffStatusDescription(classification, waiver)).toBe(description);
+  it.each([
+    ['v1', { requirement: 'uat', loosening: false }, 'v1 requirement=uat waiver=current'],
+    [
+      'v1',
+      { requirement: 'uat', loosening: true },
+      'v1 requirement=uat waiver=current loosening=yes',
+    ],
+    ['v1', { requirement: 'ci', loosening: true }, 'v1 requirement=ci loosening=yes'],
+    ['v1', { requirement: 'none', loosening: false }, 'v1 requirement=none'],
+    ['v2', { requirement: 'uat', loosening: false }, 'v2 requirement=uat signoff=waived'],
+    [
+      'v2',
+      { requirement: 'uat', loosening: true },
+      'v2 requirement=uat signoff=waived loosening=yes',
+    ],
+    ['v2', { requirement: 'ci', loosening: false }, 'v2 requirement=ci'],
+    ['v2', { requirement: 'none', loosening: false }, 'v2 requirement=none'],
+  ] as const)('writes %s %j as %j', (version, shape, description) => {
+    expect(signOffStatusDescription(version, { ...shape, ...FIELDS })).toBe(description);
   });
 
-  it('always matches the v1 grammar, with waiver exactly on uat and within 140 characters', () => {
-    const grammar =
-      /^v1 requirement=(none|ci|uat)( waiver=(current|stale|absent))?( loosening=yes)?$/;
-    fc.assert(
-      fc.property(
-        fc.constantFrom(...SIGN_OFF_REASONS),
-        fc.boolean(),
-        fc.constantFrom('current', 'stale', 'absent'),
-        (reason, loosening, waiver) => {
-          const classification = { requirement: requirementFor(reason), reason, loosening };
-          const description = signOffStatusDescription(classification, waiver);
-          const match = grammar.exec(description);
-          expect([
-            match !== null,
-            (match?.[2] !== undefined) === (classification.requirement === 'uat'),
-            description.length <= 140,
-          ]).toEqual([true, true, true]);
-        },
-      ),
+  it.each([
+    ['v1', /^v1 requirement=(none|ci|uat)( waiver=(current|stale|absent))?( loosening=yes)?$/],
+    ['v2', /^v2 requirement=(none|ci|uat)( signoff=(waived|passed|absent))?( loosening=yes)?$/],
+  ] as const)(
+    'always matches the %s grammar, with the sign-off exactly on uat and within 140 characters',
+    (version, grammar) => {
+      fc.assert(
+        fc.property(
+          fc.constantFrom(...SIGN_OFF_REASONS),
+          fc.boolean(),
+          fc.constantFrom('current', 'stale', 'absent'),
+          fc.constantFrom('waived', 'passed', 'absent'),
+          (reason, loosening, waiver, signoff) => {
+            const requirement = requirementFor(reason);
+            const description = signOffStatusDescription(version, {
+              requirement,
+              loosening,
+              waiver,
+              signoff,
+            });
+            const match = grammar.exec(description);
+            expect([
+              match !== null,
+              (match?.[2] !== undefined) === (requirement === 'uat'),
+              description.length <= 140,
+            ]).toEqual([true, true, true]);
+          },
+        ),
+      );
+    },
+  );
+});
+
+describe('planSignOff — the status for each UAT outcome', () => {
+  function describeFor(facts: PullRequestFacts, signOffStatus: 'v1' | 'v2'): string | undefined {
+    return planSignOff(facts, { uat: 'on', signOffStatus })?.status.description;
+  }
+
+  it('reports no sign-off for a PR approved through bot eligibility', () => {
+    expect(describeFor(makeUatFacts({ botEligible: true }), 'v2')).toBe('v2 requirement=none');
+  });
+
+  it('defaults to v1', () => {
+    expect(planSignOff(makeUatFacts(), { uat: 'on' })?.status.description).toBe(
+      'v1 requirement=uat waiver=absent',
+    );
+  });
+
+  it("reports the review agent's waiver as waived in v2", () => {
+    const facts = makeUatFacts({ reviews: [makeUatReview('not-needed')] });
+
+    expect(describeFor(facts, 'v2')).toBe('v2 requirement=uat signoff=waived');
+  });
+
+  it("leaves the review agent's waiver to a person's label in v1", () => {
+    const facts = makeUatFacts({ reviews: [makeUatReview('not-needed')] });
+
+    expect(describeFor(facts, 'v1')).toBe('v1 requirement=uat waiver=absent');
+  });
+
+  it("reports a person's waiver as waived in v2", () => {
+    expect(describeFor(withSignOffs(makeUatFacts(), makeSignOff()), 'v2')).toBe(
+      'v2 requirement=uat signoff=waived',
+    );
+  });
+
+  it('reports a carried UAT passed as passed in v2', () => {
+    const facts = withSignOffs(
+      makeUatFacts({ reviews: [makeApproval(OLD_SHA)], cleanAncestors: [OLD_SHA] }),
+      makeSignOff({ label: 'UAT passed', appliedAt: BEFORE_HEAD }),
+    );
+    facts.commitArrivals = { ...facts.commitArrivals, [OLD_SHA]: '2026-10-19T08:00:00Z' };
+
+    expect(describeFor(facts, 'v2')).toBe('v2 requirement=uat signoff=passed');
+  });
+
+  it('reports an approved PR waiting for UAT as absent in v2', () => {
+    expect(describeFor(makeUatFacts({ reviews: [makeApproval()] }), 'v2')).toBe(
+      'v2 requirement=uat signoff=absent',
     );
   });
 });

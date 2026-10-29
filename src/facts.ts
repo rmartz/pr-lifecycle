@@ -7,6 +7,9 @@
 import type { CiStatus } from './ci.js';
 import type { FileChange, SignOffStatusFact, UatSignOffFact } from './sign-off-facts.js';
 
+export { SIGN_OFF_STATUS_VERSIONS, UAT_SETTINGS } from './policy.js';
+export type { ReconcilePolicy, SignOffStatusVersion, UatSetting } from './policy.js';
+
 export {
   CI_CHANGE_APPROVED_LABEL,
   SIGN_OFF_LABELS,
@@ -160,13 +163,13 @@ export interface PullRequestFacts {
    */
   pendingBotReviewers: readonly string[];
   /**
-   * Every path the PR touches, a rename's old path included. Absent when not
-   * gathered or when the listing was incomplete: then no path rule can exempt the
-   * PR from UAT (fails closed). Gathered only when UAT is on and the title alone
-   * doesn't exempt the PR.
+   * Every path the PR touches, a rename's old path included, for the CI
+   * classification. Absent when not gathered or when the listing was incomplete:
+   * then the PR isn't a CI change, and counts as a loosening (fails closed).
+   * Gathered whenever sign-offs are reconciled on an open PR.
    */
   changedPaths?: readonly string[];
-  /** Base (merge base) and head text of each changed `package.json`, for the UAT path rules. */
+  /** Base (merge base) and head text of each changed `package.json`, for the CI classification's path rules. */
   manifestChanges?: readonly FileChange[];
   /**
    * The latest application of each UAT sign-off label present on the PR.
@@ -174,15 +177,20 @@ export interface PullRequestFacts {
    */
   uatSignOffs?: readonly UatSignOffFact[];
   /**
-   * When each commit a sign-off could be bound to (the head, and the commits
-   * carry-over verified) first had a check suite on the PR's branch (ISO-8601).
+   * Every application of `UAT passed`, by anyone, oldest first, whether or not
+   * the label is still on the PR. Read only when a review records
+   * `uat: unchanged`, to find the person's pass it attests (docs/uat.md rule 5).
+   */
+  uatPassedHistory?: readonly UatSignOffFact[];
+  /**
+   * When each commit a sign-off could be bound to (the head, the commits
+   * carry-over verified, and, with `uatPassedHistory`, every commit on the PR and
+   * each `uat_since`) first had a check suite on the PR's branch (ISO-8601).
    * With the force-pushes, this is when a commit became the head: a time the
    * author can't forge, unlike a commit date. A commit with no entry has no known
    * arrival, so no sign-off binds to it.
    */
   commitArrivals?: Readonly<Record<string, string>>;
-  /** When the PR's title was changed (ISO-8601), from its issue events; read with the sign-offs. */
-  titleChanges?: readonly string[];
   /**
    * Merge-base and head text of each changed `.github/workflows/**` file, for
    * the CI loosening rules. A changed workflow with no entry counts as a
@@ -195,44 +203,3 @@ export interface PullRequestFacts {
    */
   signOffStatus?: SignOffStatusFact;
 }
-
-export interface ReconcilePolicy {
-  /**
-   * When set, only these logins (case-insensitive) may author a counting verdict,
-   * in addition to the write-permission requirement. It narrows trust and never
-   * widens it.
-   */
-  trustedAuthors?: readonly string[];
-  /** Arm/disarm native auto-merge from the lifecycle state. Off by default. */
-  armAutoMerge?: boolean;
-  /**
-   * Bring an approved PR up to date with `update-branch` when merge-safety labels
-   * it `update required`. A Dependabot PR is never updated (see `UpdateAction`).
-   * Off by default.
-   */
-  autoUpdate?: boolean;
-  /**
-   * Don't wait for requested bot reviewers (e.g. Copilot) before
-   * `review-requested`. Rarely needed: a bot that won't review is never requested.
-   * Off by default. Deprecated: the wait now ends on its own; kept so existing
-   * callers keep working.
-   */
-  skipCopilotReview?: boolean;
-  /**
-   * Required checks whose *pending* is a hold on a human act, not a running build;
-   * their failures still count. Defaults to `DEFAULT_HOLD_CHECKS` (src/ci.ts).
-   */
-  holdChecks?: readonly string[];
-  /** Required checks the CI gate never counts. Defaults to `DEFAULT_IGNORED_CHECKS`. */
-  ignoredChecks?: readonly string[];
-  /**
-   * The repo's UAT setting, which also turns on reconciling the UAT labels
-   * (docs/uat.md): `on` holds a PR that could be user-facing at `UAT pending`
-   * until it is signed off, and `off` gives every PR `no UAT needed`. Absent, the
-   * UAT labels are neither read nor written. The CLI passes `on` unless `--uat off`.
-   */
-  uat?: UatSetting;
-}
-
-export const UAT_SETTINGS = ['off', 'on'] as const;
-export type UatSetting = (typeof UAT_SETTINGS)[number];
