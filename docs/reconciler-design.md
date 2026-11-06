@@ -167,6 +167,16 @@ makes it `pending`. Two policy lists adjust what "counted" means:
 pr-policy reports **pending** while waiting on a sign-off and **fails** for
 fixable problems such as a bad title, so it's a hold check: a sign-off wait must
 not look like CI still running, but a fixable failure should route to a fix.
+
+That split is a contract with pr-policy: a failure must be something a fix pass
+can clear, and anything awaiting a person's decision must be pending.
+pr-lifecycle routes on the outcome alone, never on pr-policy's findings. An
+undecided dependency major (a Dependabot major awaiting `breaking change` or
+`contained break`) is such a decision, so pr-policy must report it pending.
+pr-policy currently reports it as a failure, which deadlocks the PR in
+`ci-failing`: only a review can clear it, and there is nothing in the branch to
+fix. rmartz/pr-policy#115 moves it to pending. Once that ships, and with every
+other gate clear, the PR reaches `review-requested`.
 merge-safety currently fails for "update needed" and "base is red", which other
 states handle, so it's ignored. Once it reports Pending instead, as planned, it
 can become a hold check.
