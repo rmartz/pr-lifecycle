@@ -77,7 +77,10 @@ before pr-policy's title check passes: Dependabot can't set a per-group prefix.
 Other patch and minor
 bumps are batched, per dependency type for npm and in one group for Actions, so
 the reconciler can approve and arm them as eligible bot PRs. Every major gets its
-own PR for review, so a pending major never holds the routine bumps back. Every
+own PR for review, so a pending major never holds the routine bumps back. The
+exception is `@types/node`: its majors are ignored because Dependabot can't move
+the Node runtime with them (the setup action's `node-version` and `engines`), so
+bump the types major by hand in the same PR as the runtime upgrade. Every
 npm dependency resolves from npmjs, so the npm entry needs no registry credentials.
 
 ## Pilot read-out
