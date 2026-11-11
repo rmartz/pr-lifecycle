@@ -15,7 +15,7 @@ name: Release
 # filename — so there is no NPM_TOKEN secret. Renaming this file breaks publishing
 # until the trusted publisher on npmjs is updated to match. Provenance attestations
 # are generated automatically. OIDC publishing needs npm >= 11.5.1: the shared
-# workflow runs on Node 24 (npm 11) and, because this workflow grants
+# workflow runs on Node 26 (npm 11) and, because this workflow grants
 # `id-token: write`, fails before tagging if npm is older.
 
 on:
@@ -39,3 +39,4 @@ jobs:
       # the shared workflow installs this repo's dependencies (pnpm, frozen
       # lockfile) first.
       build-command: pnpm run build
+      node-version: 26.x
