@@ -21,6 +21,13 @@ updates:
       prefix: fix
       prefix-development: chore
       include: scope
+    ignore:
+      # @types/node tracks the Node runtime's major (the setup action's
+      # node-version, `engines`), neither of which Dependabot updates. A lone
+      # types major would type-check APIs the runtime lacks, so it moves by hand
+      # with the runtime upgrade. Minors and patches still flow.
+      - dependency-name: '@types/node'
+        update-types: ['version-update:semver-major']
     groups:
       # Prettier isolated (case-by-case choice): any Prettier bump, even a minor,
       # can reformat the tree and fail the Format check, so it gets its own PR.
