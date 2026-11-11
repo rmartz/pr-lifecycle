@@ -20,7 +20,7 @@ tags: [ci, tooling, dependabot, releases, conventions]
 | Releases | semantic-release (`.releaserc.json`)                                  |
 | Hygiene  | `@rmartz/repo-hygiene` (CI action + pre-commit hook)                  |
 
-Node 24 runs CI; the package supports Node ≥ 22.
+Node 26 runs CI, matching the `@types/node` major; the package requires Node ≥ 26.
 
 Every dependency, `@rmartz/*` included, installs from npmjs with no token. The
 repo-root [`.npmrc`](../.npmrc) pins npmjs for both the base registry and the
